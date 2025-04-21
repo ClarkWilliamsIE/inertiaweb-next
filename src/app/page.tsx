@@ -4,7 +4,7 @@ import About     from '../components/about';
 import Makertruck from '../components/makertruck';
 import Support   from '../components/support'
 import Contact   from '../components/contact'
-import Projects   from '../components/Projects'
+import Projects   from '../components/projects'
 
 export default function Page() {
   return (
