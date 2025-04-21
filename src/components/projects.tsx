@@ -1,3 +1,4 @@
+"use client";
 // src/components/Projects.tsx
 import React, { useState } from 'react';
 
