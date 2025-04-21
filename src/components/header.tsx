@@ -1,5 +1,4 @@
 // src/components/Header.tsx
-
 export default function Header() {
   return (
     <header className="bg-inertia-dark text-white fixed w-full z-10">

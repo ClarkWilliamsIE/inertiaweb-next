@@ -1,5 +1,5 @@
-import Header from '@/components/Header'
-import Hero   from '@/components/Hero'
+import Header from '@/components/Header';
+import Hero   from '@/components/Hero';
 
 export default function Page() {
   return (
@@ -7,8 +7,8 @@ export default function Page() {
       <Header />
       <main className="pt-16">
         <Hero />
-        {/* future sections go here */}
+        {/* next sections go here */}
       </main>
     </>
-  )
+  );
 }
