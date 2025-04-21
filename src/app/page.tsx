@@ -1,7 +1,7 @@
 import Header    from '../components/header';
 import Hero      from '../components/hero';
-import About     from '../components/About';
-import Makertruck from '../components/Makertruck';
+import About     from '../components/about';
+import Makertruck from '../components/makertruck';
 
 export default function Page() {
   return (
