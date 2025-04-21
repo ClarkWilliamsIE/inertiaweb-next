@@ -4,6 +4,7 @@ import About     from '../components/about';
 import Makertruck from '../components/makertruck';
 import Support   from '../components/support'
 import Contact   from '../components/contact'
+import Projects   from '../components/Projects'
 
 export default function Page() {
   return (
@@ -13,6 +14,7 @@ export default function Page() {
         <Hero />
         <About />
        <Makertruck />
+       <Projects />
        <Support />
        <Contact />
         {/* next sections go here */}
