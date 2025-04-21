@@ -1,17 +1,24 @@
-import type { Config } from 'tailwindcss';
 import defaultTheme from 'tailwindcss/defaultTheme';
+import type { Config } from 'tailwindcss';
 
-export default {
-  content: ['./src/**/*.{js,jsx,ts,tsx}'],
+const config: Config = {
+  content: [
+    './src/**/*.{js,ts,jsx,tsx}',
+    './pages/**/*.{js,ts,jsx,tsx}',
+    './components/**/*.{js,ts,jsx,tsx}',
+  ],
   theme: {
     extend: {
-      fontFamily: {
-        primary: ['Inter', ...defaultTheme.fontFamily.sans],
-      },
       colors: {
+        inertia: {
+          dark: '#002a40',
+          medium: '#006080',
+          light: '#00a2bf',
+          accent: '#85cca8',
+        },
         primary: {
-          // Customize it on globals.css :root
-          50: 'rgb(var(--tw-color-primary-50) / <alpha-value>)',
+          // Customize via CSS variables in globals.css
+          50:  'rgb(var(--tw-color-primary-50)  / <alpha-value>)',
           100: 'rgb(var(--tw-color-primary-100) / <alpha-value>)',
           200: 'rgb(var(--tw-color-primary-200) / <alpha-value>)',
           300: 'rgb(var(--tw-color-primary-300) / <alpha-value>)',
@@ -24,6 +31,9 @@ export default {
           950: 'rgb(var(--tw-color-primary-950) / <alpha-value>)',
         },
         dark: '#222222',
+      },
+      fontFamily: {
+        primary: ['Inter', ...defaultTheme.fontFamily.sans],
       },
       keyframes: {
         flicker: {
@@ -53,4 +63,6 @@ export default {
     },
   },
   plugins: [require('@tailwindcss/forms')],
-} satisfies Config;
+};
+
+export default config;
