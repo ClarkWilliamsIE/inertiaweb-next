@@ -1,4 +1,5 @@
 "use client";
+
 // src/components/Projects.tsx
 import React, { useState } from 'react';
 
@@ -34,7 +35,7 @@ const projects: Project[] = [
     image: '/images/p4.jpeg',
     description: `Interactive Māori cloak with LED accents that light up in patterns synced to haka rhythms.`,
   },
-  // add more projects here as needed...
+  // Add more projects as needed...
 ];
 
 export default function Projects() {
@@ -43,8 +44,31 @@ export default function Projects() {
 
   return (
     <section id="projects" className="py-16 bg-white">
-      <div className="max-w-6xl mx-auto px-4">
-        <h2 className="text-3xl font-bold text-inertia-dark mb-8">Projects</h2>
+      <div className="max-w-6xl mx-auto px-4 space-y-12">
+
+        {/* Collaborative Project Intro */}
+        <div>
+          <p className="text-lg text-gray-700 mb-4">
+            A collaborative project within the Mobile Makerspace Initiative would involve students, teachers, and local community members working together to address real‑world challenges or create innovative solutions, such as building an automated vertical garden, developing unique cultural experiences through technology, or engineering small‑scale flying vehicles.
+          </p>
+          <p className="text-lg text-gray-700 mb-4">
+            High schools would benefit from the opportunity to integrate cutting‑edge STEAM concepts into their curricula, while teachers would gain valuable professional development and hands‑on experience.
+          </p>
+          <p className="text-lg text-gray-700 mb-4">
+            The community would be engaged through access to the resources during the course of the year and public showcases of these diverse and high impact projects, fostering a sense of collective pride and accomplishment.
+          </p>
+          <p className="text-lg text-gray-700 mb-4">
+            Ultimately, these collaborative efforts would contribute to a brighter future for innovation and technology in Aotearoa by nurturing the next generation of creative thinkers, problem solvers, and skilled professionals, ensuring the nation remains at the forefront of global education.
+          </p>
+          <p className="text-lg text-gray-700 mb-4">
+            The kaupapa behind the projects is decided in collaboration ahead of time with each school, ensuring we’re responsive to the community we join. School holiday periods are used to upskill and prepare for the next project.
+          </p>
+          <p className="text-lg text-gray-700">
+            Below are some examples of what projects could look like:
+          </p>
+        </div>
+
+        {/* Projects Accordion Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((p) => (
             <div key={p.id} className="border rounded-lg overflow-hidden shadow-sm">
