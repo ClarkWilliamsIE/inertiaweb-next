@@ -1,6 +1,7 @@
-import Header from '../components/header';
-import Hero   from '../components/hero';
-import About  from '../components/about';
+import Header    from '../components/header';
+import Hero      from '../components/hero';
+import About     from '../components/About';
+import Makertruck from '../components/Makertruck';
 
 export default function Page() {
   return (
@@ -8,7 +9,8 @@ export default function Page() {
       <Header />
       <main className="pt-16">
         <Hero />
-+       <About />
+        <About />
+       <Makertruck />
         {/* next sections go here */}
       </main>
     </>
