@@ -1,53 +1,75 @@
 "use client";
 
+// src/components/Projects.tsx
 import React, { useState } from 'react';
 
 type Project = {
   id: number;
   title: string;
   image: string;
-  description: string;
+  bullets: string[];
+  author?: string;
 };
 
 const projects: Project[] = [
   {
     id: 1,
-    title: 'Motion Capture Sport Analysis',
+    title: 'Creating a Vertical Garden with Automation and Interactive Statistic Interfaces',
     image: '/images/p1.jpg',
-    description: `Using motion‑capture to analyze athletic performance, giving real‑time feedback to improve technique.`,
+    bullets: [
+      'Students will design and construct a vertical garden, incorporating automated watering and feeding systems. They will also create interactive interfaces that track and display various statistics such as plant growth, water usage, and nutrient levels. This would be in a purpose built space like a sapre room or container on-site which would continue to be used and developed long after the year residency.',
+      'Technology, Mathematics, Science, Digital Technologies, Design and Visual Communication, Horticulture, Mathematics, Biology',
+      'Design thinking, systems engineering, automation, data analysis, problem‑solving, computational thinking, sustainability',
+    ],
   },
   {
     id: 2,
-    title: 'Digital Pasifika Instruments',
+    title: 'Creating Kapa Haka Costumes with Neopixel LEDs',
     image: '/images/p2.jpg',
-    description: `Custom neopixel instruments blending Pasifika art and technology to teach coding through music.`,
+    bullets: [
+      'Students will design and create Kapa Haka costumes incorporating Neopixel LEDs. They will code these LEDs to create a light show that reflects the narrative (pūrakau) of performances that they will create that year and continue to create with the new skills developed at the school.',
+      'Technology, Arts, Te Reo Māori, Digital Technologies, Textile Technology, Dance, Drama, Māori Performing Arts',
+      'Electrical engineering, coding, design thinking, systems thinking, creativity, cultural awareness',
+    ],
   },
   {
     id: 3,
-    title: 'Vertical Garden',
+    title: 'Re-imagining Instruments from across the Pacific',
     image: '/images/p3.jpg',
-    description: `Hydroponic tower gardens built by students to learn biology, engineering, and sustainability.`,
+    bullets: [
+      'Students will research traditional Pacific instruments, then design, build, and play a new generation of these instruments, combining traditional elements with modern innovations.',
+      'Technology, Arts, Social Sciences, Music, Design and Visual Communication, Wood Technology, Social Studies, History',
+      'Acoustical engineering, design thinking, innovation, cultural awareness, craftsmanship',
+    ],
   },
   {
     id: 4,
-    title: 'Kapa Haka Neopixel Kākahu',
+    title: 'Motion Capture Sport Analysis Systems',
     image: '/images/p4.jpeg',
-    description: `Interactive Māori cloak with LED accents that light up in patterns synced to haka rhythms.`,
+    bullets: [
+      'Students will learn about and use motion capture technology to analyse sports performances. They will then use this analysis to develop models for performance improvement.',
+      'Technology, Health and Physical Education, Mathematics, Digital Technologies, Physical Education, Health Science',
+      'Biomechanical engineering, data analysis, software engineering, problem‑solving, computational thinking, sports science',
+    ],
+    author: 'Made by Clark Williams',
   },
-  // Add more projects as needed...
 ];
 
 export default function Projects() {
   const [introOpen, setIntroOpen] = useState(false);
   const [openId, setOpenId] = useState<number | null>(null);
-  const toggleProject = (id: number) => setOpenId(openId === id ? null : id);
+
+  const toggleProject = (id: number) =>
+    setOpenId(openId === id ? null : id);
 
   return (
     <section id="projects" className="py-16 bg-white">
       <div className="max-w-6xl mx-auto px-4 space-y-8">
 
         {/* Title */}
-        <h2 className="text-3xl font-bold text-inertia-dark">Projects</h2>
+        <h2 className="text-3xl font-bold text-inertia-dark">
+          Projects
+        </h2>
 
         {/* Intro Toggle */}
         <button
@@ -75,14 +97,19 @@ export default function Projects() {
             <p>
               The kaupapa behind the projects is decided in collaboration ahead of time with each school, ensuring we’re responsive to the community we join. School holiday periods are used to upskill and prepare for the next project.
             </p>
-            <p className="italic">Below are some examples of what projects could look like:</p>
+            <p className="italic">
+              Below are some examples of what projects could look like:
+            </p>
           </div>
         )}
 
         {/* Projects Accordion Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((p) => (
-            <div key={p.id} className="border rounded-lg overflow-hidden shadow-sm">
+            <div
+              key={p.id}
+              className="border rounded-lg overflow-hidden shadow-sm"
+            >
               <button
                 onClick={() => toggleProject(p.id)}
                 className="focus:outline-none w-full"
@@ -99,8 +126,17 @@ export default function Projects() {
                 </div>
               </button>
               {openId === p.id && (
-                <div className="px-4 pb-4 text-gray-700">
-                  <p>{p.description}</p>
+                <div className="px-4 pb-4 text-gray-700 space-y-2">
+                  <ul className="list-disc list-inside">
+                    {p.bullets.map((b, i) => (
+                      <li key={i}>{b}</li>
+                    ))}
+                  </ul>
+                  {p.author && (
+                    <p className="mt-2 text-sm italic text-gray-500">
+                      {p.author}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
