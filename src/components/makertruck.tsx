@@ -33,25 +33,29 @@ export default function Makertruck() {
           </p>
         </div>
 
-        {/* Truck Gallery */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <figure>
-            <img src="/images/expandinside.jpg" alt="Inside the Makertruck" className="w-full rounded-lg shadow-md" />
-            <figcaption className="mt-2 text-center text-gray-600">Inside View</figcaption>
-          </figure>
-          <figure>
-            <img src="/images/outsideview.jpg" alt="Makertruck exterior" className="w-full rounded-lg shadow-md" />
-            <figcaption className="mt-2 text-center text-gray-600">Outside View</figcaption>
-          </figure>
-          <figure>
-            <img src="/images/truck2.png" alt="Makertruck rear" className="w-full rounded-lg shadow-md" />
-            <figcaption className="mt-2 text-center text-gray-600">Rear View</figcaption>
-          </figure>
-          <figure>
-            <img src="/images/Subtest.png" alt="Makertruck in action" className="w-full rounded-lg shadow-md" />
-            <figcaption className="mt-2 text-center text-gray-600">In Action</figcaption>
-          </figure>
-        </div>
+{/* Truck Gallery */}
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+  {[
+    { src: '/images/expandinside.jpg', caption: 'Inside View' },
+    { src: '/images/outsideview.jpg', caption: 'Outside View' },
+    { src: '/images/truck2.png', caption: 'Rear View' },
+    { src: '/images/Subtest.png', caption: 'In Action' },
+  ].map(({ src, caption }) => (
+    <figure key={src} className="text-center">
+      <div className="w-full aspect-square overflow-hidden rounded-lg shadow-md">
+        <img
+          src={src}
+          alt={caption}
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <figcaption className="mt-2 text-gray-600">
+        {caption}
+      </figcaption>
+    </figure>
+  ))}
+</div>
+
 
 
         {/* Community Outcomes */}
