@@ -53,7 +53,6 @@ export default function Makertruck() {
           </figure>
         </div>
 
-        </div>
 
         {/* Community Outcomes */}
         <div>
