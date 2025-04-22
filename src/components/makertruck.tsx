@@ -135,11 +135,8 @@ export default function Makertruck() {
               <figure key={i}>
                 <img
                   src={`/images/c${i + 1}.jpg`}
-                  alt={`Community Impact ${i + 1}`}
                   className="w-full rounded-lg shadow-md"
                 />
-                <figcaption className="mt-2 text-center text-gray-600">
-                  {`Community Impact ${i + 1}`}
                 </figcaption>
               </figure>
             ))}
