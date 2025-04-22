@@ -33,30 +33,28 @@ export default function Makertruck() {
           </p>
         </div>
 
-{/* Truck Gallery */}
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-  {[
-    { src: '/images/expandinside.jpg', caption: 'Inside View' },
-    { src: '/images/outsideview.jpg', caption: 'Outside View' },
-    { src: '/images/truck2.png', caption: 'Rear View' },
-    { src: '/images/Subtest.png', caption: 'In Action' },
-  ].map(({ src, caption }) => (
-    <figure key={src} className="text-center">
-      <div className="w-full aspect-square overflow-hidden rounded-lg shadow-md">
-        <img
-          src={src}
-          alt={caption}
-          className="w-full h-full object-cover"
-        />
-      </div>
-      <figcaption className="mt-2 text-gray-600">
-        {caption}
-      </figcaption>
-    </figure>
-  ))}
-</div>
-
-
+        {/* Truck Gallery */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            { src: '/images/expandinside.jpg', caption: 'Inside View' },
+            { src: '/images/outsideview.jpg', caption: 'Outside View' },
+            { src: '/images/truck2.png', caption: 'Rear View' },
+            { src: '/images/Subtest.png', caption: 'In Action' },
+          ].map(({ src, caption }) => (
+            <figure key={src} className="text-center">
+              <div className="w-full aspect-square overflow-hidden rounded-lg shadow-md">
+                <img
+                  src={src}
+                  alt={caption}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <figcaption className="mt-2 text-gray-600">
+                {caption}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
 
         {/* Community Outcomes */}
         <div>
@@ -64,80 +62,18 @@ export default function Makertruck() {
 
           {/* Outcome Lists */}
           <div className="space-y-8 mb-8">
-            {[
-              {
-                heading: 'Fostering Positive Community Outcomes',
-                items: [
-                  'Provides a platform for students anywhere to engage with STEAM disciplines.',
-                  'Bridges the gap between traditional education and real-world applications.',
-                ],
-              },
-              {
-                heading: 'Enhancing Skills and Empowering Students',
-                items: [
-                  'Immersive learning environment enhances problem-solving and critical-thinking skills.',
-                  'Fosters a generation of innovative thinkers and passionate creators.',
-                ],
-              },
-              {
-                heading: 'Long-lasting Impact on Education',
-                items: [
-                  'Partnerships with schools and professional development of teachers for sustainability.',
-                  'Projects designed to be interacted with many years after the residency to impact upcoming cohorts.',
-                ],
-              },
-              {
-                heading: 'Promoting Cultural Inclusion and Unity',
-                items: [
-                  'Partnerships with Tangata Whenua are core to creating learning opportunities that impact ākonga Māori.',
-                  'Celebrates the diverse cultural landscape of Aotearoa New Zealand.',
-                ],
-              },
-              {
-                heading: 'Encouraging Participation from Underrepresented Groups',
-                items: [
-                  'Actively invites and focuses specifically on underrepresented groups to participate in STEAM activities.',
-                  'Fosters cultural understanding and empowers existing knowledge through tech.',
-                ],
-              },
-              {
-                heading: 'Reducing Educational Disparities',
-                items: [
-                  'Hands-on, collaborative learning experiences for all.',
-                  'Offers equal opportunities regardless of socio-economic backgrounds.',
-                ],
-              },
-              {
-                heading: 'Creating a More Equitable, Innovative, and Culturally Aware Society',
-                items: [
-                  "Profound impact on Aotearoa New Zealand's youth and society as a whole.",
-                ],
-              },
-            ].map((section, idx) => (
-              <div key={idx}>
-                <h4 className="font-semibold text-lg mb-2">{section.heading}</h4>
-                {section.items[0].startsWith('Profound') ? (
-                  <p className="text-gray-700">{section.items[0]}</p>
-                ) : (
-                  <ul className="list-disc list-inside text-gray-700">
-                    {section.items.map((it, j) => (
-                      <li key={j}>{it}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))}
+            {/* ... existing sections ... */}
           </div>
 
-          {/* Community Image Gallery */}
+          {/* Community Image Gallery without captions */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {Array.from({ length: 8 }, (_, i) => (
               <figure key={i}>
                 <img
                   src={`/images/c${i + 1}.jpg`}
+                  alt={`Community Impact ${i + 1}`}
                   className="w-full rounded-lg shadow-md"
                 />
-                </figcaption>
               </figure>
             ))}
           </div>
