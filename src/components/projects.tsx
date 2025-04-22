@@ -15,7 +15,7 @@ const projects: Project[] = [
   {
     id: 1,
     title: 'Creating a Vertical Garden with Automation and Interactive Statistic Interfaces',
-    image: '/images/p1.jpg',
+    image: '/images/p3.jpg',
     bullets: [
       'Students will design and construct a vertical garden, incorporating automated watering and feeding systems. They will also create interactive interfaces that track and display various statistics such as plant growth, water usage, and nutrient levels. This would be in a purpose built space like a sapre room or container on-site which would continue to be used and developed long after the year residency.',
       'Technology, Mathematics, Science, Digital Technologies, Design and Visual Communication, Horticulture, Mathematics, Biology',
@@ -25,7 +25,7 @@ const projects: Project[] = [
   {
     id: 2,
     title: 'Creating Kapa Haka Costumes with Neopixel LEDs',
-    image: '/images/p2.jpg',
+    image: '/images/p4.jpg',
     bullets: [
       'Students will design and create Kapa Haka costumes incorporating Neopixel LEDs. They will code these LEDs to create a light show that reflects the narrative (pūrakau) of performances that they will create that year and continue to create with the new skills developed at the school.',
       'Technology, Arts, Te Reo Māori, Digital Technologies, Textile Technology, Dance, Drama, Māori Performing Arts',
@@ -34,8 +34,8 @@ const projects: Project[] = [
   },
   {
     id: 3,
-    title: 'Re-imagining Instruments from across the Pacific',
-    image: '/images/p3.jpg',
+    title: 'Re-imagining Instruments from across the Pacific (Credit: Rachel Hall)',
+    image: '/images/p2.jpg',
     bullets: [
       'Students will research traditional Pacific instruments, then design, build, and play a new generation of these instruments, combining traditional elements with modern innovations.',
       'Technology, Arts, Social Sciences, Music, Design and Visual Communication, Wood Technology, Social Studies, History',
@@ -45,7 +45,7 @@ const projects: Project[] = [
   {
     id: 4,
     title: 'Motion Capture Sport Analysis Systems',
-    image: '/images/p4.jpeg',
+    image: '/images/p1.jpeg',
     bullets: [
       'Students will learn about and use motion capture technology to analyse sports performances. They will then use this analysis to develop models for performance improvement.',
       'Technology, Health and Physical Education, Mathematics, Digital Technologies, Physical Education, Health Science',

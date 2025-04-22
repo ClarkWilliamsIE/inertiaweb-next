@@ -38,8 +38,8 @@ export default function Makertruck() {
           {[
             { src: '/images/expandinside.jpg', caption: 'Inside View' },
             { src: '/images/outsideview.jpg', caption: 'Outside View' },
-            { src: '/images/truck2.png', caption: 'Rear View' },
-            { src: '/images/Subtest.png', caption: 'In Action' },
+            { src: '/images/truck2.png', caption: 'Portable' },
+            { src: '/images/Subtest.png', caption: 'Innovative Learning' },
           ].map(({ src, caption }) => (
             <figure key={src} className="text-center">
               <div className="w-full aspect-square overflow-hidden rounded-lg shadow-md">
