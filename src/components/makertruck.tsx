@@ -53,14 +53,6 @@ export default function Makertruck() {
           </figure>
         </div>
 
-        {/* Project Descriptions */}
-        <div className="grid gap-6">
-          {['Project 1', 'Project 2', 'Project 3', 'Project 4'].map((title, i) => (
-            <div key={i} className="p-6 bg-white rounded-lg shadow">
-              <h3 className="text-xl font-semibold text-inertia-dark mb-2">{title}</h3>
-              <p className="text-gray-700">{`${title} Description`}</p>
-            </div>
-          ))}
         </div>
 
         {/* Community Outcomes */}
