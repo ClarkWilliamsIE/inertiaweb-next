@@ -3,16 +3,16 @@ import React from 'react';
 
 export default function Header() {
   return (
-    <header className="bg-inertia-dark text-white fixed w-full z-10">
-      <nav className="max-w-6xl mx-auto flex items-center justify-between p-4">
+    <header className="bg-inertia-dark text-white fixed w-full z-10 h-16">
+      <nav className="max-w-6xl mx-auto flex items-center justify-between h-full px-4">
         {/* Logo and Title */}
         <div className="flex items-center space-x-4">
           <img
             src="/images/inertialogo.png"
             alt="Inertia Logo"
-            className="h-16"
+            className="h-8"
           />
-          <span className="text-white font-bold text-2xl">
+          <span className="text-white font-bold text-xl">
             Inertia Education
           </span>
         </div>
