@@ -58,11 +58,75 @@ export default function Makertruck() {
 
         {/* Community Outcomes */}
         <div>
-          <h3 className="text-2xl font-bold text-inertia-dark mb-6">Community Outcomes</h3>
+          <h3 className="text-2xl font-bold text-inertia-dark mb-6">
+            Community Outcomes
+          </h3>
 
           {/* Outcome Lists */}
           <div className="space-y-8 mb-8">
-            {/* ... existing sections ... */}
+            {[
+              {
+                heading: 'Fostering Positive Community Outcomes',
+                items: [
+                  'Provides a platform for students anywhere to engage with STEAM disciplines.',
+                  'Bridges the gap between traditional education and real-world applications.',
+                ],
+              },
+              {
+                heading: 'Enhancing Skills and Empowering Students',
+                items: [
+                  'Immersive learning environment enhances problem-solving and critical-thinking skills.',
+                  'Fosters a generation of innovative thinkers and passionate creators.',
+                ],
+              },
+              {
+                heading: 'Long-lasting Impact on Education',
+                items: [
+                  'Partnerships with schools and professional development of teachers for sustainability.',
+                  'Projects designed to be interacted with many years after the residency to impact upcoming cohorts.',
+                ],
+              },
+              {
+                heading: 'Promoting Cultural Inclusion and Unity',
+                items: [
+                  'Partnerships with Tangata Whenua are core to creating learning opportunities that impact ākonga Māori.',
+                  'Celebrates the diverse cultural landscape of Aotearoa New Zealand.',
+                ],
+              },
+              {
+                heading: 'Encouraging Participation from Underrepresented Groups',
+                items: [
+                  'Actively invites and focuses specifically on underrepresented groups to participate in STEAM activities.',
+                  'Fosters cultural understanding and empowers existing knowledge through tech.',
+                ],
+              },
+              {
+                heading: 'Reducing Educational Disparities',
+                items: [
+                  'Hands-on, collaborative learning experiences for all.',
+                  'Offers equal opportunities regardless of socio-economic backgrounds.',
+                ],
+              },
+              {
+                heading: 'Creating a More Equitable, Innovative, and Culturally Aware Society',
+                items: [
+                  "Profound impact on Aotearoa New Zealand's youth and society as a whole.",
+                ],
+              },
+            ].map((section, idx) => (
+              <div key={idx}>
+                <h4 className="font-semibold text-lg mb-2">{section.heading}</h4>
+                {section.items[0].startsWith('Profound') ? (
+                  <p className="text-gray-700">{section.items[0]}</p>
+                ) : (
+                  <ul className="list-disc list-inside text-gray-700">
+                    {section.items.map((it, j) => (
+                      <li key={j}>{it}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
           </div>
 
           {/* Community Image Gallery without captions */}
@@ -70,8 +134,8 @@ export default function Makertruck() {
             {Array.from({ length: 8 }, (_, i) => (
               <figure key={i}>
                 <img
-                  src={`/images/c${i + 1}.jpg`}
-                  alt={`Community Impact ${i + 1}`}
+                  src={`/images/c${i + 1}.jpg`} 
+                  alt={`Community Impact ${i + 1}`} 
                   className="w-full rounded-lg shadow-md"
                 />
               </figure>
