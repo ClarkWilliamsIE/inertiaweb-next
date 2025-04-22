@@ -63,28 +63,6 @@ export default function Makertruck() {
           ))}
         </div>
 
-        {/* Potential Projects */}
-        <div>
-          <h3 className="text-2xl font-bold text-inertia-dark mb-6">Potential Projects</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { img: 'p1.jpg', title: 'Motion Capture Sport Analysis' },
-              { img: 'p2.jpg', title: 'Digital Pasifika Instruments' },
-              { img: 'p3.jpg', title: 'Vertical Garden' },
-              { img: 'p4.jpeg', title: 'Kapa Haka Neopixel Kākahu' },
-            ].map((proj, i) => (
-              <div key={i}>
-                <img
-                  src={`/images/${proj.img}`}
-                  alt={proj.title}
-                  className="w-full rounded-lg shadow-md"
-                />
-                <h4 className="mt-2 font-semibold text-gray-800">{proj.title}</h4>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Community Outcomes */}
         <div>
           <h3 className="text-2xl font-bold text-inertia-dark mb-6">Community Outcomes</h3>
