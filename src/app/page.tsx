@@ -5,6 +5,7 @@ import Makertruck from '../components/makertruck';
 import Support   from '../components/support'
 import Contact   from '../components/contact'
 import Projects   from '../components/projects'
+import People     from '../components/people'
 
 export default function Page() {
   return (
@@ -15,6 +16,7 @@ export default function Page() {
         <About />
        <Makertruck />
        <Projects />
+       <People />
        <Support />
        <Contact />
         {/* next sections go here */}
