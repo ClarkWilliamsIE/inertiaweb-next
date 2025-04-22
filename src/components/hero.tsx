@@ -38,9 +38,9 @@ export default function Hero() {
       {/* Overlay content */}
       <div className="relative z-10 flex h-full items-center justify-center bg-black bg-opacity-50">
         <div className="text-center text-white px-4">
-          <h1 className="text-4xl md:text-6xl font-bold">Welcome to Inertia</h1>
+          <h1 className="text-4xl md:text-6xl font-bold">Welcome to Inertia Education</h1>
           <p className="mt-4 text-lg md:text-2xl">
-            Crafting interactive experiences in Christchurch.
+            Redefine education and innovation for the next generation in Aotearoa
           </p>
           <a
             href="#about"
