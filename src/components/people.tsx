@@ -2,10 +2,10 @@
 import React from 'react';
 
 const people = [
-  { name: 'Clark Williams', img: '/images/clark-williams.jpg' },
+  { name: 'Clark Williams', img: '/images/Clark.png' },
   { name: 'Irihāpeti Mahuika', img: '/images/irihapeti-mahuika.jpg' },
-  { name: 'Pania Watson', img: '/images/pania-watson.jpg' },
-  { name: 'Lex Davis', img: '/images/lex-davis.jpg' },
+  { name: 'Pania Watson', img: '/images/pania.png' },
+  { name: 'Lex Davis', img: '/images/lex.jpeg' },
 ];
 
 export default function People() {
