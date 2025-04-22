@@ -25,7 +25,7 @@ const projects: Project[] = [
   {
     id: 2,
     title: 'Creating Kapa Haka Costumes with Neopixel LEDs',
-    image: '/images/p4.jpg',
+    image: '/images/p4.jpeg',
     bullets: [
       'Students will design and create Kapa Haka costumes incorporating Neopixel LEDs. They will code these LEDs to create a light show that reflects the narrative (pūrakau) of performances that they will create that year and continue to create with the new skills developed at the school.',
       'Technology, Arts, Te Reo Māori, Digital Technologies, Textile Technology, Dance, Drama, Māori Performing Arts',
@@ -45,7 +45,7 @@ const projects: Project[] = [
   {
     id: 4,
     title: 'Motion Capture Sport Analysis Systems',
-    image: '/images/p1.jpeg',
+    image: '/images/p1.jpg',
     bullets: [
       'Students will learn about and use motion capture technology to analyse sports performances. They will then use this analysis to develop models for performance improvement.',
       'Technology, Health and Physical Education, Mathematics, Digital Technologies, Physical Education, Health Science',
