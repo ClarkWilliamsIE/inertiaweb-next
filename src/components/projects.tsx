@@ -51,7 +51,6 @@ const projects: Project[] = [
       'Technology, Health and Physical Education, Mathematics, Digital Technologies, Physical Education, Health Science',
       'Biomechanical engineering, data analysis, software engineering, problem‑solving, computational thinking, sports science',
     ],
-    author: 'Made by Clark Williams',
   },
 ];
 
