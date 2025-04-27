@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Winnerland!</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- PapaParse -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 1rem;
+      font-family: sans-serif;
+      background: #f5f7fa;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+    .chart-card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-card h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.1rem;
+      text-align: center;
+    }
+    .chart-container {
+      position: relative;
+      flex: 1;
+      height: 200px;
+    }
+    .chart-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Winnerland!</h1>
+  <div class="dashboard" id="dashboard"></div>
+
+  <script>
+    const csvUrl =
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQEJMIKmxhiNNEJ8h-sgxpsSAT8ndO5TK0EVCijAoAv4y-cmmU0YSHFUX8mC6gMBouC9k50FVFQLawN/pub?gid=1666283294&single=true&output=csv';
+
+    Papa.parse(csvUrl, {
+      download: true,
+      header: true,
+      complete: ({ data }) => {
+        const dashboard = document.getElementById('dashboard');
+        const rows = data.filter(r => r.Ticker);
+
+        // compute totals in NZD
+        let totalSpent = 0, totalValue = 0;
+        rows.forEach(r => {
+          const tcUsd   = parseFloat(r['Total Cost'].replace(/[^\d.-]/g,'')) || 0;
+          const mvUsd   = parseFloat(r['Market Value'].replace(/[^\d.-]/g,'')) || 0;
+          const mvNzd   = parseFloat(r['NZD'].replace(/[^\d.-]/g,''))       || 0;
+          const costNzd = mvUsd ? tcUsd * (mvNzd / mvUsd) : 0;
+          totalSpent += costNzd;
+          totalValue += mvNzd;
+        });
+        const totalProfit = totalValue - totalSpent;
+
+        // Pie chart card
+        const pieCard = document.createElement('div');
+        pieCard.className = 'chart-card';
+        pieCard.innerHTML = `
+          <h2>Allocation (NZD)</h2>
+          <div class="chart-container">
+            <canvas id="summaryPie"></canvas>
+          </div>
+        `;
+        dashboard.appendChild(pieCard);
+
+        // Bar chart card
+        const barCard = document.createElement('div');
+        barCard.className = 'chart-card';
+        barCard.innerHTML = `
+          <h2>Portfolio Summary (NZD)</h2>
+          <div class="chart-container">
+            <canvas id="summaryBar"></canvas>
+          </div>
+        `;
+        dashboard.appendChild(barCard);
+
+        // render pie
+        const pieLabels = rows.map(r => r.Ticker);
+        const pieData   = rows.map(r => parseFloat(r['NZD'].replace(/[^\d.-]/g,'')) || 0);
+        new Chart(document.getElementById('summaryPie'), {
+          type: 'doughnut',
+          data: { labels: pieLabels, datasets:[{ data: pieData }] },
+          options: {
+            responsive:true,
+            maintainAspectRatio:false,
+            plugins:{ legend:{ position:'right' } }
+          }
+        });
+
+        // render summary bar
+        new Chart(document.getElementById('summaryBar'), {
+          type: 'bar',
+          data: {
+            labels: ['Spent','Profit','Value'],
+            datasets:[{
+              label:'NZD',
+              data:[totalSpent, totalProfit, totalValue],
+              backgroundColor:[
+                'rgba(54,162,235,0.6)',
+                'rgba(255,205,86,0.6)',
+                'rgba(75,192,192,0.6)'
+              ]
+            }]
+          },
+          options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            scales:{
+              y:{
+                beginAtZero:true,
+                ticks:{ callback: v=> '$'+v.toLocaleString(undefined,{minimumFractionDigits:2}) }
+              }
+            },
+            plugins:{ legend:{ display:false } }
+          }
+        });
+
+        // individual holding cards
+        rows.forEach(r => {
+          const tcUsd    = parseFloat(r['Total Cost'].replace(/[^\d.-]/g,''))       || 0;
+          const mvNzd    = parseFloat(r['NZD'].replace(/[^\d.-]/g,''))             || 0;
+          const mvUsd    = parseFloat(r['Market Value'].replace(/[^\d.-]/g,''))    || 0;
+          const avgUsd   = parseFloat(r['Average cost'].replace(/[^\d.-]/g,''))    || 0;
+          const priceUsd = parseFloat(r.Price.replace(/[^\d.-]/g,''))              || 0;
+          const costNzd  = mvUsd ? tcUsd * (mvNzd / mvUsd) : 0;
+          const profitNzd= mvNzd - costNzd;
+          const pctChange= parseFloat(r['% Change'].replace(/[^\d.-]/g,''))        || 0;
+
+          // create card
+          const card = document.createElement('div');
+          card.className = 'chart-card';
+          card.innerHTML = `
+            <h2>${r.Ticker}</h2>
+            <div class="chart-container">
+              <canvas id="chart-${r.Ticker}"></canvas>
+            </div>
+          `;
+          dashboard.appendChild(card);
+
+          // mixed NZD bars + % line
+          new Chart(document.getElementById(`chart-${r.Ticker}`), {
+            data: {
+              labels: ['Cost','Value','Profit','% Change'],
+              datasets: [
+                {
+                  type: 'bar',
+                  label: 'NZD',
+                  data: [costNzd, mvNzd, profitNzd, null],
+                  backgroundColor: [
+                    'rgba(54,162,235,0.6)',
+                    'rgba(75,192,192,0.6)',
+                    'rgba(255,205,86,0.6)'
+                  ]
+                },
+                {
+                  type: 'line',
+                  label: '% Change',
+                  data: [null, null, null, pctChange],
+                  yAxisID: 'PCT',
+                  borderColor: 'rgba(255,99,132,0.8)',
+                  backgroundColor: 'rgba(255,99,132,0.4)',
+                  tension: 0.3,
+                  pointRadius: 4,
+                  fill: false
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: { display: true, text: 'NZD' },
+                  ticks: { callback: v => '$'+v.toLocaleString() }
+                },
+                PCT: {
+                  type: 'linear',
+                  position: 'right',
+                  title: { display: true, text: '% Change' },
+                  grid: { drawOnChartArea: false },
+                  ticks: { callback: v => v + '%' }
+                }
+              },
+              plugins: {
+                tooltip: {
+                  callbacks: {
+                    label: ctx => {
+                      if (ctx.dataset.type === 'line') {
+                        return `% Change: ${ctx.parsed.y}%`;
+                      }
+                      return `NZD $${ctx.parsed.y.toLocaleString()}`;
+                    }
+                  }
+                },
+                legend: { position: 'bottom' }
+              }
+            }
+          });
+        });
+      },
+      error: err => console.error('CSV load error:', err)
+    });
+  </script>
+</body>
+</html>
