@@ -98,7 +98,7 @@
       <input type="checkbox" id="memberToggle">
       <span class="slider"></span>
     </label>
-    <span>Individual Stake</span>
+    <span>Member view</span>
   </div>
   <div class="dashboard" id="dashboard"></div>
 
@@ -112,7 +112,9 @@
       download: true,
       header: true,
       complete: ({ data }) => {
-        rawRows = data.filter(r => r.Ticker);
+        // Filter out rows where the quantity is 0 or less (no longer owned shares)
+        rawRows = data.filter(r => parseFloat(r['QTY']) > 0 && r.Ticker);
+
         // render initial view
         renderCharts(false);
         // toggle handler
@@ -152,7 +154,7 @@
       const barCard = document.createElement('div');
       barCard.className = 'chart-card';
       barCard.innerHTML = `
-        <h2>Summary (NZD${memberView?' per member':''})</h2>
+        <h2>Portfolio Summary (NZD${memberView?' per member':''})</h2>
         <div class="chart-container"><canvas id="summaryBar"></canvas></div>
       `;
       dashboard.appendChild(barCard);
@@ -213,6 +215,7 @@
         const profitNzd= mvNzd - costNzd;
         const pctChange= parseFloat(r['% Change'].replace(/[^\d.-]/g,''))        || 0;
 
+        // create card
         const card = document.createElement('div');
         card.className = 'chart-card';
         card.innerHTML = `
@@ -223,6 +226,15 @@
         `;
         dashboard.appendChild(card);
 
+        // Change background color for profit/loss
+        const chartContainer = card.querySelector('.chart-container');
+        if (profitNzd >= 0) {
+          card.style.backgroundColor = 'rgba(144, 238, 144, 0.3)'; // light green
+        } else {
+          card.style.backgroundColor = 'rgba(255, 99, 132, 0.3)'; // light red
+        }
+
+        // mixed NZD bars + % line
         new Chart(document.getElementById(`chart-${r.Ticker}`), {
           data:{
             labels:['Cost','Value','Profit','% Change'],
