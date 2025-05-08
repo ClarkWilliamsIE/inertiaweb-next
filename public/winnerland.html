@@ -126,17 +126,11 @@
             return null; // If the portfolio value is empty or zero, discard this row
           }
 
-          // Log date and portfolio value for debugging
-          console.log(`Date: ${date}, Portfolio Value: ${portfolioValue}`);
-          
           return {
             date: date,  // Store the raw date for display on the chart
             portfolioValue: portfolioValue  // Store the portfolio value
           };
         }).filter(row => row !== null);  // Filter out null values (empty or zero portfolio values)
-
-        // Log the portfolioData to ensure it's correct
-        console.log("Filtered Portfolio Data:", portfolioData);
 
         // Render charts
         renderCharts(false);
@@ -194,6 +188,11 @@
       const lineLabels = portfolioData.map(r => r.date);
       const lineData = portfolioData.map(r => r.portfolioValue);
 
+      // Find the min and max values to dynamically adjust the y-axis
+      const minValue = Math.min(...lineData);
+      const maxValue = Math.max(...lineData);
+      const margin = (maxValue - minValue) * 0.1;  // Add 10% margin above and below
+
       new Chart(document.getElementById('portfolioValueLine'), {
         type: 'line',
         data: {
@@ -211,7 +210,8 @@
           maintainAspectRatio: false,
           scales: {
             y: {
-              beginAtZero: true,
+              min: minValue - margin,  // Set the min value with margin
+              max: maxValue + margin,  // Set the max value with margin
               ticks: {
                 callback: function(value) {
                   return '$' + value.toLocaleString(undefined, { minimumFractionDigits: 2 });
