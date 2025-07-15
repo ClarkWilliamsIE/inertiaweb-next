@@ -136,12 +136,10 @@
         card.appendChild(body);
 
         body.innerHTML = `
-          <h2 class="card-title mb-2 text-black">
-            <span>${cal.name}</span>
-            <div class="mt-2">
-              <span class="badge badge-info">${events.length} ${events.length === 1 ? 'event' : 'events'}</span>
-            </div>
-          </h2>
+          <div class="mb-2">
+          <h2 class="card-title text-black mb-1">${cal.name}</h2>
+          <span class="badge badge-info">${events.length} ${events.length === 1 ? 'event' : 'events'}</span>
+          </div>
           <div class="divider"></div>
         `;
 
