@@ -125,7 +125,7 @@
 
       for (const cal of calendars) {
         const card = document.createElement('div');
-        card.className = 'card bg-white dark:bg-white shadow-xl border-2 border-teal-300 rounded-lg hover:shadow-2xl transition-all duration-300 ease-in-out';
+        card.className = 'card bg-white shadow-xl border-2 border-teal-300 rounded-lg hover:shadow-2xl transition-all duration-300 ease-in-out';
         container.appendChild(card);
 
         const events = await fetchEventsForToday(cal.id);
@@ -137,8 +137,8 @@
 
         body.innerHTML = `
           <div class="mb-2">
-          <h2 class="card-title text-black mb-1">${cal.name}</h2>
-          <span class="badge badge-info">${events.length} ${events.length === 1 ? 'event' : 'events'}</span>
+            <h2 class="card-title text-black mb-1">${cal.name}</h2>
+            <span class="badge badge-info">${events.length} ${events.length === 1 ? 'event' : 'events'}</span>
           </div>
           <div class="divider"></div>
         `;
@@ -149,13 +149,16 @@
           p.textContent = 'No events today';
           body.appendChild(p);
         } else {
+          const scrollWrap = document.createElement('div');
+          scrollWrap.className = 'overflow-y-auto max-h-60 mt-2';
+
           const table = document.createElement('table');
-          table.className = 'table w-full';
+          table.className = 'table w-full text-left';
           table.innerHTML = `
             <thead>
               <tr>
-                <th class="text-sm font-semibold text-black">Event</th>
-                <th class="text-sm font-semibold text-black">Time</th>
+                <th class="text-sm font-semibold text-black w-2/3 break-words">Event</th>
+                <th class="text-sm font-semibold text-black w-1/3 break-words">Time</th>
               </tr>
             </thead>
           `;
@@ -167,8 +170,8 @@
             const row = document.createElement('tr');
             row.className = 'hover:bg-teal-50 cursor-pointer';
             row.innerHTML = `
-              <td class="event-title text-sm text-black">${e.summary}</td>
-              <td class="text-sm font-semibold text-black">${start} - ${end}</td>
+              <td class="event-title text-sm text-black break-words pr-2">${e.summary}</td>
+              <td class="text-sm font-semibold text-black whitespace-nowrap">${start} - ${end}</td>
             `;
             row.addEventListener('click', () => {
               document.getElementById('modal-summary').textContent = e.summary || 'No title';
@@ -181,18 +184,19 @@
           });
 
           table.appendChild(tbody);
-          body.appendChild(table);
+          scrollWrap.appendChild(table);
+          body.appendChild(scrollWrap);
         }
       }
 
-      // All Events This Week
+      // All Events This Week (unchanged layout)
       const allCard = document.createElement('div');
-      allCard.className = 'card bg-white dark:bg-white shadow-xl border-2 border-teal-300 rounded-lg hover:shadow-2xl transition-all duration-300 ease-in-out';
+      allCard.className = 'card bg-white shadow-xl border-2 border-teal-300 rounded-lg hover:shadow-2xl transition-all duration-300 ease-in-out';
       container.appendChild(allCard);
 
       const allBody = document.createElement('div');
       allBody.className = 'card-body p-6 overflow-y-auto';
-      allBody.style.maxHeight = '400px'; // scrolling enabled for this one only
+      allBody.style.maxHeight = '400px';
       allCard.appendChild(allBody);
 
       allBody.innerHTML = `
@@ -256,3 +260,4 @@
   </script>
 </body>
 </html>
+
