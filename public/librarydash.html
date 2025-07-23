@@ -47,6 +47,12 @@
     <div id="weekly-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-6 text-base"></div>
   </div>
 
+  <!-- Fullscreen Button -->
+  <button id="fullscreen-btn"
+    class="fixed bottom-4 right-4 px-4 py-2 bg-blue-600 text-white text-lg rounded-lg shadow-lg hover:bg-blue-700 transition hidden z-50">
+    Go Fullscreen
+  </button>
+
   <script>
     const API_KEY = 'AIzaSyD2qBhlb_rQHGh3kJ_ENFrxsRoFFmfrX8A';
 
@@ -195,6 +201,27 @@
 
     loadDashboard();
     setInterval(loadDashboard, 15 * 60 * 1000); // Refresh every 15 minutes
+
+    // Fullscreen toggle logic
+    const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+    function checkFullscreen() {
+      const isFullscreen = document.fullscreenElement != null;
+      fullscreenBtn.classList.toggle('hidden', isFullscreen);
+    }
+
+    fullscreenBtn.addEventListener('click', () => {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else if (el.msRequestFullscreen) el.msRequestFullscreen();
+    });
+
+    document.addEventListener('fullscreenchange', checkFullscreen);
+    document.addEventListener('webkitfullscreenchange', checkFullscreen);
+    document.addEventListener('msfullscreenchange', checkFullscreen);
+
+    checkFullscreen();
   </script>
 </body>
 </html>
