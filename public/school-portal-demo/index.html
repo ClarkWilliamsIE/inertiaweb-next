@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Inertia Ed School Portal Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./styles.css">
+  <meta name="color-scheme" content="light dark">
+</head>
+<body class="bg-surface text-base-900 selection:bg-brand/20 selection:text-base-900">
+  <div id="app" class="min-h-screen flex flex-col">
+    <header class="sticky top-0 z-30 bg-surface/80 backdrop-blur border-b border-base-200">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-md bg-brand flex items-center justify-center text-white font-bold">IE</div>
+          <div>
+            <div class="font-semibold leading-tight">Inertia Ed</div>
+            <div class="text-sm text-base-500 -mt-0.5">Science and Pūtaiao Kits</div>
+          </div>
+        </div>
+        <nav class="ml-auto flex items-center gap-2">
+          <button class="nav-btn" data-route="welcome">Welcome</button>
+          <button class="nav-btn" data-route="catalog">Kits</button>
+          <button class="nav-btn" data-route="calendar">Availability</button>
+          <button class="nav-btn" data-route="planner">Year Planner</button>
+          <button class="nav-btn" data-route="confirm">Confirm</button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="flex-1">
+      <section id="view-welcome" class="page px-4">
+        <div class="max-w-4xl mx-auto py-10">
+          <h1 class="text-3xl font-semibold tracking-tight">Plan your science kits for the year</h1>
+          <p class="mt-2 text-base-700 max-w-prose">Browse 30 curriculum aligned kits, check half term availability, and assemble a year plan in minutes. This demo runs without a backend, your selections stay in your browser only.</p>
+
+          <div class="mt-6 grid sm:grid-cols-2 gap-4">
+            <div class="card">
+              <h2 class="card-title">Try as demo teacher</h2>
+              <p class="text-base-600">Seeded school profile and example availability so you can focus on the flow.</p>
+              <button class="btn-primary mt-3" id="btn-demo-login">Continue</button>
+            </div>
+            <div class="card">
+              <h2 class="card-title">Sign in simulation</h2>
+              <label class="block text-sm font-medium">School</label>
+              <select id="school-select" class="input"></select>
+              <label class="block text-sm font-medium mt-3">Email</label>
+              <input id="email-input" type="email" class="input mt-1" placeholder="teacher@school.school.nz">
+              <button class="btn-primary mt-3" id="btn-sign-in">Sign in</button>
+              <p class="text-xs text-base-500 mt-2">This does not send data anywhere, it only changes the demo state.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-catalog" class="page hidden px-4">
+        <div class="max-w-7xl mx-auto py-6">
+          <div class="flex flex-wrap items-end gap-3">
+            <div>
+              <label class="block text-sm font-medium">Year Level</label>
+              <select id="filter-year" class="input">
+                <option value="">All</option>
+                <option>Years 0 to 2</option>
+                <option>Years 3 to 4</option>
+                <option>Years 5 to 6</option>
+                <option>Years 7 to 8</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium">Strand</label>
+              <select id="filter-strand" class="input">
+                <option value="">All</option>
+                <option>Physical World</option>
+                <option>Material World</option>
+                <option>Living World</option>
+                <option>Planet Earth and Beyond</option>
+                <option>Pūtaiao</option>
+              </select>
+            </div>
+            <div class="ml-auto">
+              <label class="block text-sm font-medium">Search</label>
+              <input id="filter-search" class="input" placeholder="Search kits">
+            </div>
+          </div>
+
+          <div id="kits-grid" class="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </div>
+
+        <!-- Kit detail modal -->
+        <div id="kit-modal" class="modal hidden">
+          <div class="modal-backdrop"></div>
+          <div class="modal-card">
+            <button class="modal-close" id="kit-modal-close">×</button>
+            <div id="kit-modal-content"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-calendar" class="page hidden px-4">
+        <div class="max-w-7xl mx-auto py-6">
+          <h2 class="text-2xl font-semibold">Availability</h2>
+          <p class="text-base-700">Half term blocks across the year. Pick a block to hold it, or jump to the planner to place it.</p>
+          <div id="calendar-controls" class="mt-4 flex items-center gap-2">
+            <label class="text-sm font-medium">Kit</label>
+            <select id="calendar-kit" class="input"></select>
+            <label class="ml-2 text-sm font-medium">Year</label>
+            <select id="calendar-year" class="input"></select>
+          </div>
+          <div id="calendar-terms" class="mt-4 grid md:grid-cols-2 xl:grid-cols-4 gap-4"></div>
+          <div class="mt-4 flex items-center gap-2">
+            <button class="btn-secondary" id="btn-clear-holds">Clear holds</button>
+            <button class="btn-primary" id="btn-add-held-to-plan">Add held blocks to plan</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-planner" class="page hidden px-4">
+        <div class="max-w-7xl mx-auto py-6">
+          <h2 class="text-2xl font-semibold">Year planner</h2>
+          <p class="text-base-700">Terms split into halves. Click a half to see available kits for that slot.</p>
+          <div class="mt-4 grid xl:grid-cols-[1fr_340px] gap-4">
+            <div id="planner-terms" class="grid md:grid-cols-2 xl:grid-cols-4 gap-4"></div>
+            <aside class="plan-side card">
+              <h3 class="card-title">Available for selected half</h3>
+              <div id="side-selected" class="text-sm text-base-600 mt-1">Pick a half term slot</div>
+              <div id="side-kits" class="mt-3 space-y-2"></div>
+            </aside>
+          </div>
+          <div class="mt-4">
+            <button class="btn-secondary" id="btn-print-plan">Print or save PDF</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-confirm" class="page hidden px-4 print:px-0">
+        <div class="max-w-4xl mx-auto py-6 print:max-w-none">
+          <div class="print:hidden">
+            <h2 class="text-2xl font-semibold">Confirmation</h2>
+            <p class="text-base-700">A branded plan suitable for saving to PDF. Update your details and print when ready.</p>
+          </div>
+          <div class="mt-4 card print:shadow-none print:border-0">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-md bg-brand flex items-center justify-center text-white font-bold">IE</div>
+              <div>
+                <div class="font-semibold leading-tight">Inertia Ed</div>
+                <div class="text-sm text-base-500 -mt-0.5">School plan</div>
+              </div>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label class="block text-sm font-medium">School</label>
+                <input id="confirm-school" class="input mt-1">
+              </div>
+              <div>
+                <label class="block text-sm font-medium">Contact person</label>
+                <input id="confirm-contact" class="input mt-1">
+              </div>
+              <div>
+                <label class="block text-sm font-medium">Email</label>
+                <input id="confirm-email" class="input mt-1">
+              </div>
+              <div>
+                <label class="block text-sm font-medium">Shipping address</label>
+                <input id="confirm-address" class="input mt-1">
+              </div>
+            </div>
+            <div class="mt-6">
+              <h3 class="font-medium">Your bookings</h3>
+              <div id="confirm-bookings" class="mt-2 divide-y divide-base-200"></div>
+            </div>
+            <div class="mt-6 flex items-center gap-2 print:hidden">
+              <button class="btn-secondary" onclick="window.print()">Print or save PDF</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="border-t border-base-200">
+      <div class="max-w-7xl mx-auto px-4 py-6 text-sm text-base-600">
+        Demo only. No real bookings are created. · Inertia Ed
+      </div>
+    </footer>
+  </div>
+
+  <script src="./data.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
