@@ -1,62 +1,54 @@
-import { Metadata } from 'next';
-import * as React from 'react';
+import './globals.css';
+import type { Metadata } from 'next';
+import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
+import Link from 'next/link';
 
-import '@/styles/globals.css';
-// !STARTERCONF This is for demo purposes, remove @/styles/colors.css import immediately
-import '@/styles/colors.css';
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta' });
 
-import { siteConfig } from '@/constant/config';
-
-// !STARTERCONF Change these default meta
-// !STARTERCONF Look at @/constant/config to change them
 export const metadata: Metadata = {
-  metadataBase: new URL(siteConfig.url),
   title: {
-    default: siteConfig.title,
-    template: `%s | ${siteConfig.title}`,
+    default: 'Inertia Ed',
+    template: '%s · Inertia Ed',
   },
-  description: siteConfig.description,
-  robots: { index: true, follow: true },
-  // !STARTERCONF this is the default favicon, you can generate your own from https://realfavicongenerator.net/
-  // ! copy to /favicon folder
-  icons: {
-    icon: '/favicon/favicon.ico',
-    shortcut: '/favicon/favicon-16x16.png',
-    apple: '/favicon/apple-touch-icon.png',
-  },
-  manifest: `/favicon/site.webmanifest`,
-  openGraph: {
-    url: siteConfig.url,
-    title: siteConfig.title,
-    description: siteConfig.description,
-    siteName: siteConfig.title,
-    images: [`${siteConfig.url}/images/og.jpg`],
-    type: 'website',
-    locale: 'en_US',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: siteConfig.title,
-    description: siteConfig.description,
-    images: [`${siteConfig.url}/images/og.jpg`],
-    // creator: '@th_clarence',
-  },
-  // authors: [
-  //   {
-  //     name: 'Theodorus Clarence',
-  //     url: 'https://theodorusclarence.com',
-  //   },
-  // ],
+  description: 'Hands on science and learning. Practical kits for classrooms across Aotearoa.',
+  icons: { icon: '/favicon.ico' },
+  metadataBase: new URL('https://inertiaed.org'),
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html>
-      <body>{children}</body>
+    <html lang="en" className={`${inter.variable} ${jakarta.variable}`}>
+      <body className="bg-surface text-ink antialiased">
+        <div className="min-h-screen grid grid-rows-[auto,1fr,auto]">
+          <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur border-b border-base-200">
+            <div className="container flex items-center justify-between py-3">
+              <Link href="/" className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-md bg-brand flex items-center justify-center text-white font-bold">IE</div>
+                <span className="font-semibold tracking-tight">Inertia Ed</span>
+              </Link>
+              <nav className="hidden sm:flex items-center gap-3">
+                <Link href="/#kits" className="navlink">Kits</Link>
+                <Link href="/#how" className="navlink">How it works</Link>
+                <Link href="/#impact" className="navlink">Impact</Link>
+                <Link href="/#contact" className="btn btn-secondary">Contact</Link>
+              </nav>
+            </div>
+          </header>
+          <main>{children}</main>
+          <footer className="border-t border-base-200">
+            <div className="container py-8">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-md bg-brand text-white grid place-items-center font-bold">IE</div>
+                  <div className="text-sm text-base-600">Inertia Ed, not for profit</div>
+                </div>
+                <div className="text-sm text-base-500">© {new Date().getFullYear()} Inertia Ed</div>
+              </div>
+            </div>
+          </footer>
+        </div>
+      </body>
     </html>
   );
 }
