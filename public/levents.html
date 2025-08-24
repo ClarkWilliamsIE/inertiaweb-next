@@ -50,7 +50,9 @@
       '9d751487e4a33f27971ca1b54bd27d82b56d39278aabd6bcb562c431979396a2@group.calendar.google.com': 'bg-yellow-200',
       'bf9774fd9a1f9cf44aff3d1ee97ef2a5e30789ef17f99ba846c3a780850f7e7a@group.calendar.google.com': 'bg-pink-200',
       '583fc72e7af8b504711782c092a5e3c8ea73eda4d2e4d87128c0e78d471be68c@group.calendar.google.com': 'bg-purple-200',
-      'b0228e246833cd5cafecfbbdda140afec688229319ee1a9643d5043abc0f2d46@group.calendar.google.com': 'bg-red-200'
+      'b0228e246833cd5cafecfbbdda140afec688229319ee1a9643d5043abc0f2d46@group.calendar.google.com': 'bg-red-200',
+      'ba94f4998ac221d286cc6fbb3b8dad11ca3148b14968d1353df62eeff25c2184@group.calendar.google.com': 'bg-teal-200' // ✅ new one
+
     };
 
     const calendars = [
@@ -60,7 +62,8 @@
       { id: '9d751487e4a33f27971ca1b54bd27d82b56d39278aabd6bcb562c431979396a2@group.calendar.google.com', name: 'Learning centre' },
       { id: 'bf9774fd9a1f9cf44aff3d1ee97ef2a5e30789ef17f99ba846c3a780850f7e7a@group.calendar.google.com', name: 'Tamariki space' },
       { id: '583fc72e7af8b504711782c092a5e3c8ea73eda4d2e4d87128c0e78d471be68c@group.calendar.google.com', name: 'Upstairs lounge' },
-      { id: 'b0228e246833cd5cafecfbbdda140afec688229319ee1a9643d5043abc0f2d46@group.calendar.google.com', name: 'Justice of the Peace' }
+      { id: 'b0228e246833cd5cafecfbbdda140afec688229319ee1a9643d5043abc0f2d46@group.calendar.google.com', name: 'Justice of the Peace' },
+      { id: 'ba94f4998ac221d286cc6fbb3b8dad11ca3148b14968d1353df62eeff25c2184@group.calendar.google.com', name: 'Private events' } // ✅ new one
     ];
 
     document.getElementById('current-date').textContent = new Date().toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
