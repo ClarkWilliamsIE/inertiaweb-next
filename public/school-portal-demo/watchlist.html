@@ -70,7 +70,7 @@
   <header>
     <h1>Watchlist Voting</h1>
     <div>
-      <button class="btn" onclick="location.href='members.html'">Back to dashboard</button>
+      <button class="btn" onclick="location.href='public/school-portal-demo/members.html'">Back to dashboard</button>
       <button class="btn danger" id="btnSignOut">Sign out</button>
     </div>
   </header>
@@ -460,7 +460,7 @@
     document.getElementById("addBtn").addEventListener("click", addItem);
     document.getElementById("search").addEventListener("input", debounce(renderList, 200));
     document.getElementById("btnSignOut").addEventListener("click", async () => {
-      await supabase.auth.signOut(); location.href = "login.html";
+      await supabase.auth.signOut(); location.href = "public/school-portal-demo/login.html";
     });
 
     async function init() {
