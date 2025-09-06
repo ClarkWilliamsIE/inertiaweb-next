@@ -1,7 +1,4 @@
-// Winnerland members only dashboard logic
-// Uses your Google Sheets CSV and Chart.js, with extra controls.
-// Put this file next to members.html and login.html.
-
+<script>
 (function () {
   const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQEJMIKmxhiNNEJ8h-sgxpsSAT8ndO5TK0EVCijAoAv4y-cmmU0YSHFUX8mC6gMBouC9k50FVFQLawN/pub?gid=1666283294&single=true&output=csv';
   const state = { rawRows: [], portfolioSeries: [] };
@@ -62,24 +59,78 @@
     return chart;
   }
 
-  function exportPNGs() {
-    const canvases = Array.from(document.querySelectorAll("canvas"));
-    canvases.forEach((c, idx) => {
-      const a = document.createElement("a");
-      a.href = c.toDataURL("image/png");
-      a.download = "winnerland_chart_" + String(idx + 1).padStart(2, "0") + ".png";
-      a.click();
-    });
+  function ensureControls() {
+    // Create a small control row if it does not exist
+    let controls = document.getElementById("winnerland-controls");
+    const dashboard = document.getElementById("dashboard");
+
+    if (!controls) {
+      controls = document.createElement("div");
+      controls.id = "winnerland-controls";
+      controls.style.display = "flex";
+      controls.style.flexWrap = "wrap";
+      controls.style.gap = "12px";
+      controls.style.alignItems = "center";
+      controls.style.margin = "0 0 12px 0";
+      dashboard.parentNode.insertBefore(controls, dashboard);
+    }
+
+    // Filter input for ticker, optional
+    if (!document.getElementById("filterTicker")) {
+      const filter = document.createElement("input");
+      filter.type = "text";
+      filter.id = "filterTicker";
+      filter.placeholder = "Filter by ticker";
+      filter.style.padding = "6px 8px";
+      filter.addEventListener("input", () => { renderNow(); });
+      controls.appendChild(filter);
+    }
+
+    // Minimum NZD filter, optional
+    if (!document.getElementById("minNZD")) {
+      const min = document.createElement("input");
+      min.type = "number";
+      min.step = "0.01";
+      min.min = "0";
+      min.id = "minNZD";
+      min.placeholder = "Min NZD";
+      min.style.padding = "6px 8px";
+      min.addEventListener("input", () => { renderNow(); });
+      controls.appendChild(min);
+    }
+
+    // Divide by 12 toggle
+    if (!document.getElementById("divideBy12Toggle")) {
+      const wrap = document.createElement("label");
+      wrap.style.display = "inline-flex";
+      wrap.style.alignItems = "center";
+      wrap.style.gap = "8px";
+      wrap.style.cursor = "pointer";
+
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.id = "divideBy12Toggle";
+      cb.addEventListener("change", () => { renderNow(); });
+
+      const txt = document.createElement("span");
+      txt.textContent = "Divide by 12";
+
+      wrap.appendChild(cb);
+      wrap.appendChild(txt);
+      controls.appendChild(wrap);
+    }
   }
 
   function render() {
+    ensureControls();
+
     const dashboard = document.getElementById("dashboard");
     dashboard.innerHTML = "";
 
-    const memberCount = Math.max(1, parseInt(document.getElementById("memberCount").value || "1", 10));
     const filterTicker = (document.getElementById("filterTicker").value || "").trim().toUpperCase();
     const minNZD = Math.max(0, parseFloat(document.getElementById("minNZD").value || "0"));
-    const pctMode = document.getElementById("pctMode").value;
+    const divideBy12 = !!document.getElementById("divideBy12Toggle").checked;
+    const divisor = divideBy12 ? 12 : 1;
 
     const viewRows = state.rawRows
       .filter(r => !filterTicker || String(r.Ticker).toUpperCase().includes(filterTicker))
@@ -89,12 +140,12 @@
 
     const pieCard = document.createElement("div");
     pieCard.className = "chart-card";
-    pieCard.innerHTML = '<h2>Allocation ' + (memberCount > 1 ? "(per member)" : "") + '</h2><div class="chart-container"><canvas id="summaryPie"></canvas></div>';
+    pieCard.innerHTML = '<h2>Allocation</h2><div class="chart-container"><canvas id="summaryPie"></canvas></div>';
     dashboard.appendChild(pieCard);
 
     const barCard = document.createElement("div");
     barCard.className = "chart-card";
-    barCard.innerHTML = '<h2>Portfolio Summary ' + (memberCount > 1 ? "(per member)" : "") + '</h2><div class="chart-container"><canvas id="summaryBar"></canvas></div>';
+    barCard.innerHTML = '<h2>Portfolio Summary</h2><div class="chart-container"><canvas id="summaryBar"></canvas></div>';
     dashboard.appendChild(barCard);
 
     const lineCard = document.createElement("div");
@@ -103,7 +154,8 @@
     dashboard.appendChild(lineCard);
 
     const lineLabels = state.portfolioSeries.map(r => r.date);
-    const lineData = state.portfolioSeries.map(r => r.portfolioValue);
+    const lineDataRaw = state.portfolioSeries.map(r => r.portfolioValue);
+    const lineData = lineDataRaw.map(v => v / divisor);
     const minValue = Math.min(...lineData);
     const maxValue = Math.max(...lineData);
     const margin = (maxValue - minValue) * 0.1;
@@ -137,7 +189,7 @@
     });
 
     const pieLabels = viewRows.map(r => r.Ticker);
-    const pieData = viewRows.map(r => parseCurrency(r["NZD"]) / memberCount);
+    const pieData = viewRows.map(r => parseCurrency(r["NZD"]) / divisor);
     makeChart(document.getElementById("summaryPie"), {
       type: "doughnut",
       data: { labels: pieLabels, datasets: [{ data: pieData }] },
@@ -155,7 +207,7 @@
         labels: ["Spent", "Profit", "Value"],
         datasets: [{
           label: "NZD",
-          data: [ totalSpent / memberCount, profit / memberCount, totalValue / memberCount ],
+          data: [ totalSpent / divisor, profit / divisor, totalValue / divisor ],
           backgroundColor: [ "rgba(54,162,235,0.6)", "rgba(255,205,86,0.6)", "rgba(75,192,192,0.6)" ]
         }]
       },
@@ -174,6 +226,7 @@
       }
     });
 
+    // Per ticker cards, with percent line always on
     viewRows.forEach(r => {
       const tcUsd = parseCurrency(r["Total Cost"]);
       const mvUsd = parseCurrency(r["Market Value"]);
@@ -190,14 +243,11 @@
       dashboard.appendChild(card);
 
       const labels = ["Cost", "Value", "Profit", "% Change"];
-      const barData = [ costNzd / memberCount, mvNzd / memberCount, profitNzd / memberCount, null ];
+      const barData = [ costNzd / divisor, mvNzd / divisor, profitNzd / divisor, null ];
 
       const datasets = [
-        { type: "bar", label: "NZD", data: barData, backgroundColor: [ "rgba(54,162,235,0.6)", "rgba(75,192,192,0.6)", "rgba(255,205,86,0.6)" ] }
-      ];
-
-      if (pctMode === "on") {
-        datasets.push({
+        { type: "bar", label: "NZD", data: barData, backgroundColor: [ "rgba(54,162,235,0.6)", "rgba(75,192,192,0.6)", "rgba(255,205,86,0.6)" ] },
+        {
           type: "line",
           label: "% Change",
           data: [ null, null, null, pct ],
@@ -207,8 +257,8 @@
           tension: 0.3,
           pointRadius: 4,
           fill: false
-        });
-      }
+        }
+      ];
 
       makeChart(document.getElementById("chart-" + r.Ticker), {
         data: { labels, datasets },
@@ -251,10 +301,13 @@
     render();
   }
 
-  window.WINNERLAND = {
-    renderNow: () => { destroyCharts(); render(); },
-    exportPNGs
-  };
+  function renderNow() {
+    destroyCharts();
+    render();
+  }
+
+  window.WINNERLAND = { renderNow };
 
   init();
 })();
+</script>
