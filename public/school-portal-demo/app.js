@@ -62,16 +62,6 @@
     return chart;
   }
 
-  function exportPNGs() {
-    const canvases = Array.from(document.querySelectorAll("canvas"));
-    canvases.forEach((c, idx) => {
-      const a = document.createElement("a");
-      a.href = c.toDataURL("image/png");
-      a.download = "winnerland_chart_" + String(idx + 1).padStart(2, "0") + ".png";
-      a.click();
-    });
-  }
-
   function render() {
     const dashboard = document.getElementById("dashboard");
     dashboard.innerHTML = "";
