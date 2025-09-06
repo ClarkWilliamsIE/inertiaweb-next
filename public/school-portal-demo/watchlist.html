@@ -8,6 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
     body { margin:0; background:#121212; color:#fff; font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; position:sticky; top:0; background:rgba(18,18,18,.9); border-bottom:1px solid #222; z-index:20; }
     h1 { font-size:1.05rem; margin:0; }
@@ -15,32 +16,63 @@
     .card { background:#1e1e1e; border:1px solid #2a2a2a; border-radius:12px; padding:14px; box-shadow:0 2px 12px rgba(0,0,0,.25); }
     .row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
     .row input, .row select { background:#0f0f0f; color:#fff; border:1px solid #333; border-radius:10px; padding:.6rem .7rem; }
-    .btn { padding:.55rem .8rem; border-radius:10px; border:1px solid #333; background:#1f2937; color:#fff; cursor:pointer; transition:opacity .15s ease; }
+    .btn { padding:.6rem .9rem; border-radius:10px; border:1px solid #333; background:#1f2937; color:#fff; cursor:pointer; transition:opacity .15s ease; }
     .btn:hover { background:#273244; }
     .btn[disabled] { opacity:.6; cursor:not-allowed; }
     .btn-cta { background:#2563eb; border-color:#2563eb; }
     .btn-cta:hover { background:#1d4ed8; }
     .grid { display:grid; grid-template-columns: 1fr; gap:.75rem; margin-top:1rem; }
     @media (min-width: 980px) { .grid { grid-template-columns: 1fr 1fr; } }
-    .item { display:flex; gap:.75rem; align-items:flex-start; background:#171717; border:1px solid #262626; border-radius:12px; padding:12px; }
-    .scorebox { min-width:92px; text-align:center; border:1px solid #333; border-radius:10px; padding:.35rem .5rem; background:#0f0f0f; }
+
+    /* list item */
+    .item {
+      display:flex; flex-wrap:wrap; gap:.75rem;
+      align-items:stretch;
+      background:#171717; border:1px solid #262626; border-radius:12px; padding:12px;
+    }
+    .scorebox {
+      flex:0 0 auto;
+      min-width:84px; max-width:120px;
+      text-align:center; border:1px solid #333; border-radius:10px; padding:.4rem .5rem; background:#0f0f0f;
+    }
     .score { font-size:1.05rem; font-weight:700; }
     .sub { color:#9aa0a6; font-size:.8rem; }
-    .ticker { font-weight:700; letter-spacing:.5px; }
-    .muted { color:#9aa0a6; font-size:.9rem; }
-    .grow { flex:1; }
-    .vote { padding:.4rem .8rem; border-radius:10px; border:1px solid #333; background:#111; color:#fff; cursor:pointer; }
+    .grow {
+      flex:1 1 220px;
+      min-width:0; /* allow shrinking */
+    }
+    .ticker { font-weight:700; letter-spacing:.5px; margin-bottom:.15rem; overflow-wrap:anywhere; }
+    .muted { color:#9aa0a6; font-size:.9rem; overflow-wrap:anywhere; }
+    .pct { font-weight:700; }
+    .pct.up { color:#22c55e; }
+    .pct.down { color:#ef4444; }
+
+    .vote {
+      padding:.55rem .9rem;
+      border-radius:10px; border:1px solid #333;
+      background:#111; color:#fff; cursor:pointer;
+      white-space:nowrap; /* keep word Vote together */
+      flex:0 0 auto;
+    }
     .vote.active { border-color:#22c55e; background:#164e27; }
     .vote[disabled] { opacity:.6; cursor:not-allowed; }
-    .right { margin-left:auto; display:flex; gap:.5rem; }
+
+    .right {
+      margin-left:auto;
+      display:flex; gap:.5rem; align-items:center;
+      flex:0 0 auto;
+    }
+
+    /* stack controls neatly on very small screens */
+    @media (max-width: 540px) {
+      .right { width:100%; justify-content:flex-end; margin-left:0; }
+    }
+
     .danger { border-color:#ef4444; }
     .ok { color:#86efac; }
     .error { color:#fca5a5; }
     .topbar { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.75rem; }
     #err { margin:.5rem 0; color:#fca5a5; display:none; }
-    .pct { font-weight:700; }
-    .pct.up { color:#22c55e; }
-    .pct.down { color:#ef4444; }
 
     /* Loading overlay */
     .loading-veil {
@@ -113,15 +145,15 @@
     <!-- List -->
     <section class="card" style="margin-bottom:1rem;">
       <div class="row" style="justify-content:space-between; margin-bottom:.5rem;">
-        <div class="row">
+        <div class="row" style="flex:1; min-width:0;">
           <label>Filter</label>
-          <input id="search" placeholder="Type to filter tickers" />
+          <input id="search" placeholder="Type to filter tickers" style="flex:1; min-width:140px;" />
         </div>
       </div>
       <div id="list" class="grid"></div>
     </section>
 
-    <!-- Leaderboard at the bottom, per your move -->
+    <!-- Leaderboard at the bottom -->
     <section class="card" id="leaderCard">
       <h2 style="margin:.25rem 0 0.75rem 0; font-size:1rem;">Leaderboard, average percent change by suggester</h2>
       <div id="leaderWrap">
@@ -135,7 +167,7 @@
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby9-PQORBC7L27BItmvRVowsut2KAgcPyJxeDszODyouSxYB59pOf1TrIGm1SLQEIiccQ/exec";
+    const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxxJKwTe82Td-rMyyJl5FkNMvuVIv30YodBfs3Unz7FtWriXZ__spA2yTkuWvDkYYg0kQ/exec";
 
     let currentUser = null;
     let items = [];
@@ -143,8 +175,7 @@
     let myVotes = [];
     let pctMap = {};
 
-    /* ------------- Loading helpers ------------- */
-
+    /* Loading helpers */
     let loadingDepth = 0;
     const loadingEl = document.getElementById("loading");
     const loadingTextEl = document.getElementById("loadingText");
@@ -162,12 +193,7 @@
       try { setLoading(true, label); return await fn(); }
       finally { setLoading(false); }
     }
-    function disable(el, state) {
-      if (!el) return;
-      el.disabled = !!state;
-    }
-
-    /* ------------- Errors ------------- */
+    function disable(el, state) { if (el) el.disabled = !!state; }
 
     function showErr(e) {
       console.error(e);
@@ -177,8 +203,7 @@
       setTimeout(() => { box.style.display = "none"; }, 5000);
     }
 
-    /* ------------- JSONP loader for sheet percents ------------- */
-
+    // JSONP loader for sheet percents
     function loadPctJSONP(tickers, cbName = "WL_PCT_CB") {
       return new Promise(resolve => {
         if (window[cbName]) delete window[cbName];
@@ -195,8 +220,6 @@
       });
     }
 
-    /* ------------- Auth guard ------------- */
-
     async function guard() {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) { showErr(error.message || error); }
@@ -206,10 +229,7 @@
       currentUser = user;
     }
 
-    /* ------------- Data fetch ------------- */
-
     async function fetchAll() {
-      // no setLoading here, callers wrap withLoading so UI does not flicker
       try {
         const { data: itemsData, error: itemsErr } = await supabase
           .from("watchlist_items")
@@ -223,7 +243,6 @@
           .select("item_id, user_id, value");
         if (votesErr) throw votesErr;
         votes = votesData || [];
-
         myVotes = votes.filter(v => v.user_id === currentUser.id);
 
         const uniqueTickers = Array.from(new Set(items.map(i => i.ticker).filter(Boolean))).join(",");
@@ -232,9 +251,7 @@
           try { pctMap = await loadPctJSONP(uniqueTickers); }
           catch (e) { console.warn("Sheet percent load failed", e); }
         }
-      } catch (e) {
-        showErr(e.message || e);
-      }
+      } catch (e) { showErr(e.message || e); }
     }
 
     function computeScores() {
@@ -264,8 +281,6 @@
       return merged;
     }
 
-    /* ------------- Leaderboard ------------- */
-
     function computeLeaderboard() {
       const byUser = new Map();
       for (const it of items) {
@@ -273,7 +288,6 @@
         const rec = pctMap[ticker];
         const pct = rec && typeof rec.pct === "number" ? rec.pct : null;
         if (pct === null) continue;
-
         const name = it.suggested_by_name && it.suggested_by_name.trim() ? it.suggested_by_name.trim() : "Someone";
         const stat = byUser.get(name) || { name, count: 0, sumPct: 0 };
         stat.count += 1;
@@ -294,17 +308,17 @@
         return;
       }
       const html = [
-        `<table>`,
-        `<thead><tr><th>Rank</th><th>Member</th><th>Average % change</th><th>Picks</th></tr></thead>`,
+        `<table style="width:100%; border-collapse:collapse;">`,
+        `<thead><tr><th style="text-align:left; padding:.5rem .6rem; border-bottom:1px solid #2a2a2a;">Rank</th><th style="text-align:left; padding:.5rem .6rem; border-bottom:1px solid #2a2a2a;">Member</th><th style="text-align:left; padding:.5rem .6rem; border-bottom:1px solid #2a2a2a;">Average % change</th><th style="text-align:left; padding:.5rem .6rem; border-bottom:1px solid #2a2a2a;">Picks</th></tr></thead>`,
         `<tbody>`,
         ...rows.map((r, i) => {
           const pct = r.avgPct * 100;
           const cls = pct >= 0 ? "pct up" : "pct down";
           return `<tr>
-            <td>${i + 1}</td>
-            <td>${escapeHtml(r.name)}</td>
-            <td class="${cls}">${pct.toFixed(2)}%</td>
-            <td>${r.count}</td>
+            <td style="padding:.5rem .6rem; border-bottom:1px solid #2a2a2a;">${i + 1}</td>
+            <td style="padding:.5rem .6rem; border-bottom:1px solid #2a2a2a;">${escapeHtml(r.name)}</td>
+            <td style="padding:.5rem .6rem; border-bottom:1px solid #2a2a2a;" class="${cls}">${pct.toFixed(2)}%</td>
+            <td style="padding:.5rem .6rem; border-bottom:1px solid #2a2a2a;">${r.count}</td>
           </tr>`;
         }),
         `</tbody></table>`
@@ -315,8 +329,6 @@
     function escapeHtml(s) {
       return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c] || c));
     }
-
-    /* ------------- List render ------------- */
 
     function renderList() {
       const q = (document.getElementById("search").value || "").trim().toUpperCase();
@@ -339,7 +351,9 @@
             <div class="muted">Suggested by ${escapeHtml(suggester)}</div>
             <div class="muted">${escapeHtml(it.notes || "")}</div>
           </div>
-          <div class="scorebox">${pctBadge(it.ticker || "")}</div>
+          <div class="scorebox">
+            ${pctBadge(it.ticker || "")}
+          </div>
           <div class="right">
             <button class="vote ${it.myVote === 1 ? "active" : ""}" data-id="${it.id}">Vote</button>
           </div>
@@ -356,8 +370,6 @@
         });
       });
     }
-
-    /* ------------- Actions ------------- */
 
     async function onVote(itemId) {
       const current = myVotes.find(m => m.item_id === itemId);
@@ -445,22 +457,15 @@
       channel.subscribe();
     }
 
-    /* ------------- Debounce for search ------------- */
-
     function debounce(fn, ms) {
       let t = null;
-      return (...args) => {
-        clearTimeout(t);
-        t = setTimeout(() => fn.apply(null, args), ms);
-      };
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(null, args), ms); };
     }
-
-    /* ------------- Init ------------- */
 
     document.getElementById("addBtn").addEventListener("click", addItem);
     document.getElementById("search").addEventListener("input", debounce(renderList, 200));
     document.getElementById("btnSignOut").addEventListener("click", async () => {
-      await supabase.auth.signOut(); location.href = "public/school-portal-demo/login.html";
+      await supabase.auth.signOut(); location.href = "login.html";
     });
 
     async function init() {
@@ -472,7 +477,6 @@
         setupRealtime();
       });
 
-      // refresh percents so leaderboard stays fresh
       setInterval(async () => {
         const uniqueTickers = Array.from(new Set(items.map(i => i.ticker).filter(Boolean))).join(",");
         if (!uniqueTickers) return;
