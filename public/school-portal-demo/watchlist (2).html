@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Watchlist Voting</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin:0; background:#121212; color:#fff; font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; position:sticky; top:0; background:rgba(18,18,18,.9); border-bottom:1px solid #222; z-index:20; }
+    h1 { font-size:1.05rem; margin:0; }
+    main { padding:16px; max-width:1040px; margin:0 auto; }
+    .card { background:#1e1e1e; border:1px solid #2a2a2a; border-radius:12px; padding:14px; box-shadow:0 2px 12px rgba(0,0,0,.25); }
+    .row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+    .row input, .row select { background:#0f0f0f; color:#fff; border:1px solid #333; border-radius:10px; padding:.6rem .7rem; }
+    .btn { padding:.55rem .8rem; border-radius:10px; border:1px solid #333; background:#1f2937; color:#fff; cursor:pointer; transition:opacity .15s ease; }
+    .btn:hover { background:#273244; }
+    .btn[disabled] { opacity:.6; cursor:not-allowed; }
+    .btn-cta { background:#2563eb; border-color:#2563eb; }
+    .btn-cta:hover { background:#1d4ed8; }
+    .grid { display:grid; grid-template-columns: 1fr; gap:.75rem; margin-top:1rem; }
+    @media (min-width: 980px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .item { display:flex; gap:.75rem; align-items:flex-start; background:#171717; border:1px solid #262626; border-radius:12px; padding:12px; }
+    .scorebox { min-width:92px; text-align:center; border:1px solid #333; border-radius:10px; padding:.35rem .5rem; background:#0f0f0f; }
+    .score { font-size:1.05rem; font-weight:700; }
+    .sub { color:#9aa0a6; font-size:.8rem; }
+    .ticker { font-weight:700; letter-spacing:.5px; }
+    .muted { color:#9aa0a6; font-size:.9rem; }
+    .grow { flex:1; }
+    .vote { padding:.4rem .8rem; border-radius:10px; border:1px solid #333; background:#111; color:#fff; cursor:pointer; }
+    .vote.active { border-color:#22c55e; background:#164e27; }
+    .vote[disabled] { opacity:.6; cursor:not-allowed; }
+    .right { margin-left:auto; display:flex; gap:.5rem; }
+    .danger { border-color:#ef4444; }
+    .ok { color:#86efac; }
+    .error { color:#fca5a5; }
+    .topbar { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.75rem; }
+    #err { margin:.5rem 0; color:#fca5a5; display:none; }
+    .pct { font-weight:700; }
+    .pct.up { color:#22c55e; }
+    .pct.down { color:#ef4444; }
+
+    /* Loading overlay */
+    .loading-veil {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 50;
+      backdrop-filter: blur(2px);
+    }
+    .loading-box {
+      background:#1d1d1d;
+      border:1px solid #2a2a2a;
+      border-radius:12px;
+      padding:14px 16px;
+      display:flex; align-items:center; gap:.75rem;
+      box-shadow:0 6px 24px rgba(0,0,0,.35);
+    }
+    .spinner {
+      width:18px; height:18px; border:3px solid #2f2f2f; border-top-color:#60a5fa; border-radius:50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Watchlist Voting</h1>
+    <div>
+      <button class="btn" onclick="location.href='members.html'">Back to dashboard</button>
+      <button class="btn danger" id="btnSignOut">Sign out</button>
+    </div>
+  </header>
+
+  <!-- Loading overlay -->
+  <div id="loading" class="loading-veil" aria-hidden="true">
+    <div class="loading-box">
+      <div class="spinner" aria-label="Loading"></div>
+      <div id="loadingText">Loading, please wait</div>
+    </div>
+  </div>
+
+  <main>
+    <!-- Add form -->
+    <section class="card" style="margin-bottom:1rem;">
+      <div class="topbar">
+        <div class="row" style="flex:1;">
+          <input id="ticker" placeholder="Ticker, for example AAPL" />
+          <select id="market" aria-label="Market">
+            <option value="AUTO" selected>Market, auto</option>
+            <option value="NASDAQ">NASDAQ</option>
+            <option value="NYSE">NYSE</option>
+            <option value="NZE">NZX</option>
+            <option value="ASX">ASX</option>
+            <option value="LON">LSE</option>
+            <option value="TSE">TSX</option>
+            <option value="CVE">TSX Venture</option>
+            <option value="AMS">Euronext Amsterdam</option>
+            <option value="EPA">Euronext Paris</option>
+            <option value="FRA">Frankfurt</option>
+          </select>
+          <input id="notes" placeholder="Notes, for example why this is interesting" style="flex:1;" />
+        </div>
+        <button class="btn btn-cta" id="addBtn">Add to watchlist</button>
+      </div>
+      <div id="msg" class="muted" style="margin-top:.5rem;"></div>
+      <div id="err"></div>
+    </section>
+
+    <!-- List -->
+    <section class="card" style="margin-bottom:1rem;">
+      <div class="row" style="justify-content:space-between; margin-bottom:.5rem;">
+        <div class="row">
+          <label>Filter</label>
+          <input id="search" placeholder="Type to filter tickers" />
+        </div>
+      </div>
+      <div id="list" class="grid"></div>
+    </section>
+
+    <!-- Leaderboard at the bottom, per your move -->
+    <section class="card" id="leaderCard">
+      <h2 style="margin:.25rem 0 0.75rem 0; font-size:1rem;">Leaderboard, average percent change by suggester</h2>
+      <div id="leaderWrap">
+        <div class="muted">Loading leaderboard, please wait</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby9-PQORBC7L27BItmvRVowsut2KAgcPyJxeDszODyouSxYB59pOf1TrIGm1SLQEIiccQ/exec";
+
+    let currentUser = null;
+    let items = [];
+    let votes = [];
+    let myVotes = [];
+    let pctMap = {};
+
+    /* ------------- Loading helpers ------------- */
+
+    let loadingDepth = 0;
+    const loadingEl = document.getElementById("loading");
+    const loadingTextEl = document.getElementById("loadingText");
+    function setLoading(on, text) {
+      if (on) {
+        loadingDepth += 1;
+        if (text) loadingTextEl.textContent = text;
+        loadingEl.style.display = "flex";
+      } else {
+        loadingDepth = Math.max(0, loadingDepth - 1);
+        if (loadingDepth === 0) loadingEl.style.display = "none";
+      }
+    }
+    async function withLoading(label, fn) {
+      try { setLoading(true, label); return await fn(); }
+      finally { setLoading(false); }
+    }
+    function disable(el, state) {
+      if (!el) return;
+      el.disabled = !!state;
+    }
+
+    /* ------------- Errors ------------- */
+
+    function showErr(e) {
+      console.error(e);
+      const box = document.getElementById("err");
+      box.textContent = typeof e === "string" ? e : (e && e.message) ? e.message : "Something went wrong";
+      box.style.display = "block";
+      setTimeout(() => { box.style.display = "none"; }, 5000);
+    }
+
+    /* ------------- JSONP loader for sheet percents ------------- */
+
+    function loadPctJSONP(tickers, cbName = "WL_PCT_CB") {
+      return new Promise(resolve => {
+        if (window[cbName]) delete window[cbName];
+        let script = document.createElement("script");
+        window[cbName] = function(resp) {
+          try { resolve(resp && resp.data ? resp.data : {}); }
+          finally {
+            if (script && script.parentNode) script.parentNode.removeChild(script);
+            delete window[cbName];
+          }
+        };
+        script.src = SHEET_WEBAPP_URL + "?tickers=" + encodeURIComponent(tickers) + "&callback=" + cbName + "&ts=" + Date.now();
+        document.head.appendChild(script);
+      });
+    }
+
+    /* ------------- Auth guard ------------- */
+
+    async function guard() {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) { showErr(error.message || error); }
+      if (!session) { location.href = "login.html"; return; }
+      const { data: { user }, error: userErr } = await supabase.auth.getUser();
+      if (userErr) { showErr(userErr.message || userErr); return; }
+      currentUser = user;
+    }
+
+    /* ------------- Data fetch ------------- */
+
+    async function fetchAll() {
+      // no setLoading here, callers wrap withLoading so UI does not flicker
+      try {
+        const { data: itemsData, error: itemsErr } = await supabase
+          .from("watchlist_items")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (itemsErr) throw itemsErr;
+        items = itemsData || [];
+
+        const { data: votesData, error: votesErr } = await supabase
+          .from("watchlist_votes")
+          .select("item_id, user_id, value");
+        if (votesErr) throw votesErr;
+        votes = votesData || [];
+
+        myVotes = votes.filter(v => v.user_id === currentUser.id);
+
+        const uniqueTickers = Array.from(new Set(items.map(i => i.ticker).filter(Boolean))).join(",");
+        pctMap = {};
+        if (uniqueTickers) {
+          try { pctMap = await loadPctJSONP(uniqueTickers); }
+          catch (e) { console.warn("Sheet percent load failed", e); }
+        }
+      } catch (e) {
+        showErr(e.message || e);
+      }
+    }
+
+    function computeScores() {
+      const m = new Map();
+      for (const v of votes) m.set(v.item_id, (m.get(v.item_id) || 0) + (v.value || 0));
+      return m;
+    }
+
+    function pctBadge(ticker) {
+      const rec = pctMap[ticker];
+      if (!rec || typeof rec.pct !== "number") return `<div class="sub muted">change n/a</div>`;
+      const pct = rec.pct * 100;
+      const cls = pct >= 0 ? "pct up" : "pct down";
+      const priceStr = rec.price ? Number(rec.price).toFixed(2) : "n/a";
+      return `<div class="${cls}">${pct.toFixed(2)}%</div><div class="sub">now ${priceStr}</div>`;
+    }
+
+    function mergeSorted() {
+      const scoreMap = computeScores();
+      const myMap = new Map(myVotes.map(v => [v.item_id, v.value]));
+      const merged = items.map(it => ({
+        ...it,
+        score: scoreMap.get(it.id) || 0,
+        myVote: myMap.get(it.id) || 0
+      }));
+      merged.sort((a,b) => b.score - a.score || a.ticker.localeCompare(b.ticker));
+      return merged;
+    }
+
+    /* ------------- Leaderboard ------------- */
+
+    function computeLeaderboard() {
+      const byUser = new Map();
+      for (const it of items) {
+        const ticker = it.ticker || "";
+        const rec = pctMap[ticker];
+        const pct = rec && typeof rec.pct === "number" ? rec.pct : null;
+        if (pct === null) continue;
+
+        const name = it.suggested_by_name && it.suggested_by_name.trim() ? it.suggested_by_name.trim() : "Someone";
+        const stat = byUser.get(name) || { name, count: 0, sumPct: 0 };
+        stat.count += 1;
+        stat.sumPct += pct;
+        byUser.set(name, stat);
+      }
+      const rows = Array.from(byUser.values())
+        .map(r => ({ name: r.name, count: r.count, avgPct: r.count ? r.sumPct / r.count : 0 }))
+        .sort((a, b) => b.avgPct - a.avgPct || b.count - a.count || a.name.localeCompare(b.name));
+      return rows;
+    }
+
+    function renderLeaderboard() {
+      const wrap = document.getElementById("leaderWrap");
+      const rows = computeLeaderboard();
+      if (!rows.length) {
+        wrap.innerHTML = `<div class="muted">No data yet, add a few tickers first</div>`;
+        return;
+      }
+      const html = [
+        `<table>`,
+        `<thead><tr><th>Rank</th><th>Member</th><th>Average % change</th><th>Picks</th></tr></thead>`,
+        `<tbody>`,
+        ...rows.map((r, i) => {
+          const pct = r.avgPct * 100;
+          const cls = pct >= 0 ? "pct up" : "pct down";
+          return `<tr>
+            <td>${i + 1}</td>
+            <td>${escapeHtml(r.name)}</td>
+            <td class="${cls}">${pct.toFixed(2)}%</td>
+            <td>${r.count}</td>
+          </tr>`;
+        }),
+        `</tbody></table>`
+      ].join("");
+      wrap.innerHTML = html;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c] || c));
+    }
+
+    /* ------------- List render ------------- */
+
+    function renderList() {
+      const q = (document.getElementById("search").value || "").trim().toUpperCase();
+      let merged = mergeSorted();
+      if (q) merged = merged.filter(i => i.ticker && i.ticker.toUpperCase().includes(q));
+
+      const list = document.getElementById("list");
+      list.innerHTML = "";
+      merged.forEach(it => {
+        const suggester = it.suggested_by_name || "Someone";
+        const el = document.createElement("div");
+        el.className = "item";
+        el.innerHTML = `
+          <div class="scorebox">
+            <div class="score">${it.score}</div>
+            <div class="sub">votes</div>
+          </div>
+          <div class="grow">
+            <div class="ticker">${escapeHtml(it.ticker || "")}</div>
+            <div class="muted">Suggested by ${escapeHtml(suggester)}</div>
+            <div class="muted">${escapeHtml(it.notes || "")}</div>
+          </div>
+          <div class="scorebox">${pctBadge(it.ticker || "")}</div>
+          <div class="right">
+            <button class="vote ${it.myVote === 1 ? "active" : ""}" data-id="${it.id}">Vote</button>
+          </div>
+        `;
+        list.appendChild(el);
+      });
+
+      document.querySelectorAll(".vote").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (btn.disabled) return;
+          disable(btn, true);
+          try { await withLoading("Updating vote", () => onVote(btn.dataset.id)); }
+          finally { disable(btn, false); }
+        });
+      });
+    }
+
+    /* ------------- Actions ------------- */
+
+    async function onVote(itemId) {
+      const current = myVotes.find(m => m.item_id === itemId);
+      if (current) {
+        const { error } = await supabase.from("watchlist_votes").delete().match({ item_id: itemId, user_id: currentUser.id });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("watchlist_votes").upsert(
+          { item_id: itemId, user_id: currentUser.id, value: 1 },
+          { onConflict: "item_id,user_id" }
+        );
+        if (error) throw error;
+      }
+      await fetchAll();
+      renderLeaderboard();
+      renderList();
+    }
+
+    function showMsg(text, ok=true) {
+      const m = document.getElementById("msg");
+      m.textContent = text;
+      m.className = ok ? "ok" : "error";
+      setTimeout(() => { m.textContent = ""; m.className = "muted"; }, 1800);
+    }
+
+    async function addItem() {
+      const addBtn = document.getElementById("addBtn");
+      const t = document.getElementById("ticker").value.trim().toUpperCase();
+      const n = document.getElementById("notes").value.trim();
+      const market = document.getElementById("market").value;
+      if (!t) { showMsg("Please enter a ticker", false); return; }
+
+      const firstName = currentUser?.user_metadata?.first_name || "";
+      const fallback = (currentUser?.email || "").split("@")[0] || "Member";
+      const displayName = firstName || fallback;
+
+      disable(addBtn, true);
+      try {
+        await withLoading("Adding ticker", async () => {
+          const { error } = await supabase
+            .from("watchlist_items")
+            .insert({ ticker: t, notes: n, created_by: currentUser.id, suggested_by_name: displayName });
+          if (error) throw error;
+
+          // log to Google Sheet
+          try {
+            await fetch(SHEET_WEBAPP_URL, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "text/plain" },
+              body: JSON.stringify({
+                email: currentUser.email || "",
+                user_id: currentUser.id,
+                ticker: t,
+                notes: n,
+                market
+              })
+            });
+          } catch(e) { console.warn("Sheet log failed", e); }
+
+          document.getElementById("ticker").value = "";
+          document.getElementById("notes").value = "";
+          document.getElementById("market").value = "AUTO";
+          showMsg("Added");
+          await fetchAll();
+          renderLeaderboard();
+          renderList();
+        });
+      } catch (e) {
+        showErr(e.message || e);
+        showMsg("Could not add", false);
+      } finally {
+        disable(addBtn, false);
+      }
+    }
+
+    function setupRealtime() {
+      const channel = supabase.channel("watchlist_changes");
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "watchlist_items" }, async () => {
+        await fetchAll(); renderLeaderboard(); renderList();
+      });
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "watchlist_votes" }, async () => {
+        await fetchAll(); renderLeaderboard(); renderList();
+      });
+      channel.subscribe();
+    }
+
+    /* ------------- Debounce for search ------------- */
+
+    function debounce(fn, ms) {
+      let t = null;
+      return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn.apply(null, args), ms);
+      };
+    }
+
+    /* ------------- Init ------------- */
+
+    document.getElementById("addBtn").addEventListener("click", addItem);
+    document.getElementById("search").addEventListener("input", debounce(renderList, 200));
+    document.getElementById("btnSignOut").addEventListener("click", async () => {
+      await supabase.auth.signOut(); location.href = "login.html";
+    });
+
+    async function init() {
+      await withLoading("Loading watchlist", async () => {
+        await guard();
+        await fetchAll();
+        renderLeaderboard();
+        renderList();
+        setupRealtime();
+      });
+
+      // refresh percents so leaderboard stays fresh
+      setInterval(async () => {
+        const uniqueTickers = Array.from(new Set(items.map(i => i.ticker).filter(Boolean))).join(",");
+        if (!uniqueTickers) return;
+        try {
+          const data = await loadPctJSONP(uniqueTickers);
+          pctMap = data;
+          renderLeaderboard();
+          renderList();
+        } catch (_) {}
+      }, 60000);
+    }
+    init();
+  </script>
+</body>
+</html>
+
+
+

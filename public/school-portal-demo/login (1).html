@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin:0; background:#121212; color:#fff; font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; display:grid; place-items:center; min-height:100svh; padding:16px; }
+    .card { width:100%; max-width:380px; background:#1e1e1e; border:1px solid #2a2a2a; border-radius:14px; padding:18px; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+    h1 { margin:0 0 8px; font-size:1.25rem; text-align:center; }
+    .muted { color:#9aa0a6; font-size:.9rem; text-align:center; margin-bottom:14px; }
+    label { display:block; font-size:.85rem; color:#c9cdd3; margin:10px 0 6px; }
+    input { width:100%; padding:.7rem .8rem; border-radius:10px; border:1px solid #333; background:#0f0f0f; color:#fff; }
+    .row { display:flex, gap:.5rem; }
+    .btn { width:100%; padding:.75rem .9rem; margin-top:14px; border-radius:10px; border:1px solid #333; background:#2563eb; color:#fff; cursor:pointer; }
+    .btn:hover { background:#1d4ed8; }
+    .alt { margin-top:10px; text-align:center; font-size:.9rem; }
+    .alt a { color:#93c5fd; cursor:pointer; }
+    .err { color:#fca5a5; margin-top:10px; min-height:18px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Welcome</h1>
+    <div class="muted" id="modeText">Sign in to continue</div>
+
+    <form id="authForm">
+      <div id="firstNameWrap" style="display:none;">
+        <label for="firstName">First name</label>
+        <input id="firstName" type="text" autocomplete="given-name" placeholder="Jane" />
+      </div>
+
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="email" placeholder="you@example.com" required />
+
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Your password" required />
+
+      <button class="btn" type="submit" id="submitBtn">Sign in</button>
+      <div class="alt" id="altLine">
+        New here, <a id="toSignup">create an account</a>
+      </div>
+      <div class="alt" id="altLine2" style="display:none;">
+        Already have an account, <a id="toSignin">sign in</a>
+      </div>
+
+      <div class="err" id="err"></div>
+    </form>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const form = document.getElementById("authForm");
+    const errEl = document.getElementById("err");
+    const modeText = document.getElementById("modeText");
+    const firstNameWrap = document.getElementById("firstNameWrap");
+    const firstNameInput = document.getElementById("firstName");
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const submitBtn = document.getElementById("submitBtn");
+    const toSignup = document.getElementById("toSignup");
+    const toSignin = document.getElementById("toSignin");
+    const altLine = document.getElementById("altLine");
+    const altLine2 = document.getElementById("altLine2");
+
+    let mode = "signin"; // or signup
+
+    function setMode(next) {
+      mode = next;
+      if (mode === "signin") {
+        modeText.textContent = "Sign in to continue";
+        firstNameWrap.style.display = "none";
+        submitBtn.textContent = "Sign in";
+        altLine.style.display = "";
+        altLine2.style.display = "none";
+        firstNameInput.value = "";
+      } else {
+        modeText.textContent = "Create your account";
+        firstNameWrap.style.display = "";
+        submitBtn.textContent = "Sign up";
+        altLine.style.display = "none";
+        altLine2.style.display = "";
+      }
+      errEl.textContent = "";
+    }
+
+    toSignup.addEventListener("click", () => setMode("signup"));
+    toSignin.addEventListener("click", () => setMode("signin"));
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errEl.textContent = "";
+
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      const firstName = firstNameInput.value.trim();
+
+      try {
+        if (mode === "signin") {
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+        } else {
+          if (!firstName) {
+            errEl.textContent = "Please enter your first name";
+            return;
+          }
+          const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { first_name: firstName } // saved in user_metadata
+            }
+          });
+          if (error) throw error;
+          // If your project requires email confirmation, the session may be null here
+          // We still redirect to members, your guard there will handle session state
+        }
+        // Redirect after success
+        location.href = "members.html";
+      } catch (e2) {
+        errEl.textContent = e2.message || "Something went wrong";
+      }
+    });
+
+    // If already signed in, skip
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) location.href = "members.html";
+    })();
+  </script>
+</body>
+</html>
+
+
+
+
