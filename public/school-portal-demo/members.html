@@ -3,107 +3,366 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Winnerland Members</title>
+  <title>Members Dashboard</title>
 
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- PapaParse -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 
   <style>
     :root { color-scheme: dark; }
-    body { margin:0; padding:0; background:#121212; color:#fff; font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-    header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; position:sticky; top:0; backdrop-filter: blur(6px); background:rgba(18,18,18,.85); border-bottom:1px solid #222; z-index:10; }
-    header .left { display:flex; align-items:center; gap:10px; }
-    header h1 { font-size:1.15rem; margin:0; }
-    header .right { display:flex; align-items:center; gap:10px; }
-    .btn { padding:.55rem .8rem; border-radius:10px; border:1px solid #333; background:#1e1e1e; color:#fff; cursor:pointer; }
-    .btn:hover { background:#252525; }
-    .accent { border-color:#3b82f6; }
-    .danger { border-color:#ef4444; }
-    .tag { font-size:.85rem; color:#bdbdbd; }
-    main { padding:16px; }
-    .toolbar { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-bottom:.75rem; }
-    .toolbar input, .toolbar select { background:#0f0f0f; color:#fff; border:1px solid #333; border-radius:10px; padding:.5rem .65rem; }
-    .dashboard { display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; margin-top:.75rem; }
-    .chart-card { background:#1e1e1e; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.25); padding:1rem; display:flex; flex-direction:column; border: 3px solid transparent; }
-    .chart-card h2 { margin:0 0 .5rem; font-size:1.05rem; text-align:center; color:#fff; }
-    .chart-container { position:relative; flex:1; height: 220px; }
-    .chart-container canvas { width:100% !important; height:100% !important; }
-    .footnote { color:#9aa0a6; font-size:.85rem; text-align:center; margin-top:.75rem; }
-    .row { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+    body {
+      margin: 0;
+      padding: 1rem;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #121212;
+      color: #fff;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+      margin-bottom: .75rem;
+    }
+    h1 { margin: 0; font-size: 1.25rem; }
+    .row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .btn {
+      padding: .5rem .75rem;
+      border-radius: 10px;
+      border: 1px solid #2a2a2a;
+      background: #1f2937;
+      color: #fff;
+      cursor: pointer;
+    }
+    .btn:hover { background: #273244; }
+    .danger { border-color: #ef4444; }
+    /* toggle */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 26px;
+      vertical-align: middle;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background-color: #333; transition: .2s; border-radius: 26px;
+    }
+    .slider:before {
+      position: absolute; content: "";
+      height: 18px; width: 18px; left: 4px; bottom: 4px;
+      background: #fff; transition: .2s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: #2563eb; }
+    input:checked + .slider:before { transform: translateX(24px); }
+
+    /* grid and cards */
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .chart-card {
+      background: #1e1e1e;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 2px 12px rgba(0,0,0,.25);
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-card h2 {
+      margin: 0 0 .5rem 0;
+      font-size: 1.05rem;
+      text-align: center;
+    }
+    .chart-container {
+      position: relative;
+      flex: 1;
+      height: 220px;
+    }
+    .chart-container canvas { width: 100% !important; height: 100% !important; }
   </style>
 </head>
 <body>
   <header>
-    <div class="left">
-      <h1>Winnerland Members</h1>
-      <span class="tag" id="userTag"></span>
-    </div>
-    <div class="right">
-      <button class="btn" onclick="location.href='watchlist.html'">Watchlist voting</button>
-      <button class="btn" id="btnExportPNGs">Export charts as PNG</button>
-      <button class="btn accent" id="btnRefresh">Refresh</button>
+    <h1>Members dashboard</h1>
+    <div class="row">
+      <label class="row" style="gap:.35rem;">
+        <span>Divide by 12</span>
+        <span class="switch">
+          <input type="checkbox" id="divideToggle" />
+          <span class="slider"></span>
+        </span>
+      </label>
+      <button class="btn" onclick="location.href='watchlist.html'">Watchlist</button>
       <button class="btn danger" id="btnSignOut">Sign out</button>
     </div>
   </header>
 
-  <main>
-    <div class="toolbar">
-      <label class="row">
-        <span>Member count</span>
-        <input id="memberCount" type="number" min="1" value="1" />
-      </label>
-      <label class="row">
-        <span>Filter ticker</span>
-        <input id="filterTicker" type="text" placeholder="For example AAPL" />
-      </label>
-      <label class="row">
-        <span>Hide NZD below</span>
-        <input id="minNZD" type="number" min="0" step="1" value="0" />
-      </label>
-      <label class="row">
-        <span>Show percent line</span>
-        <select id="pctMode">
-          <option value="on" selected>On</option>
-          <option value="off">Off</option>
-        </select>
-      </label>
-    </div>
+  <div class="dashboard" id="dashboard"></div>
 
-    <div class="dashboard" id="dashboard"></div>
-    <p class="footnote">Your charts are private to your account. Change the member count to show per person values.</p>
-  </main>
-
-  <script src="app.js"></script>
   <script>
+    /* Supabase guard */
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    async function guard() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { location.href = "login.html"; return; }
-      const { data: { user } } = await supabase.auth.getUser();
-      document.getElementById("userTag").textContent = user && user.email ? "(" + user.email + ")" : "";
-    }
-
-    guard();
-
-    supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) location.href = "login.html";
-    });
-
     document.getElementById("btnSignOut").addEventListener("click", async () => {
       await supabase.auth.signOut();
       location.href = "login.html";
     });
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) location.href = "login.html";
+    })();
 
-    document.getElementById("btnRefresh").addEventListener("click", () => window.WINNERLAND.renderNow());
-    document.getElementById("btnExportPNGs").addEventListener("click", () => window.WINNERLAND.exportPNGs());
-    document.getElementById("memberCount").addEventListener("change", () => window.WINNERLAND.renderNow());
-    document.getElementById("filterTicker").addEventListener("input", () => window.WINNERLAND.renderNow());
-    document.getElementById("minNZD").addEventListener("input", () => window.WINNERLAND.renderNow());
-    document.getElementById("pctMode").addEventListener("change", () => window.WINNERLAND.renderNow());
+    /* Data source */
+    const csvUrl =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vQEJMIKmxhiNNEJ8h-sgxpsSAT8ndO5TK0EVCijAoAv4y-cmmU0YSHFUX8mC6gMBouC9k50FVFQLawN/pub?gid=1666283294&single=true&output=csv";
+
+    let rawRows = [];
+    let portfolioData = [];
+
+    Papa.parse(csvUrl, {
+      download: true,
+      header: true,
+      complete: ({ data }) => {
+        // keep owned rows
+        rawRows = data.filter(r => parseFloat(r["QTY"]) > 0 && r.Ticker);
+
+        // portfolio value over time from columns M date and N value
+        portfolioData = data.map(row => {
+          const date = row["M"];
+          const portfolioValue = parseFloat(row["N"]) || 0;
+          if (!portfolioValue) return null;
+          return { date, portfolioValue };
+        }).filter(Boolean);
+
+        renderCharts(false);
+        document.getElementById("divideToggle")
+          .addEventListener("change", e => renderCharts(e.target.checked));
+      },
+      error: err => console.error("CSV load error", err)
+    });
+
+    let charts = [];
+    function destroyCharts() {
+      charts.forEach(c => { try { c.destroy(); } catch(_){} });
+      charts = [];
+    }
+
+    function renderCharts(divideBy12) {
+      const f = divideBy12 ? 12 : 1;
+      const dashboard = document.getElementById("dashboard");
+      dashboard.innerHTML = "";
+      destroyCharts();
+
+      // totals
+      let totalSpent = 0, totalValue = 0;
+      rawRows.forEach(r => {
+        const tcUsd   = parseFloat((r["Total Cost"] || "").replace(/[^\d.-]/g,"")) || 0;
+        const mvUsd   = parseFloat((r["Market Value"] || "").replace(/[^\d.-]/g,"")) || 0;
+        const mvNzd   = parseFloat((r["NZD"] || "").replace(/[^\d.-]/g,"")) || 0;
+        const costNzd = mvUsd ? tcUsd * (mvNzd / mvUsd) : 0;
+        totalSpent += costNzd;
+        totalValue += mvNzd;
+      });
+      const totalProfit = totalValue - totalSpent;
+
+      // PIE card
+      const pieCard = document.createElement("div");
+      pieCard.className = "chart-card";
+      pieCard.innerHTML = `
+        <h2>Allocation ${f>1 ? "(per 1 of 12)" : ""}</h2>
+        <div class="chart-container"><canvas id="summaryPie"></canvas></div>
+      `;
+      dashboard.appendChild(pieCard);
+
+      // BAR card
+      const barCard = document.createElement("div");
+      barCard.className = "chart-card";
+      barCard.innerHTML = `
+        <h2>Portfolio summary ${f>1 ? "(per 1 of 12)" : ""}</h2>
+        <div class="chart-container"><canvas id="summaryBar"></canvas></div>
+      `;
+      dashboard.appendChild(barCard);
+
+      // LINE card
+      const lineCard = document.createElement("div");
+      lineCard.className = "chart-card";
+      lineCard.innerHTML = `
+        <h2>Portfolio value over time</h2>
+        <div class="chart-container"><canvas id="portfolioValueLine"></canvas></div>
+      `;
+      dashboard.appendChild(lineCard);
+
+      // Line chart
+      const lineLabels = portfolioData.map(r => r.date);
+      const lineData = portfolioData.map(r => r.portfolioValue);
+      const minValue = Math.min(...lineData);
+      const maxValue = Math.max(...lineData);
+      const margin = (maxValue - minValue) * 0.1;
+
+      charts.push(new Chart(document.getElementById("portfolioValueLine"), {
+        type: "line",
+        data: {
+          labels: lineLabels,
+          datasets: [{
+            label: "Portfolio value NZD",
+            data: lineData,
+            fill: false,
+            borderColor: "rgba(75,192,192,1)",
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: minValue - margin,
+              max: maxValue + margin,
+              ticks: { callback: v => "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+              grid: { color: "#444", borderColor: "#444" }
+            },
+            x: { grid: { color: "#444" } }
+          },
+          plugins: {
+            legend: { labels: { color: "#fff" } }
+          }
+        }
+      }));
+
+      // PIE
+      const pieLabels = rawRows.map(r => r.Ticker);
+      const pieData = rawRows.map(r => (parseFloat((r["NZD"] || "").replace(/[^\d.-]/g,"")) || 0) / f);
+      charts.push(new Chart(document.getElementById("summaryPie"), {
+        type: "doughnut",
+        data: { labels: pieLabels, datasets: [{ data: pieData }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "right", labels: { color: "#fff" } } },
+          elements: { arc: { borderWidth: 0 } }
+        }
+      }));
+
+      // BAR
+      charts.push(new Chart(document.getElementById("summaryBar"), {
+        type: "bar",
+        data: {
+          labels: ["Spent", "Profit", "Value"],
+          datasets: [{
+            label: "NZD",
+            data: [ totalSpent / f, totalProfit / f, totalValue / f ],
+            backgroundColor: [
+              "rgba(54,162,235,0.6)",
+              "rgba(255,205,86,0.6)",
+              "rgba(75,192,192,0.6)"
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { callback: v => "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+              grid: { color: "#444", borderColor: "#444" }
+            },
+            x: { grid: { color: "#444" } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      }));
+
+      // per holding cards
+      rawRows.forEach(r => {
+        const tcUsd = parseFloat((r["Total Cost"] || "").replace(/[^\d.-]/g, "")) || 0;
+        const mvUsd = parseFloat((r["Market Value"] || "").replace(/[^\d.-]/g, "")) || 0;
+        const mvNzd = parseFloat((r["NZD"] || "").replace(/[^\d.-]/g, "")) || 0;
+        const costNzd = mvUsd ? tcUsd * (mvNzd / mvUsd) : 0;
+        const profitNzd = mvNzd - costNzd;
+        const pctChange = parseFloat((r["% Change"] || "").replace(/[^\d.-]/g, "")) || 0;
+
+        const card = document.createElement("div");
+        card.className = "chart-card";
+        card.innerHTML = `
+          <h2>${r.Ticker}</h2>
+          <div class="chart-container"><canvas id="chart-${r.Ticker}"></canvas></div>
+        `;
+        dashboard.appendChild(card);
+
+        // green border for profit, red for loss
+        card.style.borderColor = profitNzd >= 0 ? "#28a745" : "#dc3545";
+
+        charts.push(new Chart(document.getElementById(`chart-${r.Ticker}`), {
+          data: {
+            labels: ["Cost", "Value", "Profit", "% Change"],
+            datasets: [
+              {
+                type: "bar",
+                label: "NZD",
+                data: [ costNzd / f, mvNzd / f, profitNzd / f, null ],
+                backgroundColor: [
+                  "rgba(54,162,235,0.6)",
+                  "rgba(75,192,192,0.6)",
+                  "rgba(255,205,86,0.6)"
+                ]
+              },
+              {
+                type: "line",
+                label: "% Change",
+                data: [ null, null, null, pctChange ],
+                yAxisID: "PCT",
+                borderColor: "rgba(255,99,132,0.8)",
+                backgroundColor: "rgba(255,99,132,0.4)",
+                tension: 0.3,
+                pointRadius: 4,
+                fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: { display: true, text: "NZD" },
+                ticks: { callback: v => "$" + Number(v).toLocaleString() },
+                grid: { color: "#444" }
+              },
+              PCT: {
+                type: "linear",
+                position: "right",
+                title: { display: true, text: "% Change" },
+                grid: { drawOnChartArea: false },
+                ticks: { callback: v => v + "%" }
+              }
+            },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: ctx => {
+                    if (ctx.dataset.type === "line") return "% Change: " + ctx.parsed.y + "%";
+                    return "NZD $" + Number(ctx.parsed.y).toLocaleString();
+                  }
+                }
+              },
+              legend: { position: "bottom" }
+            }
+          }
+        }));
+      });
+    }
   </script>
 </body>
 </html>
