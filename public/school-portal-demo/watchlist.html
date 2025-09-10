@@ -21,10 +21,10 @@
     .btn[disabled] { opacity:.6; cursor:not-allowed; }
     .btn-cta { background:#2563eb; border-color:#2563eb; }
     .btn-cta:hover { background:#1d4ed8; }
+    .btn-ghost { background:#111; }
     .grid { display:grid; grid-template-columns: 1fr; gap:.75rem; margin-top:1rem; }
     @media (min-width: 980px) { .grid { grid-template-columns: 1fr 1fr; } }
 
-    /* list item */
     .item {
       display:flex; flex-wrap:wrap; gap:.75rem;
       align-items:stretch;
@@ -37,36 +37,25 @@
     }
     .score { font-size:1.05rem; font-weight:700; }
     .sub { color:#9aa0a6; font-size:.8rem; }
-    .grow {
-      flex:1 1 220px;
-      min-width:0; /* allow shrinking */
-    }
+    .grow { flex:1 1 220px; min-width:0; }
     .ticker { font-weight:700; letter-spacing:.5px; margin-bottom:.15rem; overflow-wrap:anywhere; }
     .muted { color:#9aa0a6; font-size:.9rem; overflow-wrap:anywhere; }
     .pct { font-weight:700; }
     .pct.up { color:#22c55e; }
     .pct.down { color:#ef4444; }
+    .pct-chip { display:inline-block; padding:.1rem .45rem; border:1px solid #333; border-radius:999px; font-size:.8rem; margin-top:.2rem; }
 
-    .vote {
+    .vote, .archive, .unarchive {
       padding:.55rem .9rem;
       border-radius:10px; border:1px solid #333;
       background:#111; color:#fff; cursor:pointer;
-      white-space:nowrap; /* keep word Vote together */
-      flex:0 0 auto;
+      white-space:nowrap; flex:0 0 auto;
     }
     .vote.active { border-color:#22c55e; background:#164e27; }
-    .vote[disabled] { opacity:.6; cursor:not-allowed; }
+    .vote[disabled], .archive[disabled], .unarchive[disabled] { opacity:.6; cursor:not-allowed; }
 
-    .right {
-      margin-left:auto;
-      display:flex; gap:.5rem; align-items:center;
-      flex:0 0 auto;
-    }
-
-    /* stack controls neatly on very small screens */
-    @media (max-width: 540px) {
-      .right { width:100%; justify-content:flex-end; margin-left:0; }
-    }
+    .right { margin-left:auto; display:flex; gap:.5rem; align-items:center; flex:0 0 auto; }
+    @media (max-width: 540px) { .right { width:100%; justify-content:flex-end; margin-left:0; } }
 
     .danger { border-color:#ef4444; }
     .ok { color:#86efac; }
@@ -74,7 +63,6 @@
     .topbar { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.75rem; }
     #err { margin:.5rem 0; color:#fca5a5; display:none; }
 
-    /* Loading overlay */
     .loading-veil {
       position: fixed; inset: 0;
       background: rgba(0,0,0,.45);
@@ -96,6 +84,11 @@
       animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    .archive-wrap { max-height: 280px; overflow:auto; display:flex; flex-direction:column; gap:.5rem; }
+    .arch-item { display:flex; align-items:flex-start; gap:.75rem; padding:.6rem .7rem; border:1px solid #2a2a2a; border-radius:10px; background:#141414; }
+    .arch-left { flex:1 1 auto; min-width:0; }
+    .arch-actions { flex:0 0 auto; display:flex; gap:.5rem; }
   </style>
 </head>
 <body>
@@ -107,7 +100,6 @@
     </div>
   </header>
 
-  <!-- Loading overlay -->
   <div id="loading" class="loading-veil" aria-hidden="true">
     <div class="loading-box">
       <div class="spinner" aria-label="Loading"></div>
@@ -116,7 +108,6 @@
   </div>
 
   <main>
-    <!-- Add form -->
     <section class="card" style="margin-bottom:1rem;">
       <div class="topbar">
         <div class="row" style="flex:1;">
@@ -142,7 +133,6 @@
       <div id="err"></div>
     </section>
 
-    <!-- List -->
     <section class="card" style="margin-bottom:1rem;">
       <div class="row" style="justify-content:space-between; margin-bottom:.5rem;">
         <div class="row" style="flex:1; min-width:0;">
@@ -153,8 +143,18 @@
       <div id="list" class="grid"></div>
     </section>
 
-    <!-- Leaderboard at the bottom -->
-    <section class="card" id="leaderCard">
+    <section class="card" id="archiveCard">
+      <div class="row" style="justify-content:space-between; margin-bottom:.5rem;">
+        <h2 style="margin:0; font-size:1rem;">Archived</h2>
+        <div class="row">
+          <label class="muted">Filter</label>
+          <input id="archSearch" placeholder="Filter archived" />
+        </div>
+      </div>
+      <div id="archList" class="archive-wrap"></div>
+    </section>
+
+    <section class="card" id="leaderCard" style="margin-top:1rem;">
       <h2 style="margin:.25rem 0 0.75rem 0; font-size:1rem;">Leaderboard, average percent change by suggester</h2>
       <div id="leaderWrap">
         <div class="muted">Loading leaderboard, please wait</div>
@@ -166,33 +166,20 @@
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
     const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby9-PQORBC7L27BItmvRVowsut2KAgcPyJxeDszODyouSxYB59pOf1TrIGm1SLQEIiccQ/exec";
 
     let currentUser = null;
     let items = [];
     let votes = [];
     let myVotes = [];
-    let pctMap = {};
+    let pctMap = {}; // uppercase keys only
 
-    /* Loading helpers */
+    /* loading */
     let loadingDepth = 0;
     const loadingEl = document.getElementById("loading");
     const loadingTextEl = document.getElementById("loadingText");
-    function setLoading(on, text) {
-      if (on) {
-        loadingDepth += 1;
-        if (text) loadingTextEl.textContent = text;
-        loadingEl.style.display = "flex";
-      } else {
-        loadingDepth = Math.max(0, loadingDepth - 1);
-        if (loadingDepth === 0) loadingEl.style.display = "none";
-      }
-    }
-    async function withLoading(label, fn) {
-      try { setLoading(true, label); return await fn(); }
-      finally { setLoading(false); }
-    }
+    function setLoading(on, text) { if (on) { loadingDepth += 1; if (text) loadingTextEl.textContent = text; loadingEl.style.display = "flex"; } else { loadingDepth = Math.max(0, loadingDepth - 1); if (loadingDepth === 0) loadingEl.style.display = "none"; } }
+    async function withLoading(label, fn) { try { setLoading(true, label); return await fn(); } finally { setLoading(false); } }
     function disable(el, state) { if (el) el.disabled = !!state; }
 
     function showErr(e) {
@@ -203,55 +190,89 @@
       setTimeout(() => { box.style.display = "none"; }, 5000);
     }
 
-    // JSONP loader for sheet percents
-    function loadPctJSONP(tickers, cbName = "WL_PCT_CB") {
-      return new Promise(resolve => {
-        if (window[cbName]) delete window[cbName];
-        let script = document.createElement("script");
-        window[cbName] = function(resp) {
-          try { resolve(resp && resp.data ? resp.data : {}); }
-          finally {
-            if (script && script.parentNode) script.parentNode.removeChild(script);
-            delete window[cbName];
-          }
-        };
-        script.src = SHEET_WEBAPP_URL + "?tickers=" + encodeURIComponent(tickers) + "&callback=" + cbName + "&ts=" + Date.now();
-        document.head.appendChild(script);
+    /* timeouts */
+    function withTimeout(promise, ms, label) {
+      let t;
+      const timeout = new Promise((resolve) => {
+        t = setTimeout(() => { console.warn((label || "operation") + " timed out at " + ms + " ms"); resolve("__TIMEOUT__"); }, ms);
       });
+      return Promise.race([promise, timeout]).then((v) => { clearTimeout(t); return v; });
     }
 
+    /* unique JSONP per call to avoid collisions */
+    function loadPctJSONP(tickers, timeoutMs = 3500) {
+      const cbName = "WL_PCT_CB_" + Math.random().toString(36).slice(2);
+      return withTimeout(new Promise(resolve => {
+        let finished = false;
+        let script;
+        function done(raw) {
+          if (finished) return;
+          finished = true;
+          try {
+            const map = {};
+            const data = raw && raw.data ? raw.data : {};
+            for (const k in data) if (Object.prototype.hasOwnProperty.call(data, k)) map[String(k).toUpperCase()] = data[k];
+            resolve(map);
+          } catch (_) {
+            resolve({});
+          } finally {
+            try { delete window[cbName]; } catch(_) {}
+            try { if (script && script.parentNode) script.parentNode.removeChild(script); } catch(_) {}
+          }
+        }
+        window[cbName] = done;
+        script = document.createElement("script");
+        script.src = SHEET_WEBAPP_URL + "?tickers=" + encodeURIComponent(tickers) + "&callback=" + cbName + "&ts=" + Date.now();
+        script.onerror = () => done({});
+        document.head.appendChild(script);
+      }), timeoutMs, "sheet jsonp").then(v => v === "__TIMEOUT__" ? {} : v);
+    }
+
+    /* auth */
     async function guard() {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) { showErr(error.message || error); }
+      const sess = await withTimeout(supabase.auth.getSession(), 5000, "getSession");
+      const session = sess?.data?.session;
       if (!session) { location.href = "login.html"; return; }
-      const { data: { user }, error: userErr } = await supabase.auth.getUser();
-      if (userErr) { showErr(userErr.message || userErr); return; }
-      currentUser = user;
+      const usr = await withTimeout(supabase.auth.getUser(), 5000, "getUser");
+      currentUser = usr?.data?.user;
+      if (!currentUser) { location.href = "login.html"; return; }
     }
 
+    /* versioned fetch, only latest applies */
+    let fetchVersion = 0;
     async function fetchAll() {
+      const myVer = ++fetchVersion;
       try {
-        const { data: itemsData, error: itemsErr } = await supabase
-          .from("watchlist_items")
-          .select("*")
-          .order("created_at", { ascending: false });
-        if (itemsErr) throw itemsErr;
-        items = itemsData || [];
+        const itemsRes = await withTimeout(
+          supabase.from("watchlist_items").select("*").order("created_at", { ascending: false }),
+          6000,
+          "items"
+        );
+        if (myVer !== fetchVersion) return;
+        if (itemsRes !== "__TIMEOUT__" && itemsRes?.error) throw itemsRes.error;
+        items = itemsRes && itemsRes !== "__TIMEOUT__" ? (itemsRes.data || []) : [];
 
-        const { data: votesData, error: votesErr } = await supabase
-          .from("watchlist_votes")
-          .select("item_id, user_id, value");
-        if (votesErr) throw votesErr;
-        votes = votesData || [];
+        const votesRes = await withTimeout(
+          supabase.from("watchlist_votes").select("item_id, user_id, value"),
+          6000,
+          "votes"
+        );
+        if (myVer !== fetchVersion) return;
+        if (votesRes !== "__TIMEOUT__" && votesRes?.error) throw votesRes.error;
+        votes = votesRes && votesRes !== "__TIMEOUT__" ? (votesRes.data || []) : [];
         myVotes = votes.filter(v => v.user_id === currentUser.id);
 
-        const uniqueTickers = Array.from(new Set(items.map(i => i.ticker).filter(Boolean))).join(",");
-        pctMap = {};
+        const uniqueTickers = Array.from(new Set(items.map(i => (i.ticker || "").toUpperCase()).filter(Boolean))).join(",");
         if (uniqueTickers) {
-          try { pctMap = await loadPctJSONP(uniqueTickers); }
-          catch (e) { console.warn("Sheet percent load failed", e); }
+          const pct = await loadPctJSONP(uniqueTickers, 3500);
+          if (myVer !== fetchVersion) return;
+          pctMap = pct;
+        } else {
+          pctMap = {};
         }
-      } catch (e) { showErr(e.message || e); }
+      } catch (e) {
+        showErr(e.message || e);
+      }
     }
 
     function computeScores() {
@@ -260,38 +281,47 @@
       return m;
     }
 
+    function pctFor(ticker) {
+      const rec = pctMap[String(ticker || "").toUpperCase()];
+      return (rec && typeof rec.pct === "number") ? rec : null;
+    }
+
     function pctBadge(ticker) {
-      const rec = pctMap[ticker];
-      if (!rec || typeof rec.pct !== "number") return `<div class="sub muted">change n/a</div>`;
+      const rec = pctFor(ticker);
+      if (!rec) return `<div class="sub muted">change n/a</div>`;
       const pct = rec.pct * 100;
       const cls = pct >= 0 ? "pct up" : "pct down";
       const priceStr = rec.price ? Number(rec.price).toFixed(2) : "n/a";
       return `<div class="${cls}">${pct.toFixed(2)}%</div><div class="sub">now ${priceStr}</div>`;
     }
 
-    function mergeSorted() {
+    function mergeSortedActive() {
       const scoreMap = computeScores();
       const myMap = new Map(myVotes.map(v => [v.item_id, v.value]));
-      const merged = items.map(it => ({
-        ...it,
-        score: scoreMap.get(it.id) || 0,
-        myVote: myMap.get(it.id) || 0
-      }));
+      const merged = items
+        .filter(it => !it.archived)
+        .map(it => ({ ...it, score: scoreMap.get(it.id) || 0, myVote: myMap.get(it.id) || 0 }));
       merged.sort((a,b) => b.score - a.score || a.ticker.localeCompare(b.ticker));
       return merged;
+    }
+
+    function listArchivedFiltered() {
+      const q = (document.getElementById("archSearch").value || "").trim().toUpperCase();
+      let arr = items.filter(it => it.archived);
+      if (q) arr = arr.filter(i => (i.ticker || "").toUpperCase().includes(q));
+      arr.sort((a,b) => (a.ticker || "").localeCompare(b.ticker || ""));
+      return arr;
     }
 
     function computeLeaderboard() {
       const byUser = new Map();
       for (const it of items) {
-        const ticker = it.ticker || "";
-        const rec = pctMap[ticker];
-        const pct = rec && typeof rec.pct === "number" ? rec.pct : null;
-        if (pct === null) continue;
+        const rec = pctFor(it.ticker);
+        if (!rec) continue;
         const name = it.suggested_by_name && it.suggested_by_name.trim() ? it.suggested_by_name.trim() : "Someone";
         const stat = byUser.get(name) || { name, count: 0, sumPct: 0 };
         stat.count += 1;
-        stat.sumPct += pct;
+        stat.sumPct += rec.pct;
         byUser.set(name, stat);
       }
       const rows = Array.from(byUser.values())
@@ -326,19 +356,19 @@
       wrap.innerHTML = html;
     }
 
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c] || c));
-    }
+    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c] || c)); }
 
-    function renderList() {
+    function renderActiveList() {
       const q = (document.getElementById("search").value || "").trim().toUpperCase();
-      let merged = mergeSorted();
+      let merged = mergeSortedActive();
       if (q) merged = merged.filter(i => i.ticker && i.ticker.toUpperCase().includes(q));
 
       const list = document.getElementById("list");
       list.innerHTML = "";
       merged.forEach(it => {
         const suggester = it.suggested_by_name || "Someone";
+        const rec = pctFor(it.ticker);
+        const pctChip = rec ? `<span class="pct-chip ${rec.pct >= 0 ? "pct up" : "pct down"}">${(rec.pct*100).toFixed(2)}%</span>` : `<span class="pct-chip muted">n/a</span>`;
         const el = document.createElement("div");
         el.className = "item";
         el.innerHTML = `
@@ -347,21 +377,20 @@
             <div class="sub">votes</div>
           </div>
           <div class="grow">
-            <div class="ticker">${escapeHtml(it.ticker || "")}</div>
+            <div class="ticker">${escapeHtml(it.ticker || "")} ${pctChip}</div>
             <div class="muted">Suggested by ${escapeHtml(suggester)}</div>
             <div class="muted">${escapeHtml(it.notes || "")}</div>
           </div>
-          <div class="scorebox">
-            ${pctBadge(it.ticker || "")}
-          </div>
+          <div class="scorebox">${pctBadge(it.ticker || "")}</div>
           <div class="right">
             <button class="vote ${it.myVote === 1 ? "active" : ""}" data-id="${it.id}">Vote</button>
+            <button class="archive btn-ghost" data-id="${it.id}">Archive</button>
           </div>
         `;
         list.appendChild(el);
       });
 
-      document.querySelectorAll(".vote").forEach(btn => {
+      list.querySelectorAll(".vote").forEach(btn => {
         btn.addEventListener("click", async () => {
           if (btn.disabled) return;
           disable(btn, true);
@@ -369,23 +398,95 @@
           finally { disable(btn, false); }
         });
       });
+      list.querySelectorAll(".archive").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (btn.disabled) return;
+          disable(btn, true);
+          try { await withLoading("Archiving", () => setArchived(btn.dataset.id, true)); }
+          finally { disable(btn, false); }
+        });
+      });
+    }
+
+    function renderArchivedList() {
+      const container = document.getElementById("archList");
+      const arr = listArchivedFiltered();
+      container.innerHTML = "";
+      if (!arr.length) {
+        container.innerHTML = `<div class="muted">No archived tickers</div>`;
+        return;
+      }
+      arr.forEach(it => {
+        const rec = pctFor(it.ticker);
+        const pctText = rec ? (rec.pct*100).toFixed(2) + "%" : "n/a";
+        const cls = rec ? (rec.pct >= 0 ? "pct up" : "pct down") : "muted";
+        const el = document.createElement("div");
+        el.className = "arch-item";
+        el.innerHTML = `
+          <div class="arch-left">
+            <div class="ticker">${escapeHtml(it.ticker || "")} <span class="pct-chip ${cls}">${pctText}</span></div>
+            <div class="muted">Suggested by ${escapeHtml(it.suggested_by_name || "Someone")}</div>
+          </div>
+          <div class="arch-actions">
+            <button class="unarchive" data-id="${it.id}">Unarchive</button>
+          </div>
+        `;
+        container.appendChild(el);
+      });
+
+      container.querySelectorAll(".unarchive").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (btn.disabled) return;
+          disable(btn, true);
+          try { await withLoading("Unarchiving", () => setArchived(btn.dataset.id, false)); }
+          finally { disable(btn, false); }
+        });
+      });
+    }
+
+    async function setArchived(itemId, state) {
+      const res = await withTimeout(
+        supabase.from("watchlist_items").update({ archived: !!state }).eq("id", itemId),
+        6000,
+        "archive toggle"
+      );
+      if (res === "__TIMEOUT__") {
+        showErr("Archive update timed out");
+      } else if (res?.error) {
+        // helpful message if RLS blocks updates
+        const msg = res.error.message || String(res.error);
+        showErr(msg.includes("row level security") ? "You do not have permission to update this item" : msg);
+      }
+      await fetchAll();
+      renderLeaderboard();
+      renderActiveList();
+      renderArchivedList();
     }
 
     async function onVote(itemId) {
       const current = myVotes.find(m => m.item_id === itemId);
       if (current) {
-        const { error } = await supabase.from("watchlist_votes").delete().match({ item_id: itemId, user_id: currentUser.id });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("watchlist_votes").upsert(
-          { item_id: itemId, user_id: currentUser.id, value: 1 },
-          { onConflict: "item_id,user_id" }
+        const res = await withTimeout(
+          supabase.from("watchlist_votes").delete().match({ item_id: itemId, user_id: currentUser.id }),
+          6000,
+          "vote delete"
         );
-        if (error) throw error;
+        if (res !== "__TIMEOUT__" && res?.error) showErr(res.error.message || res.error);
+      } else {
+        const res = await withTimeout(
+          supabase.from("watchlist_votes").upsert(
+            { item_id: itemId, user_id: currentUser.id, value: 1 },
+            { onConflict: "item_id,user_id" }
+          ),
+          6000,
+          "vote upsert"
+        );
+        if (res !== "__TIMEOUT__" && res?.error) showErr(res.error.message || res.error);
       }
       await fetchAll();
       renderLeaderboard();
-      renderList();
+      renderActiveList();
+      renderArchivedList();
     }
 
     function showMsg(text, ok=true) {
@@ -409,26 +510,21 @@
       disable(addBtn, true);
       try {
         await withLoading("Adding ticker", async () => {
-          const { error } = await supabase
-            .from("watchlist_items")
-            .insert({ ticker: t, notes: n, created_by: currentUser.id, suggested_by_name: displayName });
-          if (error) throw error;
+          const ins = await withTimeout(
+            supabase.from("watchlist_items").insert({ ticker: t, notes: n, created_by: currentUser.id, suggested_by_name: displayName, archived: false }),
+            6000,
+            "insert item"
+          );
+          if (ins !== "__TIMEOUT__" && ins?.error) throw ins.error;
 
-          // log to Google Sheet
           try {
-            await fetch(SHEET_WEBAPP_URL, {
+            await withTimeout(fetch(SHEET_WEBAPP_URL, {
               method: "POST",
               mode: "no-cors",
               headers: { "Content-Type": "text/plain" },
-              body: JSON.stringify({
-                email: currentUser.email || "",
-                user_id: currentUser.id,
-                ticker: t,
-                notes: n,
-                market
-              })
-            });
-          } catch(e) { console.warn("Sheet log failed", e); }
+              body: JSON.stringify({ email: currentUser.email || "", user_id: currentUser.id, ticker: t, notes: n, market })
+            }), 3000, "sheet log");
+          } catch(_) {}
 
           document.getElementById("ticker").value = "";
           document.getElementById("notes").value = "";
@@ -436,7 +532,8 @@
           showMsg("Added");
           await fetchAll();
           renderLeaderboard();
-          renderList();
+          renderActiveList();
+          renderArchivedList();
         });
       } catch (e) {
         showErr(e.message || e);
@@ -449,49 +546,47 @@
     function setupRealtime() {
       const channel = supabase.channel("watchlist_changes");
       channel.on("postgres_changes", { event: "*", schema: "public", table: "watchlist_items" }, async () => {
-        await fetchAll(); renderLeaderboard(); renderList();
+        await fetchAll(); renderLeaderboard(); renderActiveList(); renderArchivedList();
       });
       channel.on("postgres_changes", { event: "*", schema: "public", table: "watchlist_votes" }, async () => {
-        await fetchAll(); renderLeaderboard(); renderList();
+        await fetchAll(); renderLeaderboard(); renderActiveList(); renderArchivedList();
       });
       channel.subscribe();
     }
 
-    function debounce(fn, ms) {
-      let t = null;
-      return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(null, args), ms); };
-    }
+    function debounce(fn, ms) { let t = null; return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(null, args), ms); }; }
 
     document.getElementById("addBtn").addEventListener("click", addItem);
-    document.getElementById("search").addEventListener("input", debounce(renderList, 200));
-    document.getElementById("btnSignOut").addEventListener("click", async () => {
-      await supabase.auth.signOut(); location.href = "login.html";
-    });
+    document.getElementById("search").addEventListener("input", debounce(renderActiveList, 200));
+    document.getElementById("archSearch").addEventListener("input", debounce(renderArchivedList, 200));
+    document.getElementById("btnSignOut").addEventListener("click", async () => { await supabase.auth.signOut(); location.href = "login.html"; });
 
     async function init() {
       await withLoading("Loading watchlist", async () => {
         await guard();
         await fetchAll();
         renderLeaderboard();
-        renderList();
+        renderActiveList();
+        renderArchivedList();
         setupRealtime();
       });
 
       setInterval(async () => {
-        const uniqueTickers = Array.from(new Set(items.map(i => i.ticker).filter(Boolean))).join(",");
+        const uniqueTickers = Array.from(new Set(items.map(i => (i.ticker || "").toUpperCase()).filter(Boolean))).join(",");
         if (!uniqueTickers) return;
         try {
-          const data = await loadPctJSONP(uniqueTickers);
+          const myVer = ++fetchVersion; // bump version so only newest applies
+          const data = await loadPctJSONP(uniqueTickers, 3500);
+          if (myVer !== fetchVersion) return;
           pctMap = data;
           renderLeaderboard();
-          renderList();
-        } catch (_) {}
+          renderActiveList();
+          renderArchivedList();
+        } catch(_) {}
       }, 60000);
     }
     init();
   </script>
 </body>
 </html>
-
-
 
