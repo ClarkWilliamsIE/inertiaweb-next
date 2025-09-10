@@ -199,7 +199,7 @@
       return Promise.race([promise, timeout]).then((v) => { clearTimeout(t); return v; });
     }
 
-    /* unique JSONP per call to avoid collisions */
+    /* JSONP loader with per call unique callback to avoid collisions */
     function loadPctJSONP(tickers, timeoutMs = 3500) {
       const cbName = "WL_PCT_CB_" + Math.random().toString(36).slice(2);
       return withTimeout(new Promise(resolve => {
@@ -226,6 +226,17 @@
         script.onerror = () => done({});
         document.head.appendChild(script);
       }), timeoutMs, "sheet jsonp").then(v => v === "__TIMEOUT__" ? {} : v);
+    }
+
+    /* retry wrapper to handle Apps Script cold start */
+    async function getPctWithRetry(tickers) {
+      const waits = [8000, 5000]; // first try longer, then one retry
+      for (let i = 0; i < waits.length; i++) {
+        const map = await loadPctJSONP(tickers, waits[i]);
+        if (map && Object.keys(map).length) return map;
+        await new Promise(r => setTimeout(r, 1200));
+      }
+      return {};
     }
 
     /* auth */
@@ -264,7 +275,7 @@
 
         const uniqueTickers = Array.from(new Set(items.map(i => (i.ticker || "").toUpperCase()).filter(Boolean))).join(",");
         if (uniqueTickers) {
-          const pct = await loadPctJSONP(uniqueTickers, 3500);
+          const pct = await getPctWithRetry(uniqueTickers);
           if (myVer !== fetchVersion) return;
           pctMap = pct;
         } else {
@@ -453,7 +464,6 @@
       if (res === "__TIMEOUT__") {
         showErr("Archive update timed out");
       } else if (res?.error) {
-        // helpful message if RLS blocks updates
         const msg = res.error.message || String(res.error);
         showErr(msg.includes("row level security") ? "You do not have permission to update this item" : msg);
       }
@@ -575,8 +585,8 @@
         const uniqueTickers = Array.from(new Set(items.map(i => (i.ticker || "").toUpperCase()).filter(Boolean))).join(",");
         if (!uniqueTickers) return;
         try {
-          const myVer = ++fetchVersion; // bump version so only newest applies
-          const data = await loadPctJSONP(uniqueTickers, 3500);
+          const myVer = ++fetchVersion;
+          const data = await getPctWithRetry(uniqueTickers);
           if (myVer !== fetchVersion) return;
           pctMap = data;
           renderLeaderboard();
@@ -589,4 +599,3 @@
   </script>
 </body>
 </html>
-
