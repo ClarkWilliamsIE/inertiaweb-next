@@ -96,6 +96,7 @@
     <h1>Watchlist Voting</h1>
     <div>
       <button class="btn" onclick="location.href='members.html'">Back to dashboard</button>
+      <button class="btn" onclick="location.href='polls.html'">Polls</button>
       <button class="btn danger" id="btnSignOut">Sign out</button>
     </div>
   </header>
@@ -367,7 +368,7 @@
       wrap.innerHTML = html;
     }
 
-    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c] || c)); }
+    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&gt;","</":"&lt;/","'":"&#39;","\"":"&quot;" }[c] || c)); }
 
     function renderActiveList() {
       const q = (document.getElementById("search").value || "").trim().toUpperCase();
