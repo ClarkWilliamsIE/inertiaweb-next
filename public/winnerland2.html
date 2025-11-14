@@ -38,28 +38,15 @@
     }
     .btn:hover { background: #273244; }
     .danger { border-color: #ef4444; }
-    /* toggle */
     .switch {
-      position: relative;
-      display: inline-block;
-      width: 50px;
-      height: 26px;
-      vertical-align: middle;
+      position: relative; display: inline-block; width: 50px; height: 26px; vertical-align: middle;
     }
     .switch input { opacity: 0; width: 0; height: 0; }
-    .slider {
-      position: absolute; cursor: pointer; inset: 0;
-      background-color: #333; transition: .2s; border-radius: 26px;
-    }
-    .slider:before {
-      position: absolute; content: "";
-      height: 18px; width: 18px; left: 4px; bottom: 4px;
-      background: #fff; transition: .2s; border-radius: 50%;
-    }
+    .slider { position: absolute; cursor: pointer; inset: 0; background-color: #333; transition: .2s; border-radius: 26px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background: #fff; transition: .2s; border-radius: 50%; }
     input:checked + .slider { background-color: #2563eb; }
     input:checked + .slider:before { transform: translateX(24px); }
 
-    /* grid and cards */
     .dashboard {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -75,16 +62,8 @@
       display: flex;
       flex-direction: column;
     }
-    .chart-card h2 {
-      margin: 0 0 .5rem 0;
-      font-size: 1.05rem;
-      text-align: center;
-    }
-    .chart-container {
-      position: relative;
-      flex: 1;
-      height: 220px;
-    }
+    .chart-card h2 { margin: 0 0 .5rem 0; font-size: 1.05rem; text-align: center; }
+    .chart-container { position: relative; flex: 1; height: 220px; }
     .chart-container canvas { width: 100% !important; height: 100% !important; }
 
     .notice {
@@ -117,18 +96,13 @@
   <div class="dashboard" id="dashboard"></div>
 
   <script>
-    /* Supabase client */
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const statusEl = document.getElementById("status");
-    function setStatus(msg) {
-      statusEl.textContent = msg;
-      statusEl.style.display = msg ? "block" : "none";
-    }
+    function setStatus(msg) { statusEl.textContent = msg; statusEl.style.display = msg ? "block" : "none"; }
 
-    /* Auth guard */
     document.getElementById("btnSignOut").addEventListener("click", async () => {
       await supabase.auth.signOut();
       location.href = "login.html";
@@ -138,70 +112,51 @@
       if (!session) location.href = "login.html";
     })();
 
-    /* Data source, Supabase summary */
     let summary = null;
 
     async function loadSummary() {
       setStatus("Loading summary from Supabase...");
-      // Try the view first
       let { data, error } = await supabase
         .from("flex_summary_latest")
         .select("*")
         .maybeSingle();
 
-      if (error && error.code !== "PGRST116") {
-        console.error(error);
-      }
+      if (error && error.code !== "PGRST116") console.error(error);
 
       if (!data) {
-        // Fallback to table if the view does not exist
         const res = await supabase
           .from("flex_summary")
           .select("*")
           .order("last_updated", { ascending: false })
           .limit(1);
-        if (res.error) {
-          console.error(res.error);
-          setStatus("Could not load summary. Check RLS and that your Edge Function is inserting rows.");
-          return;
-        }
+        if (res.error) { console.error(res.error); setStatus("Could not load summary. Check RLS and inserts."); return; }
         data = res.data?.[0] ?? null;
       }
 
       summary = data?.data ?? null;
-      if (!summary) {
-        setStatus("No summary available yet. The sync job may not have written a row.");
-        return;
-      }
+      if (!summary) { setStatus("No summary available yet."); return; }
       setStatus("");
     }
 
-    /* Charts */
     let charts = [];
-    function destroyCharts() {
-      charts.forEach(c => { try { c.destroy(); } catch(_){} });
-      charts = [];
+    function destroyCharts() { charts.forEach(c => { try { c.destroy(); } catch(_){} }); charts = []; }
+
+    function money(v) {
+      return "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
     function renderCharts(divideBy12) {
       if (!summary) return;
       const f = divideBy12 ? 12 : 1;
+
       const dashboard = document.getElementById("dashboard");
       dashboard.innerHTML = "";
       destroyCharts();
 
-      const totalValue = Number(summary.totalValue || 0);
-      // We intentionally do not publish total spent or profit in the summary
-      const totalSpent = 0;
-      const totalProfit = totalValue - totalSpent;
+      const totals = summary.totals || { value: 0, cost: 0, profit: 0, pct: null };
+      const positions = Array.isArray(summary.positions) ? summary.positions : [];
 
-      // Build rows from topSymbols for reuse with your card rendering
-      const rawRows = (summary.topSymbols || []).map(x => ({
-        Ticker: x.symbol,
-        NZD: Number(x.value || 0)
-      }));
-
-      // PIE card
+      // PIE
       const pieCard = document.createElement("div");
       pieCard.className = "chart-card";
       pieCard.innerHTML = `
@@ -210,70 +165,8 @@
       `;
       dashboard.appendChild(pieCard);
 
-      // BAR card
-      const barCard = document.createElement("div");
-      barCard.className = "chart-card";
-      barCard.innerHTML = `
-        <h2>Portfolio summary ${f>1 ? "(per 1 of 12)" : ""}</h2>
-        <div class="chart-container"><canvas id="summaryBar"></canvas></div>
-      `;
-      dashboard.appendChild(barCard);
-
-      // LINE card
-      const lineCard = document.createElement("div");
-      lineCard.className = "chart-card";
-      lineCard.innerHTML = `
-        <h2>Portfolio value over time</h2>
-        <div class="chart-container"><canvas id="portfolioValueLine"></canvas></div>
-      `;
-      dashboard.appendChild(lineCard);
-
-      // Line data, use history if provided, else one point
-      let lineLabels = [];
-      let lineData = [];
-      if (Array.isArray(summary.history) && summary.history.length) {
-        lineLabels = summary.history.map(p => p[0]);
-        lineData = summary.history.map(p => Number(p[1] || 0));
-      } else {
-        lineLabels = [summary.lastUpdated || new Date().toISOString()];
-        lineData = [totalValue];
-      }
-      const minValue = Math.min(...lineData);
-      const maxValue = Math.max(...lineData);
-      const margin = Math.max((maxValue - minValue) * 0.1, 1);
-
-      charts.push(new Chart(document.getElementById("portfolioValueLine"), {
-        type: "line",
-        data: {
-          labels: lineLabels,
-          datasets: [{
-            label: "Portfolio value NZD",
-            data: lineData,
-            fill: false,
-            tension: 0.1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              min: minValue - margin,
-              max: maxValue + margin,
-              ticks: { callback: v => "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 }) },
-              grid: { color: "#444", borderColor: "#444" }
-            },
-            x: { grid: { color: "#444" } }
-          },
-          plugins: {
-            legend: { labels: { color: "#fff" } }
-          }
-        }
-      }));
-
-      // PIE
-      const pieLabels = rawRows.map(r => r.Ticker);
-      const pieData = rawRows.map(r => r.NZD / f);
+      const pieLabels = positions.map(p => p.symbol);
+      const pieData = positions.map(p => Number(p.value || 0) / f);
       charts.push(new Chart(document.getElementById("summaryPie"), {
         type: "doughnut",
         data: { labels: pieLabels, datasets: [{ data: pieData }] },
@@ -285,14 +178,22 @@
         }
       }));
 
-      // BAR
+      // BAR totals
+      const barCard = document.createElement("div");
+      barCard.className = "chart-card";
+      barCard.innerHTML = `
+        <h2>Portfolio summary ${f>1 ? "(per 1 of 12)" : ""}</h2>
+        <div class="chart-container"><canvas id="summaryBar"></canvas></div>
+      `;
+      dashboard.appendChild(barCard);
+
       charts.push(new Chart(document.getElementById("summaryBar"), {
         type: "bar",
         data: {
           labels: ["Spent", "Profit", "Value"],
           datasets: [{
             label: "NZD",
-            data: [ totalSpent / f, totalProfit / f, totalValue / f ]
+            data: [ (totals.cost || 0) / f, (totals.profit || 0) / f, (totals.value || 0) / f ]
           }]
         },
         options: {
@@ -310,29 +211,79 @@
         }
       }));
 
-      // Per holding cards
-      rawRows.forEach(r => {
-        const mvNzd = Number(r.NZD || 0);
-        const profitNzd = mvNzd; // cost hidden, so this is just a visual cue
+      // LINE
+      const lineCard = document.createElement("div");
+      lineCard.className = "chart-card";
+      lineCard.innerHTML = `
+        <h2>Portfolio value over time</h2>
+        <div class="chart-container"><canvas id="portfolioValueLine"></canvas></div>
+      `;
+      dashboard.appendChild(lineCard);
+
+      const history = Array.isArray(summary.history) ? summary.history : [];
+      const lineLabels = history.length ? history.map(p => p[0]) : [summary.lastUpdated || new Date().toISOString()];
+      const lineData = history.length ? history.map(p => Number(p[1] || 0)) : [totals.value || 0];
+
+      charts.push(new Chart(document.getElementById("portfolioValueLine"), {
+        type: "line",
+        data: {
+          labels: lineLabels,
+          datasets: [{
+            label: "Portfolio value NZD",
+            data: lineData,
+            fill: false,
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { callback: v => "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+              grid: { color: "#444", borderColor: "#444" }
+            },
+            x: { grid: { color: "#444" } }
+          },
+          plugins: { legend: { labels: { color: "#fff" } } }
+        }
+      }));
+
+      // Per holding cards with cost, value, profit, percent
+      positions.forEach(p => {
+        const cost = Number(p.cost || 0) / f;
+        const value = Number(p.value || 0) / f;
+        const profit = Number(p.profit || 0) / f;
+        const pct = p.pct != null ? Number(p.pct) : null;
 
         const card = document.createElement("div");
         card.className = "chart-card";
         card.innerHTML = `
-          <h2>${r.Ticker}</h2>
-          <div class="chart-container"><canvas id="chart-${r.Ticker}"></canvas></div>
+          <h2>${p.symbol}</h2>
+          <div class="chart-container"><canvas id="chart-${p.symbol}"></canvas></div>
         `;
         dashboard.appendChild(card);
 
-        card.style.borderColor = profitNzd >= 0 ? "#28a745" : "#dc3545";
+        card.style.borderColor = profit >= 0 ? "#28a745" : "#dc3545";
 
-        charts.push(new Chart(document.getElementById(`chart-${r.Ticker}`), {
+        charts.push(new Chart(document.getElementById(`chart-${p.symbol}`), {
           data: {
-            labels: ["Value"],
+            labels: ["Cost", "Value", "Profit", "% Change"],
             datasets: [
               {
                 type: "bar",
                 label: "NZD",
-                data: [ mvNzd / f ]
+                data: [ cost, value, profit, null ]
+              },
+              {
+                type: "line",
+                label: "% Change",
+                data: [ null, null, null, pct ],
+                yAxisID: "PCT",
+                tension: 0.3,
+                pointRadius: 4,
+                fill: false
               }
             ]
           },
@@ -343,11 +294,29 @@
               y: {
                 beginAtZero: true,
                 title: { display: true, text: "NZD" },
-                ticks: { callback: v => "$" + Number(v).toLocaleString() },
+                ticks: { callback: v => money(v) },
                 grid: { color: "#444" }
+              },
+              PCT: {
+                type: "linear",
+                position: "right",
+                title: { display: true, text: "% Change" },
+                grid: { drawOnChartArea: false },
+                ticks: { callback: v => (v == null ? "n/a" : v + "%") }
               }
             },
             plugins: {
+              tooltip: {
+                callbacks: {
+                  label: ctx => {
+                    if (ctx.dataset.type === "line") {
+                      const y = ctx.parsed.y;
+                      return "% Change: " + (y == null ? "n/a" : y + "%");
+                    }
+                    return "NZD " + money(ctx.parsed.y);
+                  }
+                }
+              },
               legend: { position: "bottom" }
             }
           }
@@ -355,7 +324,6 @@
       });
     }
 
-    // Boot
     (async () => {
       await loadSummary();
       if (summary) {
