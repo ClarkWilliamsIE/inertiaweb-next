@@ -10,51 +10,90 @@
       font-family: 'Segoe UI', sans-serif;
       background-color: #111827;
       color: #f3f4f6;
-      overflow: hidden;
+      overflow-y: hidden; /* Hide main scrollbar for TV look */
+      height: 100vh; /* Force full height */
+      display: flex;
+      flex-direction: column;
     }
     .card-title {
-      font-size: 1.75rem;
+      font-size: 2.25rem; 
       font-weight: 700;
     }
-    .event-title {
-      font-size: 1.2rem;
+
+    /* Status Styles */
+    .status-label {
+      font-size: 1.125rem; 
+      font-weight: 600;
+      color: #9ca3af;
+      text-transform: uppercase;
+    }
+    .status-event {
+      font-size: 1.5rem; 
       font-weight: 600;
     }
-    .event-time {
-      font-size: 1rem;
-      color: #9ca3af;
+    .status-time {
+      font-size: 1.25rem; 
+      color: #d1d5db;
+    }
+    .status-available {
+      color: #10b981; 
+      font-size: 1.75rem; 
+      font-weight: 700;
+    }
+    .status-now {
+      color: #f59e0b; 
     }
     .highlight-card {
       background: #1f2937;
       border: 1px solid #374151;
     }
+
+    /* --- AUTO SCROLL LOGIC --- */
+    .scroll-viewport {
+      height: 10rem; /* FIXED HEIGHT: Adjust this to fit your TV frame */
+      overflow: hidden;
+      position: relative;
+      mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%);
+    }
+    
+    .scrolling-content {
+      /* Standard state for non-overflowing lists */
+      padding-top: 10px;
+    }
+
+    .animate-scroll {
+      /* moves up by 50% (because content is doubled) */
+      animation: vertical-scroll linear infinite;
+    }
+
+    @keyframes vertical-scroll {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-50%); }
+    }
   </style>
 </head>
-<body class="p-10 space-y-16">
+<body class="p-8 space-y-8 h-screen box-border">
 
-  <!-- Header -->
-  <div class="flex justify-between items-center border-b border-gray-700 pb-4">
-    <h1 class="text-5xl font-bold text-white">Paraparaumu Library</h1>
+  <div class="flex justify-between items-center border-b border-gray-700 pb-4 flex-shrink-0">
+    <h1 class="text-4xl lg:text-5xl font-bold text-white">Paraparaumu Library</h1>
     <span id="current-date" class="text-2xl text-gray-300 font-medium"></span>
   </div>
 
-  <!-- Room Events -->
-  <div id="room-events" class="grid gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
+  <div id="room-events" class="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
 
-  <!-- Upcoming Week Grid -->
-  <div class="mt-12 p-6 rounded-xl shadow-md highlight-card w-full">
-    <h2 class="text-3xl font-bold mb-6 text-center text-white">In the next 7 days</h2>
-    <div id="weekly-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-6 text-base"></div>
+  <div class="p-6 rounded-xl shadow-md highlight-card w-full flex-shrink-0 mb-4">
+    <h2 class="text-3xl font-bold mb-4 text-center text-white">In the next 7 days</h2>
+    <div id="weekly-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4 text-base"></div>
   </div>
 
-  <!-- Fullscreen Button -->
   <button id="fullscreen-btn"
     class="fixed bottom-4 right-4 px-4 py-2 bg-blue-600 text-white text-lg rounded-lg shadow-lg hover:bg-blue-700 transition hidden z-50">
     Go Fullscreen
   </button>
 
   <script>
-    const API_KEY = 'AIzaSyD2qBhlb_rQHGh3kJ_ENFrxsRoFFmfrX8A';
+    const API_KEY = 'AIzaSyD2qBhlb_rQHGh3kJ_ENFrxsRoFFmfrX8A'; 
 
     const roomColors = {
       'paraparaumumake@gmail.com': 'bg-blue-600',
@@ -81,147 +120,166 @@
     });
 
     function formatTime(dateStr) {
-      return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      if (!dateStr) return '';
+      return new Date(dateStr).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     }
 
     async function fetchEvents(calId, timeMin, timeMax) {
       const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events`
-                + `?key=${API_KEY}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`;
-      const res = await fetch(url);
-      return (await res.json()).items || [];
+        + `?key=${API_KEY}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return [];
+        return (await res.json()).items || [];
+      } catch (error) {
+        return [];
+      }
     }
 
     async function loadDashboard() {
       const now = new Date();
-      const todayStart = new Date(now.setHours(0, 0, 0, 0)).toISOString();
-      const todayEnd = new Date(now.setHours(23, 59, 59, 999)).toISOString();
-
-      const weekStart = new Date();
-      weekStart.setHours(0, 0, 0, 0);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
-      const weekStartStr = weekStart.toISOString();
-      const weekEndStr = weekEnd.toISOString();
+      const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+      const weekStart = new Date(todayStart);
+      const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6); weekEnd.setHours(23, 59, 59, 999);
 
       const roomContainer = document.getElementById('room-events');
       const weeklyGrid = document.getElementById('weekly-grid');
-      roomContainer.innerHTML = '';
+      
+      roomContainer.innerHTML = '<p id="room-loading-msg" class="text-2xl text-gray-400">Loading...</p>';
       weeklyGrid.innerHTML = '';
+
       const eventsByDay = Array.from({ length: 7 }, () => []);
 
       for (const cal of calendars) {
-        const isJOP = cal.id.includes('b0228e24');
-        const dateMin = isJOP ? weekStartStr : todayStart;
-        const dateMax = isJOP ? weekEndStr : todayEnd;
-        const events = await fetchEvents(cal.id, dateMin, dateMax);
-        const roomColor = roomColors[cal.id] || 'bg-gray-600';
+        const todayEvents = await fetchEvents(cal.id, todayStart.toISOString(), todayEnd.toISOString());
+        const weekEvents = await fetchEvents(cal.id, weekStart.toISOString(), weekEnd.toISOString());
 
-        if (!isJOP) {
-          const weekEvents = await fetchEvents(cal.id, weekStartStr, weekEndStr);
-          for (const e of weekEvents) {
-            const date = new Date(e.start.dateTime || e.start.date);
-            const index = (date.getDay() - weekStart.getDay() + 7) % 7;
-            eventsByDay[index].push({ ...e, calId: cal.id });
+        for (const e of weekEvents) {
+          const date = new Date(e.start.dateTime || e.start.date);
+          const index = Math.floor((date.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
+          if (index >= 0 && index < 7) {
+            eventsByDay[index].push({ ...e, calId: cal.id, roomName: cal.name });
           }
         }
 
+        // --- ROOM CARD LOGIC (Now/Next) ---
         const card = document.createElement('div');
-        const cardTitle = isJOP ? `${cal.name} (This Week)` : cal.name;
-        card.className = `highlight-card p-5 rounded-xl shadow-lg`;
-        card.innerHTML = `<h3 class="card-title mb-4 text-white">${cardTitle}</h3>`;
+        card.className = `highlight-card p-5 rounded-xl shadow-lg flex flex-col`;
+        const bgColorClass = roomColors[cal.id] || 'bg-gray-600';
+        const colorMap = { 'bg-blue-600': '#2563eb', 'bg-green-600': '#16a34a', 'bg-yellow-600': '#ca8a04', 'bg-pink-600': '#db2777', 'bg-indigo-600': '#4f46e5', 'bg-purple-600': '#9333ea', 'bg-red-600': '#dc2626', 'bg-gray-600': '#4b5563' };
+        card.style.borderTop = `5px solid ${colorMap[bgColorClass]}`;
 
-        if (events.length === 0) {
-          card.innerHTML += `<p class="text-gray-400">No events${isJOP ? ' this week' : ' today'}</p>`;
-        } else {
-          const list = document.createElement('ul');
-          list.className = 'space-y-2';
-          for (const event of events) {
-            const startDate = new Date(event.start.dateTime || event.start.date);
-            const start = formatTime(startDate);
-            const end = formatTime(event.end.dateTime || event.end.date);
-            const dayName = isJOP ? startDate.toLocaleDateString([], { weekday: 'long' }) : '';
-            const li = document.createElement('li');
-
-            if (isJOP) {
-              li.innerHTML = `
-                <div class="event-title text-sm text-gray-200">
-                  ${dayName} – ${start} – ${end}
-                </div>`;
-            } else {
-              li.innerHTML = `
-                <div class="event-title flex justify-between items-center text-gray-200">
-                  <span>${event.summary}</span>
-                  <span class="rounded px-2 py-1 text-sm ${roomColor} text-white">${start} – ${end}</span>
-                </div>`;
-            }
-
-            list.appendChild(li);
+        let cardContent = '';
+        const nowTime = now.getTime();
+        const currentEvent = todayEvents.find(e => {
+          const start = new Date(e.start.dateTime || e.start.date).getTime();
+          const end = new Date(e.end.dateTime || e.end.date).getTime();
+          if (!e.start.dateTime) { 
+            const allDayEnd = new Date(e.end.date).setDate(new Date(e.end.date).getDate() - 1);
+            return new Date(e.start.date).setHours(0,0,0,0) <= nowTime && new Date(allDayEnd).setHours(23,59,59) > nowTime;
           }
-          card.appendChild(list);
+          return start <= nowTime && end > nowTime;
+        });
+        const nextEvent = todayEvents.find(e => new Date(e.start.dateTime || e.start.date).getTime() > nowTime);
+
+        if (currentEvent) {
+          const endTime = currentEvent.end.dateTime ? `Until ${formatTime(currentEvent.end.dateTime)}` : 'All Day';
+          cardContent = `<div class="mb-3"><span class="status-label">Now</span><p class="status-event status-now truncate">${currentEvent.summary}</p><p class="status-time">${endTime}</p></div>${nextEvent ? `<div><span class="status-label">Next</span><p class="status-event truncate">${nextEvent.summary}</p><p class="status-time">At ${formatTime(nextEvent.start.dateTime || nextEvent.start.date)}</p></div>` : `<div><span class="status-label">Next</span><p class="status-event text-gray-400">No more events</p></div>`}`;
+        } else if (nextEvent) {
+          cardContent = `<div class="mb-3"><p class="status-available">Available</p></div><div><span class="status-label">Next</span><p class="status-event truncate">${nextEvent.summary}</p><p class="status-time">At ${formatTime(nextEvent.start.dateTime || nextEvent.start.date)}</p></div>`;
+        } else {
+          cardContent = `<div><p class="status-available">Available</p><p class="status-event text-gray-400 mt-2">No events today</p></div>`;
         }
 
+        card.innerHTML = `<h3 class="card-title mb-3 text-white text-2xl truncate">${cal.name}</h3><div class="space-y-2">${cardContent}</div>`;
         roomContainer.appendChild(card);
       }
+      
+      const roomLoading = document.getElementById('room-loading-msg');
+      if (roomLoading) roomLoading.remove();
 
-      // Weekly grid
+      // --- WEEKLY GRID (With Auto-Scroll Logic) ---
       for (let i = 0; i < 7; i++) {
-        const dayDate = new Date();
+        const dayDate = new Date(weekStart);
         dayDate.setDate(weekStart.getDate() + i);
-        const label = dayDate.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
-
+        
         const col = document.createElement('div');
-        col.className = 'highlight-card p-4 rounded-lg text-gray-100';
-        col.innerHTML = `<h4 class="text-lg font-semibold text-center mb-2">${label}</h4>`;
+        col.className = 'highlight-card p-4 rounded-lg text-gray-100 flex flex-col';
+        
+        // Header
+        col.innerHTML = `
+          <div class="mb-2 flex-shrink-0 border-b border-gray-700 pb-2">
+            <h4 class="text-xl font-bold text-center text-white">${dayDate.toLocaleDateString([], { weekday: 'short' })}</h4>
+            <p class="text-sm text-gray-400 text-center">${dayDate.toLocaleDateString([], { day: 'numeric', month: 'short' })}</p>
+          </div>
+        `;
 
         const dayEvents = eventsByDay[i];
+        dayEvents.sort((a, b) => new Date(a.start.dateTime || a.start.date) - new Date(b.start.dateTime || b.start.date));
+
+        // Scroll viewport container
+        const viewport = document.createElement('div');
+        viewport.className = 'scroll-viewport'; // Defined in CSS with fixed height
+
         if (dayEvents.length === 0) {
-          col.innerHTML += `<p class="text-sm text-center text-gray-500">No events</p>`;
+          viewport.innerHTML = `<p class="text-sm text-center text-gray-500 mt-4">No events</p>`;
         } else {
+          // Create the list
           const list = document.createElement('ul');
-          list.className = 'space-y-2';
-          for (const e of dayEvents) {
-            const start = formatTime(e.start.dateTime || e.start.date);
-            const end = formatTime(e.end.dateTime || e.end.date);
-            const colorClass = roomColors[e.calId] || 'bg-gray-700';
-            const li = document.createElement('li');
-            li.innerHTML = `
-              <div class="flex justify-between items-center text-sm">
-                <span>${e.summary}</span>
-                <span class="rounded px-2 py-0.5 ${colorClass} text-white">${start} – ${end}</span>
-              </div>`;
-            list.appendChild(li);
+          list.className = 'space-y-3 scrolling-content';
+          
+          // Helper to generate LI HTML
+          const createListItems = (events) => {
+            return events.map(e => {
+              const start = e.start.dateTime ? formatTime(e.start.dateTime) : 'All Day';
+              const colorClass = roomColors[e.calId] || 'bg-gray-700';
+              return `
+                <li>
+                  <div class="text-md font-medium text-white leading-tight">${e.summary}</div>
+                  <div class="flex justify-between items-center text-sm mt-1">
+                    <span class="text-gray-400 truncate pr-1 max-w-[60%]" title="${e.roomName}">${e.roomName}</span>
+                    <span class="rounded px-1.5 py-0.5 ${colorClass} text-white text-xs font-bold flex-shrink-0">${start}</span>
+                  </div>
+                </li>`;
+            }).join('');
+          };
+
+          // 1. Add original items
+          list.innerHTML = createListItems(dayEvents);
+          viewport.appendChild(list);
+          
+          // 2. Check logic: Do we need to scroll?
+          // We append the viewport temporarily to DOM to check scrollHeight vs clientHeight? 
+          // Actually, easier to just check event count. If > 4 events, trigger scroll.
+          // Or smarter: Duplicate content immediately, then use CSS to see if it needs logic.
+          
+          // Robust method:
+          // We will duplicate the content blindly if there are > 4 events (arbitrary threshold for fitting in 20rem)
+          // A more precise way requires rendering, but > 4 is a safe bet for this card size.
+          if (dayEvents.length > 4) {
+             // Duplicate list items for infinite loop
+             list.innerHTML += createListItems(dayEvents); // Add them again
+             
+             // Calculate speed based on number of items (slower for more items)
+             const duration = dayEvents.length * 3; // 3 seconds per item
+             list.style.animationDuration = `${Math.max(10, duration)}s`; // Min 10s
+             list.classList.add('animate-scroll');
           }
-          col.appendChild(list);
         }
 
+        col.appendChild(viewport);
         weeklyGrid.appendChild(col);
       }
     }
 
     loadDashboard();
-    setInterval(loadDashboard, 15 * 60 * 1000); // Refresh every 15 minutes
+    setInterval(loadDashboard, 5 * 60 * 1000); 
 
-    // Fullscreen toggle logic
     const fullscreenBtn = document.getElementById('fullscreen-btn');
-
-    function checkFullscreen() {
-      const isFullscreen = document.fullscreenElement != null;
-      fullscreenBtn.classList.toggle('hidden', isFullscreen);
-    }
-
     fullscreenBtn.addEventListener('click', () => {
-      const el = document.documentElement;
-      if (el.requestFullscreen) el.requestFullscreen();
-      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-      else if (el.msRequestFullscreen) el.msRequestFullscreen();
+      if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
     });
-
-    document.addEventListener('fullscreenchange', checkFullscreen);
-    document.addEventListener('webkitfullscreenchange', checkFullscreen);
-    document.addEventListener('msfullscreenchange', checkFullscreen);
-
-    checkFullscreen();
   </script>
 </body>
 </html>
