@@ -85,7 +85,6 @@
       font-size: .95rem;
     }
 
-    /* Range tabs for portfolio line chart */
     .range-tabs {
       display: flex;
       justify-content: center;
@@ -113,7 +112,6 @@
       color: #fff;
     }
 
-    /* Per ticker view toggle */
     .view-toggle {
       display: inline-flex;
       border-radius: 999px;
@@ -178,10 +176,12 @@
     let currentRange = "YEAR"; // WEEK, MONTH, SIX_MONTHS, YEAR
     const divideToggle = document.getElementById("divideToggle");
 
-    // per ticker view mode: SUMMARY or HISTORY
-    const tickerViewMode = {};
+    const tickerViewMode = {}; // symbol -> "SUMMARY" or "HISTORY"
 
-    function destroyCharts() { charts.forEach(c => { try { c.destroy(); } catch(_){} }); charts = []; }
+    function destroyCharts() {
+      charts.forEach(c => { try { c.destroy(); } catch (_) {} });
+      charts = [];
+    }
 
     function money(v) {
       return "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -194,7 +194,9 @@
         .select("*")
         .maybeSingle();
 
-      if (error && error.code !== "PGRST116") console.error(error);
+      if (error && error.code !== "PGRST116") {
+        console.error(error);
+      }
 
       if (!data) {
         const res = await supabase
@@ -202,13 +204,63 @@
           .select("*")
           .order("last_updated", { ascending: false })
           .limit(1);
-        if (res.error) { console.error(res.error); setStatus("Could not load summary. Check RLS and inserts."); return; }
+        if (res.error) {
+          console.error(res.error);
+          setStatus("Could not load summary. Check RLS and inserts.");
+          return;
+        }
         data = res.data?.[0] ?? null;
       }
 
       summary = data?.data ?? null;
-      if (!summary) { setStatus("No summary available yet."); return; }
+      if (!summary) {
+        setStatus("No summary available yet.");
+        return;
+      }
       setStatus("");
+    }
+
+    async function loadHistoryFromTable() {
+      // builds summary.history and summary.symbolHistory from flex_summary rows
+      const { data, error } = await supabase
+        .from("flex_summary")
+        .select("data,last_updated")
+        .order("last_updated", { ascending: true })
+        .limit(5000);
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      const rows = Array.isArray(data) ? data : [];
+      const portfolioHistory = [];
+      const symbolHistoryMap = {};
+
+      for (const row of rows) {
+        const d = row.data || {};
+        const date = d.lastUpdated || row.last_updated;
+        if (!date) continue;
+
+        const totals = d.totals || {};
+        const v = Number(totals.value || 0);
+        if (Number.isFinite(v)) {
+          portfolioHistory.push([date, v]);
+        }
+
+        const positions = Array.isArray(d.positions) ? d.positions : [];
+        for (const p of positions) {
+          if (!p || !p.symbol) continue;
+          const sym = p.symbol;
+          const val = Number(p.value || 0);
+          if (!Number.isFinite(val)) continue;
+          if (!symbolHistoryMap[sym]) symbolHistoryMap[sym] = [];
+          symbolHistoryMap[sym].push([date, val]);
+        }
+      }
+
+      summary.history = portfolioHistory;
+      summary.symbolHistory = symbolHistoryMap;
     }
 
     function filterHistoryByRange(history, rangeKey) {
@@ -316,7 +368,7 @@
         }
       }));
 
-      // LINE with range tabs
+      // LINE with range tabs (portfolio history)
       const lineCard = document.createElement("div");
       lineCard.className = "chart-card";
       lineCard.innerHTML = `
@@ -374,7 +426,7 @@
         }
       }));
 
-      // activate range tabs and hook up events
+      // range tab handlers
       const tabs = lineCard.querySelectorAll(".range-tab");
       tabs.forEach(tab => {
         const rk = tab.getAttribute("data-range");
@@ -387,7 +439,7 @@
         });
       });
 
-      // Per holding cards with view toggle
+      // per holding cards with Summary / History toggle
       positions.forEach(p => {
         const sym = p.symbol;
         if (!tickerViewMode[sym]) tickerViewMode[sym] = "SUMMARY";
@@ -413,7 +465,6 @@
         `;
         dashboard.appendChild(card);
 
-        // border colour by profit
         card.style.borderColor = profit >= 0 ? "#28a745" : "#dc3545";
 
         const viewToggle = card.querySelector(".view-toggle");
@@ -427,10 +478,9 @@
           });
         });
 
-        // build chart based on mode
         const mode = tickerViewMode[sym];
 
-        if (mode === "HISTORY") {
+        if (mode === "HISTORY" && symbolHistory[sym]) {
           const symHistRaw = symbolHistory[sym] || [];
           const symHist = symHistRaw.map(([d, v]) => [d, Number(v) / f]);
 
@@ -530,11 +580,14 @@
 
     (async () => {
       await loadSummary();
-      if (summary) {
-        renderCharts(false);
-        divideToggle.addEventListener("change", e => renderCharts(e.target.checked));
-      }
+      if (!summary) return;
+
+      await loadHistoryFromTable(); // builds summary.history and summary.symbolHistory from past rows
+
+      renderCharts(false);
+      divideToggle.addEventListener("change", e => renderCharts(e.target.checked));
     })();
   </script>
 </body>
 </html>
+
