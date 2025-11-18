@@ -232,30 +232,23 @@
 
     async function loadSummary() {
       setStatus("Loading summary from Supabase...");
-      let { data, error } = await supabase
-        .from("flex_summary_latest")
+
+      // always use latest from flex_summary so summary and history are in sync
+      const { data, error } = await supabase
+        .from("flex_summary")
         .select("*")
-        .maybeSingle();
+        .order("last_updated", { ascending: false })
+        .limit(1);
 
-      if (error && error.code !== "PGRST116") {
+      if (error) {
         console.error(error);
+        setStatus("Could not load summary. Check RLS and inserts.");
+        return;
       }
 
-      if (!data) {
-        const res = await supabase
-          .from("flex_summary")
-          .select("*")
-          .order("last_updated", { ascending: false })
-          .limit(1);
-        if (res.error) {
-          console.error(res.error);
-          setStatus("Could not load summary. Check RLS and inserts.");
-          return;
-        }
-        data = res.data?.[0] ?? null;
-      }
+      const row = data?.[0] ?? null;
+      summary = row?.data ?? null;
 
-      summary = data?.data ?? null;
       if (!summary) {
         setStatus("No summary available yet.");
         return;
@@ -468,7 +461,7 @@
         }
       }));
 
-      // range tab handlers, keep scroll position
+      // range tab handlers, keep scroll position and save preference
       const tabs = lineCard.querySelectorAll(".range-tab");
       tabs.forEach(tab => {
         const rk = tab.getAttribute("data-range");
@@ -646,5 +639,3 @@
   </script>
 </body>
 </html>
-
-
