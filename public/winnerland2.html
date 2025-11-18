@@ -62,7 +62,18 @@
       display: flex;
       flex-direction: column;
     }
-    .chart-card h2 { margin: 0 0 .5rem 0; font-size: 1.05rem; text-align: center; }
+    .chart-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .5rem;
+      margin-bottom: .5rem;
+    }
+    .chart-card h2 {
+      margin: 0;
+      font-size: 1.05rem;
+      text-align: left;
+    }
     .chart-container { position: relative; flex: 1; height: 220px; }
     .chart-container canvas { width: 100% !important; height: 100% !important; }
 
@@ -99,6 +110,28 @@
     .range-tab.active {
       background: #2563eb;
       border-color: #2563eb;
+      color: #fff;
+    }
+
+    /* Per ticker view toggle */
+    .view-toggle {
+      display: inline-flex;
+      border-radius: 999px;
+      border: 1px solid #374151;
+      overflow: hidden;
+      background: #111827;
+      font-size: 0.75rem;
+    }
+    .view-toggle button {
+      padding: 0.15rem 0.6rem;
+      border: none;
+      background: transparent;
+      color: #9ca3af;
+      cursor: pointer;
+      font: inherit;
+    }
+    .view-toggle button.active {
+      background: #2563eb;
       color: #fff;
     }
   </style>
@@ -142,8 +175,11 @@
 
     let summary = null;
     let charts = [];
-    let currentRange = "YEAR"; // DAY, WEEK, MONTH, SIX_MONTHS, YEAR
+    let currentRange = "YEAR"; // WEEK, MONTH, SIX_MONTHS, YEAR
     const divideToggle = document.getElementById("divideToggle");
+
+    // per ticker view mode: SUMMARY or HISTORY
+    const tickerViewMode = {};
 
     function destroyCharts() { charts.forEach(c => { try { c.destroy(); } catch(_){} }); charts = []; }
 
@@ -178,7 +214,6 @@
     function filterHistoryByRange(history, rangeKey) {
       if (!history || !history.length) return [];
 
-      // Assume history is sorted by date ascending
       const lastPoint = history[history.length - 1];
       const lastDate = new Date(lastPoint[0] || new Date().toISOString());
       const msDay = 24 * 60 * 60 * 1000;
@@ -210,9 +245,7 @@
     function renderCharts(divideBy12, newRangeKey) {
       if (!summary) return;
 
-      if (newRangeKey) {
-        currentRange = newRangeKey;
-      }
+      if (newRangeKey) currentRange = newRangeKey;
 
       const f = divideBy12 ? 12 : 1;
 
@@ -222,12 +255,15 @@
 
       const totals = summary.totals || { value: 0, cost: 0, profit: 0, pct: null };
       const positions = Array.isArray(summary.positions) ? summary.positions : [];
+      const symbolHistory = summary.symbolHistory || {};
 
       // PIE
       const pieCard = document.createElement("div");
       pieCard.className = "chart-card";
       pieCard.innerHTML = `
-        <h2>Allocation ${f>1 ? "(per 1 of 12)" : ""}</h2>
+        <div class="chart-card-header">
+          <h2>Allocation ${f>1 ? "(per 1 of 12)" : ""}</h2>
+        </div>
         <div class="chart-container"><canvas id="summaryPie"></canvas></div>
       `;
       dashboard.appendChild(pieCard);
@@ -249,7 +285,9 @@
       const barCard = document.createElement("div");
       barCard.className = "chart-card";
       barCard.innerHTML = `
-        <h2>Portfolio summary ${f>1 ? "(per 1 of 12)" : ""}</h2>
+        <div class="chart-card-header">
+          <h2>Portfolio summary ${f>1 ? "(per 1 of 12)" : ""}</h2>
+        </div>
         <div class="chart-container"><canvas id="summaryBar"></canvas></div>
       `;
       dashboard.appendChild(barCard);
@@ -282,7 +320,9 @@
       const lineCard = document.createElement("div");
       lineCard.className = "chart-card";
       lineCard.innerHTML = `
-        <h2>Portfolio value over time</h2>
+        <div class="chart-card-header">
+          <h2>Portfolio value over time</h2>
+        </div>
         <div class="range-tabs">
           <button class="range-tab" data-range="WEEK">Week</button>
           <button class="range-tab" data-range="MONTH">Month</button>
@@ -334,7 +374,7 @@
         }
       }));
 
-      // activate tabs and hook up events
+      // activate range tabs and hook up events
       const tabs = lineCard.querySelectorAll(".range-tab");
       tabs.forEach(tab => {
         const rk = tab.getAttribute("data-range");
@@ -347,8 +387,11 @@
         });
       });
 
-      // Per holding cards with cost, value, profit, percent
+      // Per holding cards with view toggle
       positions.forEach(p => {
+        const sym = p.symbol;
+        if (!tickerViewMode[sym]) tickerViewMode[sym] = "SUMMARY";
+
         const cost = Number(p.cost || 0) / f;
         const value = Number(p.value || 0) / f;
         const profit = Number(p.profit || 0) / f;
@@ -356,68 +399,132 @@
 
         const card = document.createElement("div");
         card.className = "chart-card";
+
+        const cardId = `chart-${sym}`;
         card.innerHTML = `
-          <h2>${p.symbol}</h2>
-          <div class="chart-container"><canvas id="chart-${p.symbol}"></canvas></div>
+          <div class="chart-card-header">
+            <h2>${sym}</h2>
+            <div class="view-toggle" data-symbol="${sym}">
+              <button type="button" data-view="SUMMARY">Summary</button>
+              <button type="button" data-view="HISTORY">History</button>
+            </div>
+          </div>
+          <div class="chart-container"><canvas id="${cardId}"></canvas></div>
         `;
         dashboard.appendChild(card);
 
+        // border colour by profit
         card.style.borderColor = profit >= 0 ? "#28a745" : "#dc3545";
 
-        charts.push(new Chart(document.getElementById(`chart-${p.symbol}`), {
-          data: {
-            labels: ["Cost", "Value", "Profit", "% Change"],
-            datasets: [
-              {
-                type: "bar",
-                label: "NZD",
-                data: [ cost, value, profit, null ]
-              },
-              {
-                type: "line",
-                label: "% Change",
-                data: [ null, null, null, pct ],
-                yAxisID: "PCT",
-                tension: 0.3,
-                pointRadius: 4,
-                fill: false
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              y: {
-                beginAtZero: true,
-                title: { display: true, text: "NZD" },
-                ticks: { callback: v => money(v) },
-                grid: { color: "#444" }
-              },
-              PCT: {
-                type: "linear",
-                position: "right",
-                title: { display: true, text: "% Change" },
-                grid: { drawOnChartArea: false },
-                ticks: { callback: v => (v == null ? "n/a" : v + "%") }
-              }
+        const viewToggle = card.querySelector(".view-toggle");
+        const viewButtons = viewToggle.querySelectorAll("button");
+        viewButtons.forEach(btn => {
+          const v = btn.getAttribute("data-view");
+          if (v === tickerViewMode[sym]) btn.classList.add("active");
+          btn.addEventListener("click", () => {
+            tickerViewMode[sym] = v;
+            renderCharts(divideToggle.checked, currentRange);
+          });
+        });
+
+        // build chart based on mode
+        const mode = tickerViewMode[sym];
+
+        if (mode === "HISTORY") {
+          const symHistRaw = symbolHistory[sym] || [];
+          const symHist = symHistRaw.map(([d, v]) => [d, Number(v) / f]);
+
+          const labels = symHist.length
+            ? symHist.map(p => p[0])
+            : [summary.lastUpdated || new Date().toISOString()];
+
+          const data = symHist.length
+            ? symHist.map(p => p[1])
+            : [value];
+
+          charts.push(new Chart(document.getElementById(cardId), {
+            type: "line",
+            data: {
+              labels,
+              datasets: [{
+                label: `${sym} value NZD`,
+                data,
+                fill: false,
+                tension: 0.2
+              }]
             },
-            plugins: {
-              tooltip: {
-                callbacks: {
-                  label: ctx => {
-                    if (ctx.dataset.type === "line") {
-                      const y = ctx.parsed.y;
-                      return "% Change: " + (y == null ? "n/a" : y + "%");
-                    }
-                    return "NZD " + money(ctx.parsed.y);
-                  }
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: { callback: v => money(v) },
+                  grid: { color: "#444" }
+                },
+                x: { grid: { color: "#444" } }
+              },
+              plugins: {
+                legend: { labels: { color: "#fff" } }
+              }
+            }
+          }));
+        } else {
+          charts.push(new Chart(document.getElementById(cardId), {
+            data: {
+              labels: ["Cost", "Value", "Profit", "% Change"],
+              datasets: [
+                {
+                  type: "bar",
+                  label: "NZD",
+                  data: [ cost, value, profit, null ]
+                },
+                {
+                  type: "line",
+                  label: "% Change",
+                  data: [ null, null, null, pct ],
+                  yAxisID: "PCT",
+                  tension: 0.3,
+                  pointRadius: 4,
+                  fill: false
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: { display: true, text: "NZD" },
+                  ticks: { callback: v => money(v) },
+                  grid: { color: "#444" }
+                },
+                PCT: {
+                  type: "linear",
+                  position: "right",
+                  title: { display: true, text: "% Change" },
+                  grid: { drawOnChartArea: false },
+                  ticks: { callback: v => (v == null ? "n/a" : v + "%") }
                 }
               },
-              legend: { position: "bottom" }
+              plugins: {
+                tooltip: {
+                  callbacks: {
+                    label: ctx => {
+                      if (ctx.dataset.type === "line") {
+                        const y = ctx.parsed.y;
+                        return "% Change: " + (y == null ? "n/a" : y + "%");
+                      }
+                      return "NZD " + money(ctx.parsed.y);
+                    }
+                  }
+                },
+                legend: { position: "bottom" }
+              }
             }
-          }
-        }));
+          }));
+        }
       });
     }
 
