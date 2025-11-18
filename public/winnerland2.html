@@ -73,6 +73,34 @@
       background: #181818;
       font-size: .95rem;
     }
+
+    /* Range tabs for portfolio line chart */
+    .range-tabs {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 0.5rem;
+    }
+    .range-tab {
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid #333;
+      background: #111827;
+      font-size: 0.8rem;
+      color: #cbd5f5;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .range-tab:hover {
+      background: #1f2937;
+      border-color: #444;
+    }
+    .range-tab.active {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -113,6 +141,15 @@
     })();
 
     let summary = null;
+    let charts = [];
+    let currentRange = "YEAR"; // DAY, WEEK, MONTH, SIX_MONTHS, YEAR
+    const divideToggle = document.getElementById("divideToggle");
+
+    function destroyCharts() { charts.forEach(c => { try { c.destroy(); } catch(_){} }); charts = []; }
+
+    function money(v) {
+      return "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
     async function loadSummary() {
       setStatus("Loading summary from Supabase...");
@@ -138,15 +175,48 @@
       setStatus("");
     }
 
-    let charts = [];
-    function destroyCharts() { charts.forEach(c => { try { c.destroy(); } catch(_){} }); charts = []; }
+    function filterHistoryByRange(history, rangeKey) {
+      if (!history || !history.length) return [];
 
-    function money(v) {
-      return "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      // Assume history is sorted by date ascending
+      const lastPoint = history[history.length - 1];
+      const lastDate = new Date(lastPoint[0] || new Date().toISOString());
+      const msDay = 24 * 60 * 60 * 1000;
+
+      let cutoffTime = null;
+
+      switch (rangeKey) {
+        case "DAY":
+          cutoffTime = lastDate.getTime() - 1 * msDay;
+          break;
+        case "WEEK":
+          cutoffTime = lastDate.getTime() - 7 * msDay;
+          break;
+        case "MONTH":
+          cutoffTime = lastDate.getTime() - 30 * msDay;
+          break;
+        case "SIX_MONTHS":
+          cutoffTime = lastDate.getTime() - 182 * msDay;
+          break;
+        case "YEAR":
+        default:
+          cutoffTime = lastDate.getTime() - 365 * msDay;
+          break;
+      }
+
+      return history.filter(([d]) => {
+        const t = new Date(d).getTime();
+        return !Number.isNaN(t) && t >= cutoffTime;
+      });
     }
 
-    function renderCharts(divideBy12) {
+    function renderCharts(divideBy12, newRangeKey) {
       if (!summary) return;
+
+      if (newRangeKey) {
+        currentRange = newRangeKey;
+      }
+
       const f = divideBy12 ? 12 : 1;
 
       const dashboard = document.getElementById("dashboard");
@@ -211,18 +281,36 @@
         }
       }));
 
-      // LINE
+      // LINE with range tabs
       const lineCard = document.createElement("div");
       lineCard.className = "chart-card";
       lineCard.innerHTML = `
         <h2>Portfolio value over time</h2>
+        <div class="range-tabs">
+          <button class="range-tab" data-range="DAY">Day</button>
+          <button class="range-tab" data-range="WEEK">Week</button>
+          <button class="range-tab" data-range="MONTH">Month</button>
+          <button class="range-tab" data-range="SIX_MONTHS">6 Months</button>
+          <button class="range-tab" data-range="YEAR">1 Year</button>
+        </div>
         <div class="chart-container"><canvas id="portfolioValueLine"></canvas></div>
       `;
       dashboard.appendChild(lineCard);
 
-      const history = Array.isArray(summary.history) ? summary.history : [];
-      const lineLabels = history.length ? history.map(p => p[0]) : [summary.lastUpdated || new Date().toISOString()];
-      const lineData = history.length ? history.map(p => Number(p[1] || 0)) : [totals.value || 0];
+      const fullHistory = Array.isArray(summary.history) ? summary.history : [];
+      const rangedHistory = fullHistory.length
+        ? filterHistoryByRange(fullHistory, currentRange)
+        : [];
+
+      const historyForChart = rangedHistory.length ? rangedHistory : fullHistory;
+
+      const lineLabels = historyForChart.length
+        ? historyForChart.map(p => p[0])
+        : [summary.lastUpdated || new Date().toISOString()];
+
+      const lineData = historyForChart.length
+        ? historyForChart.map(p => Number(p[1] || 0))
+        : [totals.value || 0];
 
       charts.push(new Chart(document.getElementById("portfolioValueLine"), {
         type: "line",
@@ -249,6 +337,19 @@
           plugins: { legend: { labels: { color: "#fff" } } }
         }
       }));
+
+      // activate tabs and hook up events
+      const tabs = lineCard.querySelectorAll(".range-tab");
+      tabs.forEach(tab => {
+        const rk = tab.getAttribute("data-range");
+        if (rk === currentRange) {
+          tab.classList.add("active");
+        }
+        tab.addEventListener("click", () => {
+          currentRange = rk;
+          renderCharts(divideToggle.checked, currentRange);
+        });
+      });
 
       // Per holding cards with cost, value, profit, percent
       positions.forEach(p => {
@@ -328,8 +429,7 @@
       await loadSummary();
       if (summary) {
         renderCharts(false);
-        document.getElementById("divideToggle")
-          .addEventListener("change", e => renderCharts(e.target.checked));
+        divideToggle.addEventListener("change", e => renderCharts(e.target.checked));
       }
     })();
   </script>
