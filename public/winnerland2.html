@@ -186,9 +186,6 @@
       let cutoffTime = null;
 
       switch (rangeKey) {
-        case "DAY":
-          cutoffTime = lastDate.getTime() - 1 * msDay;
-          break;
         case "WEEK":
           cutoffTime = lastDate.getTime() - 7 * msDay;
           break;
