@@ -166,6 +166,7 @@
       await supabase.auth.signOut();
       location.href = "login.html";
     });
+
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) location.href = "login.html";
@@ -176,7 +177,41 @@
     let currentRange = "YEAR"; // WEEK, MONTH, SIX_MONTHS, YEAR
     const divideToggle = document.getElementById("divideToggle");
 
-    const tickerViewMode = {}; // symbol -> "SUMMARY" or "HISTORY"
+    // symbol -> "SUMMARY" or "HISTORY"
+    const tickerViewMode = {};
+
+    const RANGE_STORAGE_KEY = "portfolioRange";
+    const TICKER_VIEW_STORAGE_KEY = "tickerViewMode";
+
+    function loadRangePreference() {
+      try {
+        const v = localStorage.getItem(RANGE_STORAGE_KEY);
+        if (v) currentRange = v;
+      } catch (_) {}
+    }
+
+    function saveRangePreference() {
+      try {
+        localStorage.setItem(RANGE_STORAGE_KEY, currentRange);
+      } catch (_) {}
+    }
+
+    function loadTickerViewPreference() {
+      try {
+        const raw = localStorage.getItem(TICKER_VIEW_STORAGE_KEY);
+        if (!raw) return;
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === "object") {
+          Object.assign(tickerViewMode, obj);
+        }
+      } catch (_) {}
+    }
+
+    function saveTickerViewPreference() {
+      try {
+        localStorage.setItem(TICKER_VIEW_STORAGE_KEY, JSON.stringify(tickerViewMode));
+      } catch (_) {}
+    }
 
     function destroyCharts() {
       charts.forEach(c => { try { c.destroy(); } catch (_) {} });
@@ -185,6 +220,14 @@
 
     function money(v) {
       return "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function shortDateLabel(iso) {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return iso;
+      const day = d.getDate();
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return `${day} ${months[d.getMonth()]}`;
     }
 
     async function loadSummary() {
@@ -221,7 +264,6 @@
     }
 
     async function loadHistoryFromTable() {
-      // builds summary.history and summary.symbolHistory from flex_summary rows
       const { data, error } = await supabase
         .from("flex_summary")
         .select("data,last_updated")
@@ -393,8 +435,8 @@
       const historyForChart = rangedHistory.length ? rangedHistory : fullHistory;
 
       const lineLabels = historyForChart.length
-        ? historyForChart.map(p => p[0])
-        : [summary.lastUpdated || new Date().toISOString()];
+        ? historyForChart.map(p => shortDateLabel(p[0]))
+        : [shortDateLabel(summary.lastUpdated || new Date().toISOString())];
 
       const lineData = historyForChart.length
         ? historyForChart.map(p => Number(p[1] || 0))
@@ -426,7 +468,7 @@
         }
       }));
 
-      // range tab handlers
+      // range tab handlers, keep scroll position
       const tabs = lineCard.querySelectorAll(".range-tab");
       tabs.forEach(tab => {
         const rk = tab.getAttribute("data-range");
@@ -434,8 +476,11 @@
           tab.classList.add("active");
         }
         tab.addEventListener("click", () => {
+          const prevY = window.scrollY;
           currentRange = rk;
+          saveRangePreference();
           renderCharts(divideToggle.checked, currentRange);
+          window.scrollTo(0, prevY);
         });
       });
 
@@ -473,8 +518,11 @@
           const v = btn.getAttribute("data-view");
           if (v === tickerViewMode[sym]) btn.classList.add("active");
           btn.addEventListener("click", () => {
+            const prevY = window.scrollY;
             tickerViewMode[sym] = v;
+            saveTickerViewPreference();
             renderCharts(divideToggle.checked, currentRange);
+            window.scrollTo(0, prevY);
           });
         });
 
@@ -482,11 +530,11 @@
 
         if (mode === "HISTORY" && symbolHistory[sym]) {
           const symHistRaw = symbolHistory[sym] || [];
-          const symHist = symHistRaw.map(([d, v]) => [d, Number(v) / f]);
+          const symHist = symHistRaw.map(([d, v]) => [shortDateLabel(d), Number(v) / f]);
 
           const labels = symHist.length
             ? symHist.map(p => p[0])
-            : [summary.lastUpdated || new Date().toISOString()];
+            : [shortDateLabel(summary.lastUpdated || new Date().toISOString())];
 
           const data = symHist.length
             ? symHist.map(p => p[1])
@@ -579,15 +627,24 @@
     }
 
     (async () => {
+      loadRangePreference();
+      loadTickerViewPreference();
+
       await loadSummary();
       if (!summary) return;
 
-      await loadHistoryFromTable(); // builds summary.history and summary.symbolHistory from past rows
+      await loadHistoryFromTable();
 
       renderCharts(false);
-      divideToggle.addEventListener("change", e => renderCharts(e.target.checked));
+
+      divideToggle.addEventListener("change", e => {
+        const prevY = window.scrollY;
+        renderCharts(e.target.checked, currentRange);
+        window.scrollTo(0, prevY);
+      });
     })();
   </script>
 </body>
 </html>
+
 
