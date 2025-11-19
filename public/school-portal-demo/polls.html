@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+]<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -114,6 +114,13 @@
     }
     .chip.me { border-color: #3b82f6; color: #fff; background: rgba(59, 130, 246, 0.1); }
 
+    /* New: Add Option Row for Live Polls */
+    .add-opt-row {
+      margin-top: 1rem; padding-top: 0.75rem; border-top: 1px dashed #333;
+      display: flex; gap: 0.5rem;
+    }
+    .add-opt-row input { flex: 1; font-size: 0.85rem; padding: 0.4rem 0.8rem; background: #111; }
+
     /* Scrollable Box for Past Results */
     .scroll-box {
       max-height: 500px;
@@ -189,7 +196,7 @@
     /* --- CONFIG --- */
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
-    const GREEN_THRESHOLD = 6; // Votes required to turn green
+    const GREEN_THRESHOLD = 6; 
     
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -264,7 +271,6 @@
         const card = document.createElement('div');
         card.className = `poll-card ${isEnded ? 'ended' : 'active'}`;
         
-        // Timer Logic
         let timeLabel = "Ended";
         if (!isEnded) {
             const diff = new Date(p.end_at) - new Date();
@@ -290,15 +296,12 @@
           const count = vArr.length;
           const pct = totalPollVotes > 0 ? Math.round((count / totalPollVotes) * 100) : 0;
           const isMyVote = myVote && myVote.option_id === o.id;
-          
-          // --- NEW LOGIC: Check if it's "Good" (>= 6 votes) ---
           const isGood = count >= GREEN_THRESHOLD;
 
           let itemClass = "option-item";
           if (isMyVote) itemClass += " voted";
-          if (isGood) itemClass += " good"; // Adds Green Border
+          if (isGood) itemClass += " good";
 
-          // Build Chips
           let chipsHtml = '';
           if(vArr.length > 0) {
             chipsHtml = '<div class="chips-row">';
@@ -323,7 +326,18 @@
           `;
         });
 
-        html += `</div>`;
+        html += `</div>`; // Close options-list
+
+        // --- ADD OPTION INPUT (ACTIVE ONLY) ---
+        if (!isEnded) {
+            html += `
+                <div class="add-opt-row">
+                  <input id="new-opt-${p.id}" placeholder="Add another option..." onkeydown="if(event.key==='Enter') addLiveOption('${p.id}')" />
+                  <button class="btn btn-ghost" onclick="addLiveOption('${p.id}')" style="padding:0 0.8rem; font-size:1.2rem; line-height:1;">+</button>
+                </div>
+            `;
+        }
+
         card.innerHTML = html;
 
         if (isEnded) archWrap.appendChild(card);
@@ -377,6 +391,26 @@
       setLoading(false);
     }
 
+    // --- NEW: ADD LIVE OPTION ---
+    async function addLiveOption(pollId) {
+        const input = el(`new-opt-${pollId}`);
+        const label = input.value.trim();
+        if (!label) return;
+
+        setLoading(true);
+        const { error } = await supabase.from("poll_options").insert({
+            poll_id: pollId,
+            label: label
+        });
+
+        if (error) showError(error.message);
+        else {
+            // Input clears, subscription handles the refresh
+            input.value = "";
+        }
+        setLoading(false);
+    }
+
     /* --- HELPERS --- */
     function addInput() {
       const div = document.createElement('div');
@@ -394,9 +428,17 @@
     el('search').oninput = render;
     el('btnSignOut').onclick = async () => { await supabase.auth.signOut(); location.href="login.html"; };
 
-    supabase.channel('public:polls').on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, async () => {
-        await fetchAll(); render();
-    }).subscribe();
+    /* --- REALTIME --- */
+    async function refresh() {
+        await fetchAll();
+        render();
+    }
+
+    // Subscribe to Votes AND Options
+    supabase.channel('public:polls')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, refresh)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'poll_options' }, refresh)
+      .subscribe();
 
     (async () => {
       setLoading(true);
