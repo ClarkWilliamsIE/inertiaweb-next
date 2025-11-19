@@ -76,7 +76,12 @@
       display: flex; flex-direction: column;
     }
     .option-item:hover { border-color: #555; }
+    
+    /* Blue border if I voted */
     .option-item.voted { border-color: #3b82f6; }
+    
+    /* Green border if 6+ votes (Overrides blue) */
+    .option-item.good { border-color: #22c55e; box-shadow: 0 0 0 1px #22c55e; }
 
     /* Progress Bar */
     .progress-bar {
@@ -84,7 +89,8 @@
       background: rgba(255, 255, 255, 0.08);
       z-index: 0; transition: width 0.5s ease-out;
     }
-    .voted .progress-bar { background: rgba(59, 130, 246, 0.2); }
+    .voted .progress-bar { background: rgba(59, 130, 246, 0.2); } /* Blue tint */
+    .good .progress-bar { background: rgba(34, 197, 94, 0.2); } /* Green tint */
 
     /* Content Layout */
     .option-row-main {
@@ -117,7 +123,6 @@
       border-radius: 12px;
       padding: 1rem;
     }
-    /* Custom Scrollbar */
     .scroll-box::-webkit-scrollbar { width: 8px; }
     .scroll-box::-webkit-scrollbar-track { background: #18181b; }
     .scroll-box::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
@@ -184,6 +189,8 @@
     /* --- CONFIG --- */
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+    const GREEN_THRESHOLD = 6; // Votes required to turn green
+    
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /* --- STATE --- */
@@ -279,17 +286,23 @@
         pollOpts.sort((a,b) => a.label.localeCompare(b.label));
 
         pollOpts.forEach(o => {
-          const vArr = votesByOpt[o.id] || []; // Votes for this option
+          const vArr = votesByOpt[o.id] || []; 
           const count = vArr.length;
           const pct = totalPollVotes > 0 ? Math.round((count / totalPollVotes) * 100) : 0;
           const isMyVote = myVote && myVote.option_id === o.id;
+          
+          // --- NEW LOGIC: Check if it's "Good" (>= 6 votes) ---
+          const isGood = count >= GREEN_THRESHOLD;
 
-          // Build Chips (Leaderboard)
+          let itemClass = "option-item";
+          if (isMyVote) itemClass += " voted";
+          if (isGood) itemClass += " good"; // Adds Green Border
+
+          // Build Chips
           let chipsHtml = '';
           if(vArr.length > 0) {
             chipsHtml = '<div class="chips-row">';
             vArr.forEach(vote => {
-                // Is this chip ME?
                 const isMe = vote.user_id === currentUser.id;
                 chipsHtml += `<span class="chip ${isMe?'me':''}">${escapeHtml(vote.voter_name || 'Anon')}</span>`;
             });
@@ -297,7 +310,7 @@
           }
 
           html += `
-            <div class="option-item ${isMyVote ? 'voted' : ''}" onclick="castVote('${p.id}', '${o.id}', ${isEnded})">
+            <div class="${itemClass}" onclick="castVote('${p.id}', '${o.id}', ${isEnded})">
               <div class="progress-bar" style="width: ${pct}%"></div>
               
               <div class="option-row-main">
@@ -310,7 +323,7 @@
           `;
         });
 
-        html += `</div>`; // End options list
+        html += `</div>`;
         card.innerHTML = html;
 
         if (isEnded) archWrap.appendChild(card);
