@@ -14,7 +14,7 @@
       margin: 0;
       padding: 1rem;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: #0f0f0f; /* Slightly darker background */
+      background: #0f0f0f;
       color: #e0e0e0;
     }
     header {
@@ -52,7 +52,7 @@
     input:checked + .slider { background-color: #3b82f6; }
     input:checked + .slider:before { transform: translateX(22px); }
 
-    /* Top Stats Bar (New Cool Feature) */
+    /* Top Stats Bar */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -65,11 +65,10 @@
       padding: 1.25rem;
       border-radius: 12px;
       text-align: center;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
     .stat-label { font-size: 0.85rem; color: #a1a1aa; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px; }
     .stat-value { font-size: 1.5rem; font-weight: 700; color: #fff; }
-    .stat-sub { font-size: 0.9rem; margin-top: 0.25rem; font-weight: 600; }
     
     .text-green { color: #4ade80; }
     .text-red { color: #f87171; }
@@ -80,6 +79,8 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
       gap: 1.5rem;
+      /* Smooth transition for height changes */
+      min-height: 500px; 
     }
     .chart-card {
       background: #18181b;
@@ -186,9 +187,7 @@
   </header>
 
   <div id="status" class="notice" style="display:none;"></div>
-
   <div id="statsGrid" class="stats-grid" style="display:none;"></div>
-  
   <div class="dashboard" id="dashboard"></div>
   <div id="lastUpdated" class="last-updated" style="display:none;"></div>
 
@@ -200,6 +199,7 @@
     const statusEl = document.getElementById("status");
     const statsGridEl = document.getElementById("statsGrid");
     const lastUpdatedEl = document.getElementById("lastUpdated");
+    const dashboardEl = document.getElementById("dashboard");
 
     function setStatus(msg) { statusEl.textContent = msg; statusEl.style.display = msg ? "block" : "none"; }
 
@@ -217,13 +217,11 @@
     let charts = [];
     let currentRange = "YEAR"; 
     const divideToggle = document.getElementById("divideToggle");
-    const tickerViewMode = {}; // symbol -> "SUMMARY" or "HISTORY"
+    const tickerViewMode = {};
 
-    // Storage Keys
     const RANGE_KEY = "pfRange";
     const VIEW_KEY = "pfViewMode";
 
-    // Load Preferences
     try { currentRange = localStorage.getItem(RANGE_KEY) || "YEAR"; } catch(_){}
     try { Object.assign(tickerViewMode, JSON.parse(localStorage.getItem(VIEW_KEY) || "{}")); } catch(_){}
 
@@ -239,7 +237,6 @@
       charts = [];
     }
 
-    // Formats
     function fmtMoney(v, showSign=false) {
       if (v == null) return "0";
       const s = Math.round(Number(v)).toLocaleString();
@@ -256,12 +253,11 @@
       return `${d.getDate()} ${m[d.getMonth()]}`;
     }
 
-    // Consolidate Logic: Only 1 entry per YYYY-MM-DD (the latest one)
     function consolidateByDay(arr) {
       const map = new Map();
       arr.forEach(item => {
         const dateKey = item[0].split("T")[0];
-        map.set(dateKey, item); // Overwrite, keeping latest
+        map.set(dateKey, item);
       });
       return Array.from(map.values());
     }
@@ -269,7 +265,6 @@
     async function loadData() {
       setStatus("Loading data...");
       
-      // 1. Get Latest Summary
       const { data: summaryData, error: summaryError } = await supabase
         .from("flex_summary")
         .select("*")
@@ -285,7 +280,6 @@
       summary = row.data || {};
       summary.lastUpdatedDate = row.last_updated;
 
-      // 2. Get History
       const { data: historyData } = await supabase
         .from("flex_summary")
         .select("data, last_updated")
@@ -300,11 +294,9 @@
         const dt = d.lastUpdated || r.last_updated;
         if(!dt) return;
 
-        // Portfolio Total
         const val = Number(d.totals?.value || 0);
         if (isFinite(val)) rawPf.push([dt, val]);
 
-        // Symbols
         (d.positions || []).forEach(p => {
           if(p?.symbol) {
             if(!rawSym[p.symbol]) rawSym[p.symbol] = [];
@@ -334,18 +326,35 @@
       return hist.filter(pt => new Date(pt[0]).getTime() >= start);
     }
 
-    // --- RENDER ---
+    // --- THE FIX: Scroll Preserving Render ---
+    function reRender() {
+      // 1. Capture current scroll position
+      const currentY = window.scrollY;
+      
+      // 2. Lock the height of the container so it doesn't collapse
+      dashboardEl.style.minHeight = dashboardEl.offsetHeight + 'px';
+      
+      // 3. Render
+      render(divideToggle.checked);
+
+      // 4. Restore scroll immediately
+      window.scrollTo(0, currentY);
+
+      // 5. Release the height lock (optional, but good practice)
+      setTimeout(() => {
+        dashboardEl.style.minHeight = '500px'; // reset to default min-height
+      }, 50);
+    }
 
     function render(divide) {
-      const div = document.getElementById("dashboard");
-      div.innerHTML = "";
+      dashboardEl.innerHTML = "";
       destroyCharts();
 
       const f = divide ? 12 : 1;
       const totals = summary.totals || {};
       const positions = summary.positions || [];
 
-      // 1. Top Stats Grid
+      // Stats Grid
       const tVal = (totals.value || 0) / f;
       const tCost = (totals.cost || 0) / f;
       const tProf = (totals.profit || 0) / f;
@@ -380,14 +389,11 @@
         lastUpdatedEl.style.display = "block";
       }
 
-      // 2. Charts
-
-      // --- Allocation Donut ---
+      // Allocation Donut
       const donutCard = mkCard("Allocation " + (f>1?"(1/12)":""));
-      div.appendChild(donutCard);
-      const donutCtx = donutCard.querySelector("canvas");
+      dashboardEl.appendChild(donutCard);
       
-      charts.push(new Chart(donutCtx, {
+      charts.push(new Chart(donutCard.querySelector("canvas"), {
         type: 'doughnut',
         data: {
           labels: positions.map(p => p.symbol),
@@ -408,9 +414,9 @@
         }
       }));
 
-      // --- Summary Bar ---
+      // Summary Bar
       const barCard = mkCard("Summary " + (f>1?"(1/12)":""));
-      div.appendChild(barCard);
+      dashboardEl.appendChild(barCard);
       charts.push(new Chart(barCard.querySelector("canvas"), {
         type: 'bar',
         data: {
@@ -418,9 +424,9 @@
           datasets: [{
             data: [tCost, tProf, tVal],
             backgroundColor: [
-              '#3f3f46', // Cost (Grey)
-              tProf >= 0 ? '#10b981' : '#ef4444', // Profit (Green/Red)
-              '#3b82f6' // Value (Blue)
+              '#3f3f46', 
+              tProf >= 0 ? '#10b981' : '#ef4444', 
+              '#3b82f6'
             ],
             borderRadius: 6
           }]
@@ -428,7 +434,7 @@
         options: stdOptions({ showLegend: false })
       }));
 
-      // --- Portfolio History Line ---
+      // Portfolio History
       const lineCard = document.createElement("div");
       lineCard.className = "chart-card";
       lineCard.innerHTML = `
@@ -442,23 +448,20 @@
         </div>
         <div class="chart-container"><canvas></canvas></div>
       `;
-      div.appendChild(lineCard);
+      dashboardEl.appendChild(lineCard);
       
-      // Handle Tabs
       lineCard.querySelectorAll(".range-tab").forEach(b => {
         b.onclick = () => {
           currentRange = b.dataset.k;
           savePrefs();
-          render(divideToggle.checked);
+          reRender(); // Use reRender here
         };
       });
 
       const pfHist = filterRange(summary.history, currentRange);
       const pfCtx = lineCard.querySelector("canvas").getContext("2d");
-
-      // Create Gradient
       const pfGrad = pfCtx.createLinearGradient(0, 0, 0, 300);
-      pfGrad.addColorStop(0, 'rgba(59, 130, 246, 0.5)'); // Blue transparent
+      pfGrad.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
       pfGrad.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
 
       charts.push(new Chart(pfCtx, {
@@ -480,14 +483,13 @@
         options: stdOptions({ showLegend: false, intersect: false })
       }));
 
-      // --- Individual Tickers ---
+      // Ticker Cards
       positions.forEach(p => {
         const sym = p.symbol;
         const mode = tickerViewMode[sym] || "SUMMARY";
         
         const card = document.createElement("div");
         card.className = "chart-card";
-        // Add colorful border based on profit
         const isUp = (p.profit||0) >= 0;
         card.style.borderTop = `4px solid ${isUp ? '#10b981' : '#ef4444'}`;
 
@@ -501,14 +503,13 @@
           </div>
           <div class="chart-container"><canvas></canvas></div>
         `;
-        div.appendChild(card);
+        dashboardEl.appendChild(card);
 
-        // Handle Toggle
         card.querySelectorAll("button").forEach(b => {
           b.onclick = () => {
             tickerViewMode[sym] = b.dataset.m;
             savePrefs();
-            render(divideToggle.checked);
+            reRender(); // Use reRender here
           };
         });
 
@@ -519,9 +520,7 @@
         const pPct = p.pct;
 
         if (mode === "HISTORY" && summary.symbolHistory[sym]) {
-          // Ticker Line Chart
-          const sHist = filterRange(summary.symbolHistory[sym], currentRange); // Sync range with main chart
-          // Orange Gradient
+          const sHist = filterRange(summary.symbolHistory[sym], currentRange);
           const sGrad = ctx.createLinearGradient(0, 0, 0, 300);
           sGrad.addColorStop(0, 'rgba(249, 115, 22, 0.5)');
           sGrad.addColorStop(1, 'rgba(249, 115, 22, 0.0)');
@@ -544,7 +543,6 @@
             options: stdOptions({ showLegend: false, intersect: false })
           }));
         } else {
-          // Ticker Bar Chart
           charts.push(new Chart(ctx, {
             data: {
               labels: ["Cost", "Value", "Profit", "%"],
@@ -617,7 +615,7 @@
             borderWidth: 1,
             callbacks: {
               label: ctx => {
-                if(ctx.dataset.type==='line' && ctx.chart.config.type!=='line') return fmtPct(ctx.raw) + '%'; // % line in bar chart
+                if(ctx.dataset.type==='line' && ctx.chart.config.type!=='line') return fmtPct(ctx.raw) + '%';
                 return fmtMoney(ctx.raw);
               }
             }
@@ -636,9 +634,8 @@
       };
     }
 
-    // Init
     loadData();
-    divideToggle.onchange = () => render(divideToggle.checked);
+    divideToggle.onchange = () => reRender(); // Use reRender here
   </script>
 </body>
 </html>
