@@ -14,50 +14,79 @@
       margin: 0;
       padding: 1rem;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: #121212;
-      color: #fff;
+      background: #0f0f0f; /* Slightly darker background */
+      color: #e0e0e0;
     }
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: .75rem;
-      margin-bottom: .75rem;
+      margin-bottom: 1.5rem;
     }
-    h1 { margin: 0; font-size: 1.25rem; }
+    h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
+    
+    /* Buttons & Inputs */
     .row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
     .btn {
-      padding: .5rem .75rem;
-      border-radius: 10px;
-      border: 1px solid #2a2a2a;
-      background: #1f2937;
+      padding: .5rem .85rem;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #1f1f1f;
       color: #fff;
       cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
+      font-weight: 500;
+      transition: all 0.2s ease;
     }
-    .btn:hover { background: #273244; }
-    .danger { border-color: #ef4444; }
+    .btn:hover { background: #2a2a2a; transform: translateY(-1px); }
+    .danger { border-color: #7f1d1d; color: #fca5a5; }
+    .danger:hover { background: #450a0a; }
+
+    /* Toggle Switch */
     .switch {
-      position: relative; display: inline-block; width: 50px; height: 26px; vertical-align: middle;
+      position: relative; display: inline-block; width: 46px; height: 24px; vertical-align: middle;
     }
     .switch input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; cursor: pointer; inset: 0; background-color: #333; transition: .2s; border-radius: 26px; }
-    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background: #fff; transition: .2s; border-radius: 50%; }
-    input:checked + .slider { background-color: #2563eb; }
-    input:checked + .slider:before { transform: translateX(24px); }
+    .slider { position: absolute; cursor: pointer; inset: 0; background-color: #333; transition: .2s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; transition: .2s; border-radius: 50%; }
+    input:checked + .slider { background-color: #3b82f6; }
+    input:checked + .slider:before { transform: translateX(22px); }
 
+    /* Top Stats Bar (New Cool Feature) */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-box {
+      background: #18181b;
+      border: 1px solid #27272a;
+      padding: 1.25rem;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .stat-label { font-size: 0.85rem; color: #a1a1aa; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: #fff; }
+    .stat-sub { font-size: 0.9rem; margin-top: 0.25rem; font-weight: 600; }
+    
+    .text-green { color: #4ade80; }
+    .text-red { color: #f87171; }
+    .text-blue { color: #60a5fa; }
+
+    /* Dashboard Grid */
     .dashboard {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 1rem;
-      margin-top: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 1.5rem;
     }
     .chart-card {
-      background: #1e1e1e;
-      border: 1px solid #2a2a2a;
-      border-radius: 12px;
-      padding: 1rem;
-      box-shadow: 0 2px 12px rgba(0,0,0,.25);
+      background: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 16px;
+      padding: 1.25rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
       display: flex;
       flex-direction: column;
     }
@@ -66,119 +95,84 @@
       align-items: center;
       justify-content: space-between;
       gap: .5rem;
-      margin-bottom: .5rem;
+      margin-bottom: 1rem;
     }
-    .chart-card h2 {
-      margin: 0;
-      font-size: 1.05rem;
-      text-align: left;
-    }
-    .chart-container { position: relative; flex: 1; height: 220px; }
-    .chart-container canvas { width: 100% !important; height: 100% !important; }
+    .chart-card h2 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+    .chart-container { position: relative; flex: 1; height: 240px; width: 100%; }
 
-    .notice {
-      padding: .75rem;
-      border: 1px solid #444;
-      border-radius: 10px;
-      background: #181818;
-      font-size: .95rem;
-      margin-top: 1rem;
-    }
-
+    /* Range Tabs */
     .range-tabs {
       display: flex;
       justify-content: center;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-      margin-bottom: 0.5rem;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      background: #27272a;
+      padding: 4px;
+      border-radius: 99px;
+      width: fit-content;
+      margin-left: auto; margin-right: auto;
     }
     .range-tab {
-      padding: 0.25rem 0.7rem;
-      border-radius: 999px;
-      border: 1px solid #333;
-      background: #111827;
-      font-size: 0.8rem;
-      color: #cbd5f5;
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
-    }
-    .range-tab:hover {
-      background: #1f2937;
-      border-color: #444;
-    }
-    .range-tab.active {
-      background: #2563eb;
-      border-color: #2563eb;
-      color: #fff;
-    }
-
-    .view-toggle {
-      display: inline-flex;
-      border-radius: 999px;
-      border: 1px solid #374151;
-      overflow: hidden;
-      background: #111827;
-      font-size: 0.75rem;
-    }
-    .view-toggle button {
-      padding: 0.15rem 0.6rem;
+      padding: 0.35rem 0.85rem;
+      border-radius: 99px;
       border: none;
       background: transparent;
-      color: #9ca3af;
+      font-size: 0.75rem;
+      color: #a1a1aa;
       cursor: pointer;
-      font: inherit;
-      transition: background 0.15s, color 0.15s;
+      transition: all 0.2s;
+      font-weight: 600;
+    }
+    .range-tab:hover { color: #fff; }
+    .range-tab.active {
+      background: #3f3f46;
+      color: #fff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+
+    /* View Toggle (Summary/History) */
+    .view-toggle {
+      display: inline-flex;
+      border-radius: 8px;
+      background: #27272a;
+      padding: 2px;
+    }
+    .view-toggle button {
+      padding: 0.25rem 0.75rem;
+      border: none;
+      background: transparent;
+      color: #a1a1aa;
+      cursor: pointer;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      font-weight: 500;
     }
     .view-toggle button.active {
-      background: #2563eb;
+      background: #52525b;
       color: #fff;
     }
 
-    /* New styles for overall portfolio stats */
-    .portfolio-stats {
-        background: #1e1e1e;
-        border: 1px solid #2a2a2a;
-        border-radius: 12px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-around;
-        gap: 1rem;
-        text-align: center;
-        box-shadow: 0 2px 12px rgba(0,0,0,.25);
+    .notice {
+      padding: 1rem;
+      border: 1px solid #3f3f46;
+      border-radius: 8px;
+      background: #18181b;
+      margin-bottom: 1rem;
+      color: #fbbf24;
     }
-    .stat-item {
-        flex: 1;
-        min-width: 150px;
-    }
-    .stat-item h3 {
-        margin: 0 0 0.5rem 0;
-        font-size: 0.9rem;
-        color: #9ca3af;
-    }
-    .stat-item p {
-        margin: 0;
-        font-size: 1.5rem;
-        font-weight: bold;
-    }
-    .stat-item .positive { color: #28a745; }
-    .stat-item .negative { color: #dc3545; }
     .last-updated {
-        font-size: 0.8rem;
-        color: #9ca3af;
+        font-size: 0.75rem;
+        color: #71717a;
         text-align: right;
-        margin-top: -0.5rem;
-        margin-bottom: 0.5rem;
+        margin-top: 0.5rem;
     }
-
   </style>
 </head>
 <body>
   <header>
-    <h1>Members dashboard</h1>
+    <h1>Members Dashboard</h1>
     <div class="row">
-      <label class="row" style="gap:.35rem;">
+      <label class="row" style="gap:.5rem; font-size: 0.9rem; color: #a1a1aa;">
         <span>Divide by 12</span>
         <span class="switch">
           <input type="checkbox" id="divideToggle" />
@@ -191,10 +185,12 @@
     </div>
   </header>
 
-  <div id="portfolioStats" class="portfolio-stats" style="display:none;"></div>
-  <div id="lastUpdated" class="last-updated" style="display:none;"></div>
   <div id="status" class="notice" style="display:none;"></div>
+
+  <div id="statsGrid" class="stats-grid" style="display:none;"></div>
+  
   <div class="dashboard" id="dashboard"></div>
+  <div id="lastUpdated" class="last-updated" style="display:none;"></div>
 
   <script>
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
@@ -202,7 +198,7 @@
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const statusEl = document.getElementById("status");
-    const portfolioStatsEl = document.getElementById("portfolioStats");
+    const statsGridEl = document.getElementById("statsGrid");
     const lastUpdatedEl = document.getElementById("lastUpdated");
 
     function setStatus(msg) { statusEl.textContent = msg; statusEl.style.display = msg ? "block" : "none"; }
@@ -219,43 +215,23 @@
 
     let summary = null;
     let charts = [];
-    let currentRange = "YEAR"; // WEEK, MONTH, SIX_MONTHS, YEAR
+    let currentRange = "YEAR"; 
     const divideToggle = document.getElementById("divideToggle");
+    const tickerViewMode = {}; // symbol -> "SUMMARY" or "HISTORY"
 
-    // symbol -> "SUMMARY" or "HISTORY"
-    const tickerViewMode = {};
+    // Storage Keys
+    const RANGE_KEY = "pfRange";
+    const VIEW_KEY = "pfViewMode";
 
-    const RANGE_STORAGE_KEY = "portfolioRange";
-    const TICKER_VIEW_STORAGE_KEY = "tickerViewMode";
+    // Load Preferences
+    try { currentRange = localStorage.getItem(RANGE_KEY) || "YEAR"; } catch(_){}
+    try { Object.assign(tickerViewMode, JSON.parse(localStorage.getItem(VIEW_KEY) || "{}")); } catch(_){}
 
-    function loadRangePreference() {
+    function savePrefs() {
       try {
-        const v = localStorage.getItem(RANGE_STORAGE_KEY);
-        if (v) currentRange = v;
-      } catch (_) {}
-    }
-
-    function saveRangePreference() {
-      try {
-        localStorage.setItem(RANGE_STORAGE_KEY, currentRange);
-      } catch (_) {}
-    }
-
-    function loadTickerViewPreference() {
-      try {
-        const raw = localStorage.getItem(TICKER_VIEW_STORAGE_KEY);
-        if (!raw) return;
-        const obj = JSON.parse(raw);
-        if (obj && typeof obj === "object") {
-          Object.assign(tickerViewMode, obj);
-        }
-      } catch (_) {}
-    }
-
-    function saveTickerViewPreference() {
-      try {
-        localStorage.setItem(TICKER_VIEW_STORAGE_KEY, JSON.stringify(tickerViewMode));
-      } catch (_) {}
+        localStorage.setItem(RANGE_KEY, currentRange);
+        localStorage.setItem(VIEW_KEY, JSON.stringify(tickerViewMode));
+      } catch(_){}
     }
 
     function destroyCharts() {
@@ -263,515 +239,406 @@
       charts = [];
     }
 
-    // Helper for Chart Currency: Integer, no Symbol, commas (e.g., 1,234)
-    function fmtChartMoney(v, includeDollar = false) {
-      if (v === null || v === undefined) return "0";
-      const val = Math.round(Number(v)).toLocaleString();
-      return includeDollar ? "$" + val : val;
+    // Formats
+    function fmtMoney(v, showSign=false) {
+      if (v == null) return "0";
+      const s = Math.round(Number(v)).toLocaleString();
+      return showSign ? "$" + s : s;
     }
-
-    // Helper for Chart Percent: 2 decimals (e.g., 12.34)
-    function fmtChartPct(v) {
-      if (v === null || v === undefined) return "n/a";
+    function fmtPct(v) {
+      if (v == null) return "n/a";
       return Number(v).toFixed(2);
     }
-
-    function shortDateLabel(iso) {
+    function shortDate(iso) {
       const d = new Date(iso);
-      if (Number.isNaN(d.getTime())) return iso;
-      const day = d.getDate();
-      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-      return `${day} ${months[d.getMonth()]}`;
+      if (isNaN(d)) return iso;
+      const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return `${d.getDate()} ${m[d.getMonth()]}`;
     }
 
-    function fullDateLabel(iso) {
-        const d = new Date(iso);
-        if (Number.isNaN(d.getTime())) return iso;
-        return d.toLocaleString(); // More detailed timestamp
+    // Consolidate Logic: Only 1 entry per YYYY-MM-DD (the latest one)
+    function consolidateByDay(arr) {
+      const map = new Map();
+      arr.forEach(item => {
+        const dateKey = item[0].split("T")[0];
+        map.set(dateKey, item); // Overwrite, keeping latest
+      });
+      return Array.from(map.values());
     }
 
-    async function loadSummary() {
-      setStatus("Loading summary from Supabase...");
-
-      const { data, error } = await supabase
+    async function loadData() {
+      setStatus("Loading data...");
+      
+      // 1. Get Latest Summary
+      const { data: summaryData, error: summaryError } = await supabase
         .from("flex_summary")
         .select("*")
         .order("last_updated", { ascending: false })
         .limit(1);
 
-      if (error) {
-        console.error(error);
-        setStatus("Could not load summary. Check RLS and inserts.");
+      if (summaryError || !summaryData?.length) {
+        setStatus("No data available.");
         return;
       }
 
-      const row = data?.[0] ?? null;
-      summary = row?.data ?? null;
-      if (summary) {
-          // Store the raw lastUpdated from the database record
-          summary.rawLastUpdated = row.last_updated;
-      }
+      const row = summaryData[0];
+      summary = row.data || {};
+      summary.lastUpdatedDate = row.last_updated;
 
-      if (!summary) {
-        setStatus("No summary available yet.");
-        return;
-      }
-      setStatus("");
-    }
-
-    // New helper to keep only the last entry per calendar day
-    function consolidateByDay(historyArr) {
-      const map = new Map();
-      historyArr.forEach(item => {
-        // item is [isoDate, value]
-        // We split by "T" to get YYYY-MM-DD
-        const dateKey = item[0].split("T")[0]; 
-        // Set/Overwrite keeps the *last* one encountered (assuming input is sorted by date ASC)
-        map.set(dateKey, item);
-      });
-      return Array.from(map.values());
-    }
-
-    async function loadHistoryFromTable() {
-      // We order by last_updated ascending so we process chronological order
-      const { data, error } = await supabase
+      // 2. Get History
+      const { data: historyData } = await supabase
         .from("flex_summary")
-        .select("data,last_updated")
+        .select("data, last_updated")
         .order("last_updated", { ascending: true })
         .limit(5000);
 
-      if (error) {
-        console.error(error);
-        return;
-      }
+      const rawPf = [];
+      const rawSym = {};
 
-      const rows = Array.isArray(data) ? data : [];
-      let rawPortfolioHistory = [];
-      let rawSymbolHistoryMap = {};
-
-      for (const row of rows) {
-        const d = row.data || {};
-        const date = d.lastUpdated || row.last_updated;
-        if (!date) continue;
+      (historyData || []).forEach(r => {
+        const d = r.data;
+        const dt = d.lastUpdated || r.last_updated;
+        if(!dt) return;
 
         // Portfolio Total
-        const totals = d.totals || {};
-        const v = Number(totals.value || 0);
-        if (Number.isFinite(v)) {
-          rawPortfolioHistory.push([date, v]);
-        }
+        const val = Number(d.totals?.value || 0);
+        if (isFinite(val)) rawPf.push([dt, val]);
 
-        // Individual Positions
-        const positions = Array.isArray(d.positions) ? d.positions : [];
-        for (const p of positions) {
-          if (!p || !p.symbol) continue;
-          const sym = p.symbol;
-          const val = Number(p.value || 0);
-          if (!Number.isFinite(val)) continue;
-          if (!rawSymbolHistoryMap[sym]) rawSymbolHistoryMap[sym] = [];
-          rawSymbolHistoryMap[sym].push([date, val]);
-        }
-      }
+        // Symbols
+        (d.positions || []).forEach(p => {
+          if(p?.symbol) {
+            if(!rawSym[p.symbol]) rawSym[p.symbol] = [];
+            rawSym[p.symbol].push([dt, Number(p.value||0)]);
+          }
+        });
+      });
 
-      // Consolidate to 1 point per day
-      summary.history = consolidateByDay(rawPortfolioHistory);
-      
-      // Consolidate symbols too
+      summary.history = consolidateByDay(rawPf);
       summary.symbolHistory = {};
-      Object.keys(rawSymbolHistoryMap).forEach(sym => {
-        summary.symbolHistory[sym] = consolidateByDay(rawSymbolHistoryMap[sym]);
-      });
+      for(const k in rawSym) summary.symbolHistory[k] = consolidateByDay(rawSym[k]);
+
+      setStatus("");
+      render(divideToggle.checked);
     }
 
-    function filterHistoryByRange(history, rangeKey) {
-      if (!history || !history.length) return [];
-
-      const lastPoint = history[history.length - 1];
-      const lastDate = new Date(lastPoint[0] || new Date().toISOString());
-      const msDay = 24 * 60 * 60 * 1000;
-
-      let cutoffTime = null;
-
-      switch (rangeKey) {
-        case "WEEK":
-          cutoffTime = lastDate.getTime() - 7 * msDay;
-          break;
-        case "MONTH":
-          cutoffTime = lastDate.getTime() - 30 * msDay;
-          break;
-        case "SIX_MONTHS":
-          cutoffTime = lastDate.getTime() - 182 * msDay;
-          break;
-        case "YEAR":
-        default:
-          cutoffTime = lastDate.getTime() - 365 * msDay;
-          break;
-      }
-
-      return history.filter(([d]) => {
-        const t = new Date(d).getTime();
-        return !Number.isNaN(t) && t >= cutoffTime;
-      });
+    function filterRange(hist, range) {
+      if (!hist?.length) return [];
+      const end = new Date(hist[hist.length-1][0]).getTime();
+      const day = 86400000;
+      let days = 365;
+      if (range === "WEEK") days = 7;
+      if (range === "MONTH") days = 30;
+      if (range === "SIX_MONTHS") days = 180;
+      
+      const start = end - (days * day);
+      return hist.filter(pt => new Date(pt[0]).getTime() >= start);
     }
 
-    function renderPortfolioStats() {
-        if (!summary || !summary.totals) {
-            portfolioStatsEl.style.display = "none";
-            return;
-        }
+    // --- RENDER ---
 
-        const totals = summary.totals;
-        const totalValue = Number(totals.value || 0);
-        const totalCost = Number(totals.cost || 0);
-        const totalProfit = Number(totals.profit || 0);
-        const totalPct = totals.pct != null ? Number(totals.pct) : 0;
-
-        portfolioStatsEl.style.display = "flex";
-        portfolioStatsEl.innerHTML = `
-            <div class="stat-item">
-                <h3>Current Value</h3>
-                <p>${fmtChartMoney(totalValue, true)}</p>
-            </div>
-            <div class="stat-item">
-                <h3>Total Cost</h3>
-                <p>${fmtChartMoney(totalCost, true)}</p>
-            </div>
-            <div class="stat-item">
-                <h3>Total Profit</h3>
-                <p class="${totalProfit >= 0 ? 'positive' : 'negative'}">${fmtChartMoney(totalProfit, true)}</p>
-            </div>
-            <div class="stat-item">
-                <h3>% Change</h3>
-                <p class="${totalPct >= 0 ? 'positive' : 'negative'}">${fmtChartPct(totalPct)}%</p>
-            </div>
-        `;
-
-        if (summary.rawLastUpdated) {
-            lastUpdatedEl.textContent = `Last updated: ${fullDateLabel(summary.rawLastUpdated)}`;
-            lastUpdatedEl.style.display = "block";
-        } else {
-            lastUpdatedEl.style.display = "none";
-        }
-    }
-
-    function renderCharts(divideBy12, newRangeKey) {
-      if (!summary) return;
-
-      if (newRangeKey) currentRange = newRangeKey;
-
-      const f = divideBy12 ? 12 : 1;
-
-      const dashboard = document.getElementById("dashboard");
-      dashboard.innerHTML = "";
+    function render(divide) {
+      const div = document.getElementById("dashboard");
+      div.innerHTML = "";
       destroyCharts();
 
-      const totals = summary.totals || { value: 0, cost: 0, profit: 0, pct: null };
-      const positions = Array.isArray(summary.positions) ? summary.positions : [];
-      const symbolHistory = summary.symbolHistory || {};
+      const f = divide ? 12 : 1;
+      const totals = summary.totals || {};
+      const positions = summary.positions || [];
 
-      renderPortfolioStats(); // Render the new stats section
+      // 1. Top Stats Grid
+      const tVal = (totals.value || 0) / f;
+      const tCost = (totals.cost || 0) / f;
+      const tProf = (totals.profit || 0) / f;
+      const tPct = totals.pct || 0;
 
-      // PIE
-      const pieCard = document.createElement("div");
-      pieCard.className = "chart-card";
-      pieCard.innerHTML = `
-        <div class="chart-card-header">
-          <h2>Allocation ${f>1 ? "(per 1 of 12)" : ""}</h2>
+      statsGridEl.style.display = "grid";
+      statsGridEl.innerHTML = `
+        <div class="stat-box">
+          <div class="stat-label">Total Value</div>
+          <div class="stat-value text-blue">${fmtMoney(tVal, true)}</div>
         </div>
-        <div class="chart-container"><canvas id="summaryPie"></canvas></div>
+        <div class="stat-box">
+          <div class="stat-label">Total Cost</div>
+          <div class="stat-value">${fmtMoney(tCost, true)}</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Total Profit</div>
+          <div class="stat-value ${tProf>=0?'text-green':'text-red'}">
+            ${tProf>=0?'+':''}${fmtMoney(tProf, true)}
+          </div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Return</div>
+          <div class="stat-value ${tPct>=0?'text-green':'text-red'}">
+            ${tPct>=0?'+':''}${fmtPct(tPct)}%
+          </div>
+        </div>
       `;
-      dashboard.appendChild(pieCard);
 
-      const pieLabels = positions.map(p => p.symbol);
-      const pieData = positions.map(p => Number(p.value || 0) / f);
-      charts.push(new Chart(document.getElementById("summaryPie"), {
-        type: "doughnut",
-        data: { 
-            labels: pieLabels, 
-            datasets: [{ 
-                data: pieData,
-                backgroundColor: [ // More vibrant color palette
-                    '#4dc9f6', '#f67019', '#f53794', '#537bc4', '#acc236',
-                    '#166a8f', '#00a950', '#58595b', '#8549ba', '#64391e'
-                ]
-            }] 
+      if(summary.lastUpdatedDate) {
+        lastUpdatedEl.textContent = "Last updated: " + new Date(summary.lastUpdatedDate).toLocaleString();
+        lastUpdatedEl.style.display = "block";
+      }
+
+      // 2. Charts
+
+      // --- Allocation Donut ---
+      const donutCard = mkCard("Allocation " + (f>1?"(1/12)":""));
+      div.appendChild(donutCard);
+      const donutCtx = donutCard.querySelector("canvas");
+      
+      charts.push(new Chart(donutCtx, {
+        type: 'doughnut',
+        data: {
+          labels: positions.map(p => p.symbol),
+          datasets: [{
+            data: positions.map(p => (p.value||0)/f),
+            backgroundColor: [
+              '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'
+            ],
+            borderWidth: 0,
+            hoverOffset: 4
+          }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { position: "right", labels: { color: "#fff" } } },
-          elements: { arc: { borderWidth: 0 } }
+          plugins: { legend: { position: 'right', labels: { color: '#d4d4d8', boxWidth: 12 } } },
+          cutout: '65%'
         }
       }));
 
-      // BAR totals
-      const barCard = document.createElement("div");
-      barCard.className = "chart-card";
-      barCard.innerHTML = `
-        <div class="chart-card-header">
-          <h2>Portfolio summary ${f>1 ? "(per 1 of 12)" : ""}</h2>
-        </div>
-        <div class="chart-container"><canvas id="summaryBar"></canvas></div>
-      `;
-      dashboard.appendChild(barCard);
-
-      charts.push(new Chart(document.getElementById("summaryBar"), {
-        type: "bar",
+      // --- Summary Bar ---
+      const barCard = mkCard("Summary " + (f>1?"(1/12)":""));
+      div.appendChild(barCard);
+      charts.push(new Chart(barCard.querySelector("canvas"), {
+        type: 'bar',
         data: {
           labels: ["Spent", "Profit", "Value"],
           datasets: [{
-            label: "Amount",
-            data: [ (totals.cost || 0) / f, (totals.profit || 0) / f, (totals.value || 0) / f ],
+            data: [tCost, tProf, tVal],
             backgroundColor: [
-                '#537bc4', // Cost (blue)
-                (totals.profit || 0) >= 0 ? '#28a745' : '#dc3545', // Profit (green/red)
-                '#4dc9f6' // Value (light blue)
-            ]
+              '#3f3f46', // Cost (Grey)
+              tProf >= 0 ? '#10b981' : '#ef4444', // Profit (Green/Red)
+              '#3b82f6' // Value (Blue)
+            ],
+            borderRadius: 6
           }]
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: { callback: v => fmtChartMoney(v) },
-              grid: { color: "#444", borderColor: "#444" }
-            },
-            x: { grid: { color: "#444" }, ticks: { color: "#fff" } }
-          },
-          plugins: { 
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                 label: ctx => {
-                    if (ctx.label === "Profit") {
-                        const val = Number(ctx.parsed.y);
-                        return (val >= 0 ? '+' : '-') + fmtChartMoney(val, true);
-                    }
-                    return fmtChartMoney(ctx.parsed.y, true);
-                 }
-              }
-            }
-          }
-        }
+        options: stdOptions({ showLegend: false })
       }));
 
-      // LINE with range tabs (portfolio history)
+      // --- Portfolio History Line ---
       const lineCard = document.createElement("div");
       lineCard.className = "chart-card";
       lineCard.innerHTML = `
-        <div class="chart-card-header">
-          <h2>Portfolio value over time</h2>
-        </div>
+        <div class="chart-card-header"><h2>Portfolio Value</h2></div>
         <div class="range-tabs">
-          <button class="range-tab" data-range="WEEK">Week</button>
-          <button class="range-tab" data-range="MONTH">Month</button>
-          <button class="range-tab" data-range="SIX_MONTHS">6 Months</button>
-          <button class="range-tab" data-range="YEAR">1 Year</button>
+          ${['WEEK','MONTH','SIX_MONTHS','YEAR'].map(k => 
+            `<button class="range-tab ${currentRange===k?'active':''}" data-k="${k}">
+              ${k.replace('_',' ').toLowerCase()}
+            </button>`
+          ).join('')}
         </div>
-        <div class="chart-container"><canvas id="portfolioValueLine"></canvas></div>
+        <div class="chart-container"><canvas></canvas></div>
       `;
-      dashboard.appendChild(lineCard);
-
-      const fullHistory = Array.isArray(summary.history) ? summary.history : [];
-      const rangedHistory = fullHistory.length
-        ? filterHistoryByRange(fullHistory, currentRange)
-        : [];
-
-      const historyForChart = rangedHistory.length ? rangedHistory : fullHistory;
-
-      const lineLabels = historyForChart.length
-        ? historyForChart.map(p => shortDateLabel(p[0]))
-        : [shortDateLabel(summary.lastUpdated || new Date().toISOString())];
-
-      const lineData = historyForChart.length
-        ? historyForChart.map(p => Number(p[1] || 0))
-        : [totals.value || 0];
-
-      charts.push(new Chart(document.getElementById("portfolioValueLine"), {
-        type: "line",
-        data: {
-          labels: lineLabels,
-          datasets: [{
-            label: "Value",
-            data: lineData,
-            borderColor: '#4dc9f6',
-            backgroundColor: (context) => {
-                const chart = context.chart;
-                const {ctx, chartArea} = chart;
-                if (!chartArea) return null;
-                const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-                gradient.addColorStop(0, 'rgba(77, 201, 246, 0.2)'); // Light blue transparent
-                gradient.addColorStop(1, 'rgba(77, 201, 246, 0.6)'); // Light blue solid
-                return gradient;
-            },
-            fill: true, // Enable fill for gradient
-            tension: 0.3, // Slightly more curve
-            pointRadius: 0, // Hide points
-            pointHoverRadius: 5 // Show points on hover
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: false, // Don't force zero for history for better trend view
-              ticks: { callback: v => fmtChartMoney(v) },
-              grid: { color: "#444", borderColor: "#444" }
-            },
-            x: { grid: { color: "#444" }, ticks: { color: "#fff" } }
-          },
-          plugins: { 
-            legend: { labels: { color: "#fff" } },
-            tooltip: {
-              mode: 'index',
-              intersect: false,
-              callbacks: {
-                label: ctx => ctx.dataset.label + ": " + fmtChartMoney(ctx.parsed.y, true)
-              }
-            }
-          },
-          hover: {
-              mode: 'nearest',
-              intersect: true
-          }
-        }
-      }));
-
-      // range tab handlers
-      const tabs = lineCard.querySelectorAll(".range-tab");
-      tabs.forEach(tab => {
-        const rk = tab.getAttribute("data-range");
-        if (rk === currentRange) {
-          tab.classList.add("active");
-        }
-        tab.addEventListener("click", () => {
-          const prevY = window.scrollY;
-          currentRange = rk;
-          saveRangePreference();
-          renderCharts(divideToggle.checked, currentRange);
-          window.scrollTo(0, prevY);
-        });
+      div.appendChild(lineCard);
+      
+      // Handle Tabs
+      lineCard.querySelectorAll(".range-tab").forEach(b => {
+        b.onclick = () => {
+          currentRange = b.dataset.k;
+          savePrefs();
+          render(divideToggle.checked);
+        };
       });
 
-      // per holding cards
+      const pfHist = filterRange(summary.history, currentRange);
+      const pfCtx = lineCard.querySelector("canvas").getContext("2d");
+
+      // Create Gradient
+      const pfGrad = pfCtx.createLinearGradient(0, 0, 0, 300);
+      pfGrad.addColorStop(0, 'rgba(59, 130, 246, 0.5)'); // Blue transparent
+      pfGrad.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+      charts.push(new Chart(pfCtx, {
+        type: 'line',
+        data: {
+          labels: pfHist.map(p => shortDate(p[0])),
+          datasets: [{
+            label: "Value",
+            data: pfHist.map(p => (p[1]||0)/f),
+            borderColor: '#3b82f6',
+            backgroundColor: pfGrad,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            borderWidth: 2
+          }]
+        },
+        options: stdOptions({ showLegend: false, intersect: false })
+      }));
+
+      // --- Individual Tickers ---
       positions.forEach(p => {
         const sym = p.symbol;
-        if (!tickerViewMode[sym]) tickerViewMode[sym] = "SUMMARY";
-
-        const cost = Number(p.cost || 0) / f;
-        const value = Number(p.value || 0) / f;
-        const profit = Number(p.profit || 0) / f;
-        const pct = p.pct != null ? Number(p.pct) : null;
-
+        const mode = tickerViewMode[sym] || "SUMMARY";
+        
         const card = document.createElement("div");
         card.className = "chart-card";
+        // Add colorful border based on profit
+        const isUp = (p.profit||0) >= 0;
+        card.style.borderTop = `4px solid ${isUp ? '#10b981' : '#ef4444'}`;
 
-        const cardId = `chart-${sym}`;
         card.innerHTML = `
           <div class="chart-card-header">
             <h2>${sym}</h2>
-            <div class="view-toggle" data-symbol="${sym}">
-              <button type="button" data-view="SUMMARY">Summary</button>
-              <button type="button" data-view="HISTORY">History</button>
+            <div class="view-toggle">
+              <button data-m="SUMMARY" class="${mode==='SUMMARY'?'active':''}">Sum</button>
+              <button data-m="HISTORY" class="${mode==='HISTORY'?'active':''}">Hist</button>
             </div>
           </div>
-          <div class="chart-container"><canvas id="${cardId}"></canvas></div>
+          <div class="chart-container"><canvas></canvas></div>
         `;
-        dashboard.appendChild(card);
+        div.appendChild(card);
 
-        card.style.borderColor = profit >= 0 ? "#28a745" : "#dc3545"; // Keep border color based on profit
-
-        const viewToggle = card.querySelector(".view-toggle");
-        const viewButtons = viewToggle.querySelectorAll("button");
-        viewButtons.forEach(btn => {
-          const v = btn.getAttribute("data-view");
-          if (v === tickerViewMode[sym]) btn.classList.add("active");
-          btn.addEventListener("click", () => {
-            const prevY = window.scrollY;
-            tickerViewMode[sym] = v;
-            saveTickerViewPreference();
-            renderCharts(divideToggle.checked, currentRange);
-            window.scrollTo(0, prevY);
-          });
+        // Handle Toggle
+        card.querySelectorAll("button").forEach(b => {
+          b.onclick = () => {
+            tickerViewMode[sym] = b.dataset.m;
+            savePrefs();
+            render(divideToggle.checked);
+          };
         });
 
-        const mode = tickerViewMode[sym];
+        const ctx = card.querySelector("canvas").getContext("2d");
+        const pCost = (p.cost||0)/f;
+        const pVal = (p.value||0)/f;
+        const pProf = (p.profit||0)/f;
+        const pPct = p.pct;
 
-        if (mode === "HISTORY" && symbolHistory[sym]) {
-          const symHistRaw = symbolHistory[sym] || [];
-          const symHist = symHistRaw.map(([d, v]) => [shortDateLabel(d), Number(v) / f]);
+        if (mode === "HISTORY" && summary.symbolHistory[sym]) {
+          // Ticker Line Chart
+          const sHist = filterRange(summary.symbolHistory[sym], currentRange); // Sync range with main chart
+          // Orange Gradient
+          const sGrad = ctx.createLinearGradient(0, 0, 0, 300);
+          sGrad.addColorStop(0, 'rgba(249, 115, 22, 0.5)');
+          sGrad.addColorStop(1, 'rgba(249, 115, 22, 0.0)');
 
-          const labels = symHist.length
-            ? symHist.map(p => p[0])
-            : [shortDateLabel(summary.lastUpdated || new Date().toISOString())];
-
-          const data = symHist.length
-            ? symHist.map(p => p[1])
-            : [value];
-
-          charts.push(new Chart(document.getElementById(cardId), {
-            type: "line",
+          charts.push(new Chart(ctx, {
+            type: 'line',
             data: {
-              labels,
+              labels: sHist.map(x => shortDate(x[0])),
               datasets: [{
-                label: `${sym} Value`,
-                data,
-                borderColor: '#f67019', // Orange color for individual ticker history
-                backgroundColor: (context) => {
-                    const chart = context.chart;
-                    const {ctx, chartArea} = chart;
-                    if (!chartArea) return null;
-                    const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-                    gradient.addColorStop(0, 'rgba(246, 112, 25, 0.2)');
-                    gradient.addColorStop(1, 'rgba(246, 112, 25, 0.6)');
-                    return gradient;
-                },
+                label: "Value",
+                data: sHist.map(x => (x[1]||0)/f),
+                borderColor: '#f97316',
+                backgroundColor: sGrad,
                 fill: true,
                 tension: 0.3,
                 pointRadius: 0,
                 pointHoverRadius: 5
               }]
             },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                y: {
-                  beginAtZero: false,
-                  ticks: { callback: v => fmtChartMoney(v) },
-                  grid: { color: "#444" }
+            options: stdOptions({ showLegend: false, intersect: false })
+          }));
+        } else {
+          // Ticker Bar Chart
+          charts.push(new Chart(ctx, {
+            data: {
+              labels: ["Cost", "Value", "Profit", "%"],
+              datasets: [
+                {
+                  type: 'bar',
+                  label: 'NZD',
+                  data: [pCost, pVal, pProf, null],
+                  backgroundColor: [
+                    '#3f3f46', 
+                    '#3b82f6',
+                    pProf>=0 ? '#10b981' : '#ef4444',
+                    null
+                  ],
+                  borderRadius: 4,
+                  yAxisID: 'y'
                 },
-                x: { grid: { color: "#444" }, ticks: { color: "#fff" } }
-              },
-              plugins: {
-                legend: { labels: { color: "#fff" } },
-                tooltip: {
-                  mode: 'index',
-                  intersect: false,
-                  callbacks: {
-                    label: ctx => ctx.dataset.label + ": " + fmtChartMoney(ctx.parsed.y, true)
-                  }
+                {
+                  type: 'line',
+                  label: '%',
+                  data: [null, null, null, pPct],
+                  borderColor: '#fbbf24',
+                  borderWidth: 2,
+                  pointBackgroundColor: '#fbbf24',
+                  yAxisID: 'yPct'
                 }
-              },
-              hover: {
-                  mode: 'nearest',
-                  intersect: true
+              ]
+            },
+            options: {
+              ...stdOptions({ showLegend: false }),
+              scales: {
+                y: { 
+                  beginAtZero: true, 
+                  grid: { color: '#27272a' },
+                  ticks: { callback: v=>fmtMoney(v), color: '#a1a1aa' }
+                },
+                yPct: {
+                  type: 'linear',
+                  position: 'right',
+                  grid: { display: false },
+                  ticks: { callback: v=>v+'%', color: '#a1a1aa' }
+                },
+                x: { grid: { display: false }, ticks: { color: '#a1a1aa' } }
               }
             }
           }));
-        } else {
-          charts.push(new Chart(document.getElementById(cardId), {
-            data: {
-              labels: ["Cost", "Value", "Profit", "% Change"],
-              datasets: [
-                {
-                  type: "bar",
-                  label: "Amount",
-                  data: [ cost, value, profit, null ],
-                  yAxisID: "y",
-                  backgroundColor: [
-                    '#537bc4', // Cost (blue)
-                    '#4dc9f6
+        }
+      });
+    }
+
+    function mkCard(title) {
+      const d = document.createElement("div");
+      d.className = "chart-card";
+      d.innerHTML = `<div class="chart-card-header"><h2>${title}</h2></div><div class="chart-container"><canvas></canvas></div>`;
+      return d;
+    }
+
+    function stdOptions({ showLegend=true, intersect=true } = {}) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: intersect },
+        plugins: {
+          legend: { display: showLegend, labels: { color: '#fff' } },
+          tooltip: {
+            backgroundColor: 'rgba(24, 24, 27, 0.9)',
+            titleColor: '#fff',
+            bodyColor: '#e4e4e7',
+            borderColor: '#3f3f46',
+            borderWidth: 1,
+            callbacks: {
+              label: ctx => {
+                if(ctx.dataset.type==='line' && ctx.chart.config.type!=='line') return fmtPct(ctx.raw) + '%'; // % line in bar chart
+                return fmtMoney(ctx.raw);
+              }
+            }
+          }
+        },
+        scales: {
+          y: { 
+            grid: { color: '#27272a' },
+            ticks: { color: '#a1a1aa', callback: v => fmtMoney(v) }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: '#a1a1aa', maxTicksLimit: 8 }
+          }
+        }
+      };
+    }
+
+    // Init
+    loadData();
+    divideToggle.onchange = () => render(divideToggle.checked);
+  </script>
+</body>
+</html>
