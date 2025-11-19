@@ -13,22 +13,19 @@
         margin:0; background:#0f0f0f; color:#e0e0e0; 
         font-family:system-ui, -apple-system, sans-serif; 
         padding: 1rem; padding-bottom: 4rem;
-        overflow-x: hidden; /* Prevent horizontal scroll */
+        overflow-x: hidden; 
     }
     
     /* --- HEADER --- */
     header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom:1.5rem; }
     h1 { margin:0; font-size:1.5rem; font-weight:700; letter-spacing:-0.5px; }
-    
     .nav-row { display:flex; gap:.5rem; }
 
     /* --- BUTTONS & INPUTS --- */
     .btn { padding:.5rem .85rem; border-radius:8px; border:1px solid #333; background:#1f1f1f; color:#fff; cursor:pointer; transition:0.2s; font-weight:500; font-size:0.9rem; }
     .btn:hover { background:#2a2a2a; transform:translateY(-1px); }
-    .btn:active { transform:translateY(0); }
     .btn-cta { background:#3b82f6; border-color:#3b82f6; }
     .btn-cta:hover { background:#2563eb; }
-    .btn-ghost { background:transparent; border-color:dashed #444; color:#a1a1aa; }
     .danger { border-color:#7f1d1d; color:#fca5a5; }
     
     input, select { 
@@ -60,24 +57,46 @@
     .add-bar #ticker { flex: 0 0 100px; } 
     .add-bar #addBtn { flex: 0 0 auto; }
 
-    /* --- TICKER ITEMS --- */
+    /* --- TICKER ITEMS (New Structure) --- */
     .ticker-list { display:flex; flex-direction:column; gap:0.75rem; width: 100%; }
 
-    .ticker-item {
-      display:flex; align-items:stretch; gap:0.75rem;
+    /* The Outer Wrapper */
+    .ticker-card {
       background:#0f0f0f; border:1px solid #27272a; border-radius:12px; overflow:hidden;
-      width: 100%; /* Ensure it fills container */
+      width: 100%; display: flex; flex-direction: column;
+      transition: border-color 0.2s;
+    }
+
+    /* The Main Row (Always Visible) */
+    .ticker-header {
+      display: flex; align-items: stretch; gap: 0.75rem;
+      width: 100%; position: relative; z-index: 2;
+      background: #0f0f0f;
     }
     
     /* Status Borders */
-    .ticker-item.up { border-left: 4px solid #22c55e; }
-    .ticker-item.down { border-left: 4px solid #ef4444; }
-    .ticker-item.neutral { border-left: 4px solid #555; }
+    .ticker-card.up .ticker-header { border-left: 4px solid #22c55e; }
+    .ticker-card.down .ticker-header { border-left: 4px solid #ef4444; }
+    .ticker-card.neutral .ticker-header { border-left: 4px solid #555; }
+
+    /* The Expanded Content (Hidden by default) */
+    .ticker-body {
+        display: none;
+        padding: 1rem;
+        background: #131313;
+        border-top: 1px solid #222;
+        font-size: 0.9rem;
+        color: #ccc;
+        line-height: 1.5;
+        animation: slideDown 0.2s ease-out;
+    }
+    .ticker-card.expanded .ticker-body { display: block; }
+
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
     .vote-box {
       display:flex; flex-direction:column; align-items:center; justify-content:center;
-      width:60px; min-width:60px; /* Fixed width */
-      background:#141414; border-right:1px solid #27272a;
+      width:60px; min-width:60px; background:#141414; border-right:1px solid #27272a;
       cursor:pointer; 
     }
     .vote-box.active { background:rgba(34, 197, 94, 0.15); color:#4ade80; }
@@ -85,8 +104,7 @@
     .vote-lbl { font-size:0.6rem; text-transform:uppercase; color:#71717a; }
     
     .ticker-content { 
-        flex: 1; /* Grow to fill space */
-        min-width: 0; /* CRITICAL: Allows flex child to shrink below content size */
+        flex: 1; min-width: 0; 
         padding: 10px 0; display:flex; flex-direction:column; justify-content:center; 
     }
     .ticker-symbol { font-size:1rem; font-weight:700; letter-spacing:0.5px; display:flex; align-items:center; gap:0.5rem; white-space: nowrap; }
@@ -96,14 +114,25 @@
 
     .price-box { 
         padding:10px; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; 
-        min-width:80px; /* Default width */
+        min-width:80px; 
     }
     .pct-lg { font-size:1.1rem; font-weight:700; white-space: nowrap; }
     .pct-lg.up { color:#4ade80; } .pct-lg.down { color:#f87171; }
     .price-sm { font-size:0.75rem; color:#71717a; white-space: nowrap; }
 
-    .actions { padding:0 10px; display:flex; align-items:center; border-left:1px solid #27272a; }
-    .btn-icon { padding:8px; border:none; background:transparent; color:#555; font-size:1.2rem; cursor:pointer; }
+    /* Actions Area */
+    .actions { padding:0 5px; display:flex; align-items:center; border-left:1px solid #27272a; gap: 2px; }
+    .btn-icon { 
+        width: 36px; height: 36px; 
+        display: flex; align-items: center; justify-content: center;
+        border:none; background:transparent; color:#555; cursor:pointer; border-radius: 6px;
+    }
+    .btn-icon:hover { background: #222; color: #fff; }
+    .btn-icon svg { width: 20px; height: 20px; fill: currentColor; }
+
+    /* Rotate arrow when expanded */
+    .btn-expand { transition: transform 0.2s; }
+    .ticker-card.expanded .btn-expand { transform: rotate(180deg); }
 
     /* --- LEADERBOARD --- */
     .leader-row { display:flex; align-items:center; gap:0.75rem; padding:0.75rem 0; border-bottom:1px solid #27272a; }
@@ -115,7 +144,6 @@
     .perf-badge.up { color:#4ade80; border-color:rgba(34, 197, 94, 0.3); }
     .perf-badge.down { color:#f87171; border-color:rgba(239, 68, 68, 0.3); }
 
-    /* --- RESPONSIVE BREAKPOINTS --- */
     @media (max-width: 900px) {
         .main-layout { grid-template-columns: 1fr; }
         .add-bar > * { flex: 1 1 100%; }
@@ -123,16 +151,10 @@
     }
     
     @media (max-width: 450px) {
-        /* Mobile specific tweaks */
         .card { padding: 1rem; }
-        
-        /* Tighten the ticker card */
-        .ticker-item { gap: 0.5rem; }
-        .vote-box { width: 50px; min-width: 50px; } /* Shrink vote box */
-        .price-box { min-width: auto; padding: 10px 5px; } /* Let price box shrink */
-        .actions { padding: 0 5px; }
-        
-        /* Hide non-essential info on tiny screens */
+        .ticker-header { gap: 0.5rem; }
+        .vote-box { width: 50px; min-width: 50px; }
+        .price-box { min-width: auto; padding: 10px 5px; }
         .market-badge { display: none; } 
         .pct-lg { font-size: 0.95rem; }
         .price-sm { font-size: 0.7rem; }
@@ -179,7 +201,8 @@
 
     <div class="main-layout">
         
-        <div style="min-width: 0;"> <div style="display:flex; justify-content:space-between; margin-bottom:1rem; align-items:center;">
+        <div style="min-width: 0;"> 
+            <div style="display:flex; justify-content:space-between; margin-bottom:1rem; align-items:center;">
                 <h2 class="section-title" style="margin:0;">Active Tickers</h2>
                 <input id="search" placeholder="Filter..." style="width:120px; padding:0.4rem;" />
             </div>
@@ -218,6 +241,9 @@
     let currentUser = null;
     let items = [], votes = [], myVotes = [];
     let pctMap = {};
+    
+    // State to keep track of which items are expanded
+    let expandedItems = new Set();
 
     const el = (id) => document.getElementById(id);
     const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&gt;","</":"&lt;/","'":"&#39;","\"":"&quot;" }[c] || c));
@@ -283,26 +309,40 @@
             let stCls="neutral", pctCls="muted";
             if(data) { if(data.pct>=0) { stCls="up"; pctCls="up"; } else { stCls="down"; pctCls="down"; } }
 
+            // Check if expanded
+            const isExpanded = expandedItems.has(i.id);
+
             const card = document.createElement('div');
-            card.className = `ticker-item ${stCls}`;
+            card.className = `ticker-card ${stCls} ${isExpanded ? 'expanded' : ''}`;
             card.innerHTML = `
-                <div class="vote-box ${i.myVote===1?'active':''}" onclick="toggleVote('${i.id}')">
-                    <div class="vote-count">${i.score}</div>
-                    <div class="vote-lbl">Vote</div>
-                </div>
-                <div class="ticker-content">
-                    <div class="ticker-symbol">
-                        ${escapeHtml(i.ticker)} <span class="market-badge">${i.ticker.length>4?'CRYPTO':'STOCK'}</span>
+                <div class="ticker-header">
+                    <div class="vote-box ${i.myVote===1?'active':''}" onclick="toggleVote('${i.id}')">
+                        <div class="vote-count">${i.score}</div>
+                        <div class="vote-lbl">Vote</div>
                     </div>
-                    <div class="ticker-note">${escapeHtml(i.notes || "No notes")}</div>
-                    <div class="suggester">By ${escapeHtml(i.suggested_by_name || "Member")}</div>
+                    <div class="ticker-content" onclick="toggleExpand('${i.id}')">
+                        <div class="ticker-symbol">
+                            ${escapeHtml(i.ticker)} <span class="market-badge">${i.ticker.length>4?'CRYPTO':'STOCK'}</span>
+                        </div>
+                        <div class="ticker-note">${escapeHtml(i.notes || "No notes")}</div>
+                        <div class="suggester">By ${escapeHtml(i.suggested_by_name || "Member")}</div>
+                    </div>
+                    <div class="price-box">
+                        <div class="pct-lg ${pctCls}">${pctTxt}</div>
+                        <div class="price-sm">${priceTxt}</div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-icon btn-expand" onclick="toggleExpand('${i.id}')" title="Expand">
+                             <svg viewBox="0 0 24 24"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"></path></svg>
+                        </button>
+                        <button class="btn-icon" onclick="toggleArchive('${i.id}', true)" title="Archive">
+                            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+                        </button>
+                    </div>
                 </div>
-                <div class="price-box">
-                    <div class="pct-lg ${pctCls}">${pctTxt}</div>
-                    <div class="price-sm">${priceTxt}</div>
-                </div>
-                <div class="actions">
-                    <button class="btn-icon" onclick="toggleArchive('${i.id}', true)">✕</button>
+                <div class="ticker-body">
+                    <strong style="color:#fff;">Full Notes:</strong><br/>
+                    ${escapeHtml(i.notes || "No additional notes provided.")}
                 </div>
             `;
             list.appendChild(card);
@@ -352,6 +392,7 @@
         });
     }
 
+    /* --- ACTIONS --- */
     async function addItem() {
         const t = el('ticker').value.trim().toUpperCase();
         if(!t) return showMsg("Enter symbol", false);
@@ -363,6 +404,7 @@
                 ticker: t, notes: el('notes').value.trim(), created_by: currentUser.id, suggested_by_name: name, archived: false
             });
             if(error) throw error;
+            
             fetch(SHEET_WEBAPP_URL, { method:"POST", mode:"no-cors", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({ticker:t, notes:el('notes').value, user_id:currentUser.id}) });
             
             el('ticker').value=""; el('notes').value="";
@@ -371,6 +413,12 @@
         } catch(e) { showMsg("Error", false); }
         el('addBtn').disabled = false;
     }
+
+    window.toggleExpand = (id) => {
+        if(expandedItems.has(id)) expandedItems.delete(id);
+        else expandedItems.add(id);
+        render(); // Re-render to update classes
+    };
 
     window.toggleVote = async (itemId) => {
         const exists = myVotes.find(v => v.item_id === itemId);
