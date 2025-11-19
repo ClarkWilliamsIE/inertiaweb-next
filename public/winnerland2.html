@@ -11,162 +11,60 @@
   <style>
     :root { color-scheme: dark; }
     body {
-      margin: 0;
-      padding: 1rem;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: #0f0f0f;
-      color: #e0e0e0;
+      margin: 0; padding: 1rem;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f0f0f; color: #e0e0e0;
     }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: .75rem;
-      margin-bottom: 1.5rem;
-    }
-    h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+    h1 { margin: 0; font-size: 1.5rem; font-weight: 700; }
     
-    /* Buttons & Inputs */
     .row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
     .btn {
-      padding: .5rem .85rem;
-      border-radius: 8px;
-      border: 1px solid #333;
-      background: #1f1f1f;
-      color: #fff;
-      cursor: pointer;
-      font-weight: 500;
-      transition: all 0.2s ease;
+      padding: .5rem .85rem; border-radius: 8px; border: 1px solid #333;
+      background: #1f1f1f; color: #fff; cursor: pointer; transition: 0.2s;
     }
-    .btn:hover { background: #2a2a2a; transform: translateY(-1px); }
+    .btn:hover { background: #2a2a2a; }
     .danger { border-color: #7f1d1d; color: #fca5a5; }
-    .danger:hover { background: #450a0a; }
 
-    /* Toggle Switch */
-    .switch {
-      position: relative; display: inline-block; width: 46px; height: 24px; vertical-align: middle;
-    }
+    /* Switch */
+    .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
     .switch input { opacity: 0; width: 0; height: 0; }
     .slider { position: absolute; cursor: pointer; inset: 0; background-color: #333; transition: .2s; border-radius: 24px; }
     .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; transition: .2s; border-radius: 50%; }
     input:checked + .slider { background-color: #3b82f6; }
     input:checked + .slider:before { transform: translateX(22px); }
 
-    /* Top Stats Bar */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-    .stat-box {
-      background: #18181b;
-      border: 1px solid #27272a;
-      padding: 1.25rem;
-      border-radius: 12px;
-      text-align: center;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    .stat-label { font-size: 0.85rem; color: #a1a1aa; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    /* Stats Grid */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-box { background: #18181b; border: 1px solid #27272a; padding: 1.25rem; border-radius: 12px; text-align: center; }
+    .stat-label { font-size: 0.85rem; color: #a1a1aa; text-transform: uppercase; margin-bottom: 0.5rem; }
     .stat-value { font-size: 1.5rem; font-weight: 700; color: #fff; }
-    
-    .text-green { color: #4ade80; }
-    .text-red { color: #f87171; }
-    .text-blue { color: #60a5fa; }
+    .text-green { color: #4ade80; } .text-red { color: #f87171; } .text-blue { color: #60a5fa; }
 
-    /* Dashboard Grid */
-    .dashboard {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-      gap: 1.5rem;
-      /* Smooth transition for height changes */
-      min-height: 500px; 
-    }
+    /* Dashboard */
+    .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; }
     .chart-card {
-      background: #18181b;
-      border: 1px solid #27272a;
-      border-radius: 16px;
-      padding: 1.25rem;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-      display: flex;
-      flex-direction: column;
+      background: #18181b; border: 1px solid #27272a; border-radius: 16px;
+      padding: 1.25rem; display: flex; flex-direction: column;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
-    .chart-card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: .5rem;
-      margin-bottom: 1rem;
-    }
+    .chart-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .chart-card h2 { margin: 0; font-size: 1.1rem; font-weight: 600; }
     .chart-container { position: relative; flex: 1; height: 240px; width: 100%; }
 
-    /* Range Tabs */
-    .range-tabs {
-      display: flex;
-      justify-content: center;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-      background: #27272a;
-      padding: 4px;
-      border-radius: 99px;
-      width: fit-content;
-      margin-left: auto; margin-right: auto;
+    /* Toggles */
+    .view-toggle, .range-tabs { display: inline-flex; background: #27272a; padding: 2px; border-radius: 8px; }
+    .range-tabs { border-radius: 99px; margin: 0 auto 1rem auto; }
+    
+    .view-toggle button, .range-tabs button {
+      padding: 0.25rem 0.75rem; border: none; background: transparent; color: #a1a1aa;
+      cursor: pointer; font-size: 0.75rem; border-radius: 6px; font-weight: 500;
     }
-    .range-tab {
-      padding: 0.35rem 0.85rem;
-      border-radius: 99px;
-      border: none;
-      background: transparent;
-      font-size: 0.75rem;
-      color: #a1a1aa;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-weight: 600;
-    }
-    .range-tab:hover { color: #fff; }
-    .range-tab.active {
-      background: #3f3f46;
-      color: #fff;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    }
+    .range-tabs button { border-radius: 99px; padding: 0.35rem 0.85rem; }
+    .view-toggle button.active, .range-tabs button.active { background: #52525b; color: #fff; }
 
-    /* View Toggle (Summary/History) */
-    .view-toggle {
-      display: inline-flex;
-      border-radius: 8px;
-      background: #27272a;
-      padding: 2px;
-    }
-    .view-toggle button {
-      padding: 0.25rem 0.75rem;
-      border: none;
-      background: transparent;
-      color: #a1a1aa;
-      cursor: pointer;
-      font-size: 0.75rem;
-      border-radius: 6px;
-      font-weight: 500;
-    }
-    .view-toggle button.active {
-      background: #52525b;
-      color: #fff;
-    }
-
-    .notice {
-      padding: 1rem;
-      border: 1px solid #3f3f46;
-      border-radius: 8px;
-      background: #18181b;
-      margin-bottom: 1rem;
-      color: #fbbf24;
-    }
-    .last-updated {
-        font-size: 0.75rem;
-        color: #71717a;
-        text-align: right;
-        margin-top: 0.5rem;
-    }
+    .notice { padding: 1rem; background: #18181b; border: 1px solid #3f3f46; border-radius: 8px; color: #fbbf24; margin-bottom: 1rem; }
+    .last-updated { font-size: 0.75rem; color: #71717a; text-align: right; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
@@ -188,454 +86,337 @@
 
   <div id="status" class="notice" style="display:none;"></div>
   <div id="statsGrid" class="stats-grid" style="display:none;"></div>
-  <div class="dashboard" id="dashboard"></div>
+  <div id="dashboard" class="dashboard"></div>
   <div id="lastUpdated" class="last-updated" style="display:none;"></div>
 
   <script>
+    // CONFIG
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const statusEl = document.getElementById("status");
-    const statsGridEl = document.getElementById("statsGrid");
-    const lastUpdatedEl = document.getElementById("lastUpdated");
-    const dashboardEl = document.getElementById("dashboard");
+    // STATE
+    let summary = null;
+    let chartRegistry = {}; // Stores chart instances by ID
+    let currentRange = localStorage.getItem("pfRange") || "YEAR"; 
+    let tickerViewMode = {};
+    try { tickerViewMode = JSON.parse(localStorage.getItem("pfViewMode") || "{}"); } catch(_){}
 
-    function setStatus(msg) { statusEl.textContent = msg; statusEl.style.display = msg ? "block" : "none"; }
+    // DOM ELEMENTS
+    const els = {
+      status: document.getElementById("status"),
+      stats: document.getElementById("statsGrid"),
+      dash: document.getElementById("dashboard"),
+      updated: document.getElementById("lastUpdated"),
+      divide: document.getElementById("divideToggle")
+    };
 
-    document.getElementById("btnSignOut").addEventListener("click", async () => {
-      await supabase.auth.signOut();
-      location.href = "login.html";
-    });
+    // UTILS
+    const setStatus = (msg) => { els.status.textContent = msg; els.status.style.display = msg ? "block" : "none"; };
+    const fmtMoney = (v, sign=false) => { if(v==null) return "0"; const s=Math.round(Number(v)).toLocaleString(); return sign?"$"+s:s; };
+    const fmtPct = (v) => (v==null) ? "n/a" : Number(v).toFixed(2);
+    const shortDate = (iso) => { const d=new Date(iso); return isNaN(d)?iso : `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`; };
+    
+    const consolidate = (arr) => {
+      const map = new Map();
+      arr.forEach(i => map.set(i[0].split("T")[0], i));
+      return Array.from(map.values());
+    };
 
-    (async () => {
+    const filterRange = (hist, rng) => {
+      if(!hist?.length) return [];
+      const days = { WEEK:7, MONTH:30, SIX_MONTHS:180, YEAR:365 }[rng] || 365;
+      const cut = new Date(hist[hist.length-1][0]).getTime() - (days*86400000);
+      return hist.filter(p => new Date(p[0]).getTime() >= cut);
+    };
+
+    // MAIN LOGIC
+    async function init() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) location.href = "login.html";
-    })();
+      
+      document.getElementById("btnSignOut").onclick = async () => { await supabase.auth.signOut(); location.href="login.html"; };
+      els.divide.onchange = () => refreshCharts(); // Global redraw only on divide toggle
 
-    let summary = null;
-    let charts = [];
-    let currentRange = "YEAR"; 
-    const divideToggle = document.getElementById("divideToggle");
-    const tickerViewMode = {};
-
-    const RANGE_KEY = "pfRange";
-    const VIEW_KEY = "pfViewMode";
-
-    try { currentRange = localStorage.getItem(RANGE_KEY) || "YEAR"; } catch(_){}
-    try { Object.assign(tickerViewMode, JSON.parse(localStorage.getItem(VIEW_KEY) || "{}")); } catch(_){}
-
-    function savePrefs() {
-      try {
-        localStorage.setItem(RANGE_KEY, currentRange);
-        localStorage.setItem(VIEW_KEY, JSON.stringify(tickerViewMode));
-      } catch(_){}
-    }
-
-    function destroyCharts() {
-      charts.forEach(c => { try { c.destroy(); } catch (_) {} });
-      charts = [];
-    }
-
-    function fmtMoney(v, showSign=false) {
-      if (v == null) return "0";
-      const s = Math.round(Number(v)).toLocaleString();
-      return showSign ? "$" + s : s;
-    }
-    function fmtPct(v) {
-      if (v == null) return "n/a";
-      return Number(v).toFixed(2);
-    }
-    function shortDate(iso) {
-      const d = new Date(iso);
-      if (isNaN(d)) return iso;
-      const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-      return `${d.getDate()} ${m[d.getMonth()]}`;
-    }
-
-    function consolidateByDay(arr) {
-      const map = new Map();
-      arr.forEach(item => {
-        const dateKey = item[0].split("T")[0];
-        map.set(dateKey, item);
-      });
-      return Array.from(map.values());
+      await loadData();
     }
 
     async function loadData() {
-      setStatus("Loading data...");
+      setStatus("Loading...");
+      const { data: sumData } = await supabase.from("flex_summary").select("*").order("last_updated",{ascending:false}).limit(1);
+      if(!sumData?.length) { setStatus("No data."); return; }
+
+      summary = sumData[0].data;
+      summary.lastUpdatedDate = sumData[0].last_updated;
+
+      const { data: histData } = await supabase.from("flex_summary").select("data,last_updated").order("last_updated",{ascending:true}).limit(5000);
       
-      const { data: summaryData, error: summaryError } = await supabase
-        .from("flex_summary")
-        .select("*")
-        .order("last_updated", { ascending: false })
-        .limit(1);
-
-      if (summaryError || !summaryData?.length) {
-        setStatus("No data available.");
-        return;
-      }
-
-      const row = summaryData[0];
-      summary = row.data || {};
-      summary.lastUpdatedDate = row.last_updated;
-
-      const { data: historyData } = await supabase
-        .from("flex_summary")
-        .select("data, last_updated")
-        .order("last_updated", { ascending: true })
-        .limit(5000);
-
-      const rawPf = [];
-      const rawSym = {};
-
-      (historyData || []).forEach(r => {
-        const d = r.data;
-        const dt = d.lastUpdated || r.last_updated;
+      const rawPf = [], rawSym = {};
+      (histData||[]).forEach(r => {
+        const dt = r.data.lastUpdated || r.last_updated;
         if(!dt) return;
-
-        const val = Number(d.totals?.value || 0);
-        if (isFinite(val)) rawPf.push([dt, val]);
-
-        (d.positions || []).forEach(p => {
+        const val = Number(r.data.totals?.value || 0);
+        if(isFinite(val)) rawPf.push([dt, val]);
+        (r.data.positions||[]).forEach(p => {
           if(p?.symbol) {
-            if(!rawSym[p.symbol]) rawSym[p.symbol] = [];
+            if(!rawSym[p.symbol]) rawSym[p.symbol]=[];
             rawSym[p.symbol].push([dt, Number(p.value||0)]);
           }
         });
       });
 
-      summary.history = consolidateByDay(rawPf);
+      summary.history = consolidate(rawPf);
       summary.symbolHistory = {};
-      for(const k in rawSym) summary.symbolHistory[k] = consolidateByDay(rawSym[k]);
+      for(const k in rawSym) summary.symbolHistory[k] = consolidate(rawSym[k]);
 
       setStatus("");
-      render(divideToggle.checked);
+      buildLayout(); // Build HTML once
+      refreshCharts(); // Draw data
     }
 
-    function filterRange(hist, range) {
-      if (!hist?.length) return [];
-      const end = new Date(hist[hist.length-1][0]).getTime();
-      const day = 86400000;
-      let days = 365;
-      if (range === "WEEK") days = 7;
-      if (range === "MONTH") days = 30;
-      if (range === "SIX_MONTHS") days = 180;
+    // 1. BUILD HTML STRUCTURE (RUNS ONCE)
+    function buildLayout() {
+      els.dash.innerHTML = "";
+      els.stats.innerHTML = ""; 
+      // Placeholders for charts are created here with specific IDs
       
-      const start = end - (days * day);
-      return hist.filter(pt => new Date(pt[0]).getTime() >= start);
+      // A. Allocation
+      els.dash.innerHTML += `
+        <div class="chart-card">
+          <div class="chart-card-header"><h2 id="lbl-alloc">Allocation</h2></div>
+          <div class="chart-container"><canvas id="cvs-alloc"></canvas></div>
+        </div>`;
+
+      // B. Summary Bar
+      els.dash.innerHTML += `
+        <div class="chart-card">
+          <div class="chart-card-header"><h2 id="lbl-sum">Summary</h2></div>
+          <div class="chart-container"><canvas id="cvs-sum"></canvas></div>
+        </div>`;
+
+      // C. Portfolio Line
+      const tabs = ['WEEK','MONTH','SIX_MONTHS','YEAR'].map(k => 
+        `<button class="range-tab ${currentRange===k?'active':''}" onclick="updateRange('${k}')">${k.replace('_',' ').toLowerCase()}</button>`
+      ).join('');
+      
+      els.dash.innerHTML += `
+        <div class="chart-card">
+          <div class="chart-card-header"><h2>Portfolio Value</h2></div>
+          <div class="range-tabs" id="range-container">${tabs}</div>
+          <div class="chart-container"><canvas id="cvs-line"></canvas></div>
+        </div>`;
+
+      // D. Tickers
+      (summary.positions||[]).forEach(p => {
+        const sym = p.symbol;
+        const mode = tickerViewMode[sym] || "SUMMARY";
+        // We give the canvas a unique ID: cvs-sym-AAPL
+        els.dash.innerHTML += `
+          <div class="chart-card" id="card-${sym}">
+            <div class="chart-card-header">
+              <h2>${sym}</h2>
+              <div class="view-toggle" id="tog-${sym}">
+                <button onclick="updateTickerMode('${sym}','SUMMARY')" class="${mode==='SUMMARY'?'active':''}">Sum</button>
+                <button onclick="updateTickerMode('${sym}','HISTORY')" class="${mode==='HISTORY'?'active':''}">Hist</button>
+              </div>
+            </div>
+            <div class="chart-container"><canvas id="cvs-sym-${sym}"></canvas></div>
+          </div>`;
+      });
     }
 
-    // --- THE FIX: Scroll Preserving Render ---
-    function reRender() {
-      // 1. Capture current scroll position
-      const currentY = window.scrollY;
-      
-      // 2. Lock the height of the container so it doesn't collapse
-      dashboardEl.style.minHeight = dashboardEl.offsetHeight + 'px';
-      
-      // 3. Render
-      render(divideToggle.checked);
-
-      // 4. Restore scroll immediately
-      window.scrollTo(0, currentY);
-
-      // 5. Release the height lock (optional, but good practice)
-      setTimeout(() => {
-        dashboardEl.style.minHeight = '500px'; // reset to default min-height
-      }, 50);
-    }
-
-    function render(divide) {
-      dashboardEl.innerHTML = "";
-      destroyCharts();
-
-      const f = divide ? 12 : 1;
+    // 2. REFRESH DATA (UPDATES CANVAS CONTENT ONLY)
+    function refreshCharts() {
+      const div = els.divide.checked ? 12 : 1;
       const totals = summary.totals || {};
-      const positions = summary.positions || [];
 
-      // Stats Grid
-      const tVal = (totals.value || 0) / f;
-      const tCost = (totals.cost || 0) / f;
-      const tProf = (totals.profit || 0) / f;
-      const tPct = totals.pct || 0;
-
-      statsGridEl.style.display = "grid";
-      statsGridEl.innerHTML = `
-        <div class="stat-box">
-          <div class="stat-label">Total Value</div>
-          <div class="stat-value text-blue">${fmtMoney(tVal, true)}</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-label">Total Cost</div>
-          <div class="stat-value">${fmtMoney(tCost, true)}</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-label">Total Profit</div>
-          <div class="stat-value ${tProf>=0?'text-green':'text-red'}">
-            ${tProf>=0?'+':''}${fmtMoney(tProf, true)}
-          </div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-label">Return</div>
-          <div class="stat-value ${tPct>=0?'text-green':'text-red'}">
-            ${tPct>=0?'+':''}${fmtPct(tPct)}%
-          </div>
-        </div>
+      // Update Stats HTML
+      const tProf = (totals.profit||0)/div;
+      const tPct = totals.pct||0;
+      els.stats.style.display = "grid";
+      els.stats.innerHTML = `
+        <div class="stat-box"><div class="stat-label">Value</div><div class="stat-value text-blue">${fmtMoney((totals.value||0)/div, true)}</div></div>
+        <div class="stat-box"><div class="stat-label">Cost</div><div class="stat-value">${fmtMoney((totals.cost||0)/div, true)}</div></div>
+        <div class="stat-box"><div class="stat-label">Profit</div><div class="stat-value ${tProf>=0?'text-green':'text-red'}">${tProf>=0?'+':''}${fmtMoney(tProf, true)}</div></div>
+        <div class="stat-box"><div class="stat-label">Return</div><div class="stat-value ${tPct>=0?'text-green':'text-red'}">${tPct>=0?'+':''}${fmtPct(tPct)}%</div></div>
       `;
-
       if(summary.lastUpdatedDate) {
-        lastUpdatedEl.textContent = "Last updated: " + new Date(summary.lastUpdatedDate).toLocaleString();
-        lastUpdatedEl.style.display = "block";
+        els.updated.style.display = "block";
+        els.updated.textContent = "Last updated: " + new Date(summary.lastUpdatedDate).toLocaleString();
       }
 
-      // Allocation Donut
-      const donutCard = mkCard("Allocation " + (f>1?"(1/12)":""));
-      dashboardEl.appendChild(donutCard);
-      
-      charts.push(new Chart(donutCard.querySelector("canvas"), {
+      // Update Labels
+      document.getElementById('lbl-alloc').innerText = "Allocation " + (div>1?"(1/12)":"");
+      document.getElementById('lbl-sum').innerText = "Summary " + (div>1?"(1/12)":"");
+
+      // Draw Global Charts
+      drawAlloc(div);
+      drawSumBar(div);
+      drawPfLine(div);
+
+      // Draw Ticker Charts
+      (summary.positions||[]).forEach(p => drawTicker(p.symbol, div));
+    }
+
+    // --- INDIVIDUAL CHART DRAWERS ---
+
+    function drawAlloc(f) {
+      replaceChart('cvs-alloc', {
         type: 'doughnut',
         data: {
-          labels: positions.map(p => p.symbol),
+          labels: summary.positions.map(p=>p.symbol),
           datasets: [{
-            data: positions.map(p => (p.value||0)/f),
-            backgroundColor: [
-              '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'
-            ],
-            borderWidth: 0,
-            hoverOffset: 4
+            data: summary.positions.map(p=>(p.value||0)/f),
+            backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16'],
+            borderWidth: 0
           }]
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { position: 'right', labels: { color: '#d4d4d8', boxWidth: 12 } } },
-          cutout: '65%'
-        }
-      }));
+        options: stdOpts({legend:true, cutout:'65%'})
+      });
+    }
 
-      // Summary Bar
-      const barCard = mkCard("Summary " + (f>1?"(1/12)":""));
-      dashboardEl.appendChild(barCard);
-      charts.push(new Chart(barCard.querySelector("canvas"), {
+    function drawSumBar(f) {
+      const t = summary.totals;
+      const prof = (t.profit||0)/f;
+      replaceChart('cvs-sum', {
         type: 'bar',
         data: {
           labels: ["Spent", "Profit", "Value"],
           datasets: [{
-            data: [tCost, tProf, tVal],
-            backgroundColor: [
-              '#3f3f46', 
-              tProf >= 0 ? '#10b981' : '#ef4444', 
-              '#3b82f6'
-            ],
+            data: [(t.cost||0)/f, prof, (t.value||0)/f],
+            backgroundColor: ['#3f3f46', prof>=0?'#10b981':'#ef4444', '#3b82f6'],
             borderRadius: 6
           }]
         },
-        options: stdOptions({ showLegend: false })
-      }));
-
-      // Portfolio History
-      const lineCard = document.createElement("div");
-      lineCard.className = "chart-card";
-      lineCard.innerHTML = `
-        <div class="chart-card-header"><h2>Portfolio Value</h2></div>
-        <div class="range-tabs">
-          ${['WEEK','MONTH','SIX_MONTHS','YEAR'].map(k => 
-            `<button class="range-tab ${currentRange===k?'active':''}" data-k="${k}">
-              ${k.replace('_',' ').toLowerCase()}
-            </button>`
-          ).join('')}
-        </div>
-        <div class="chart-container"><canvas></canvas></div>
-      `;
-      dashboardEl.appendChild(lineCard);
-      
-      lineCard.querySelectorAll(".range-tab").forEach(b => {
-        b.onclick = () => {
-          currentRange = b.dataset.k;
-          savePrefs();
-          reRender(); // Use reRender here
-        };
+        options: stdOpts()
       });
+    }
 
-      const pfHist = filterRange(summary.history, currentRange);
-      const pfCtx = lineCard.querySelector("canvas").getContext("2d");
-      const pfGrad = pfCtx.createLinearGradient(0, 0, 0, 300);
-      pfGrad.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
-      pfGrad.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
-
-      charts.push(new Chart(pfCtx, {
+    function drawPfLine(f) {
+      const ctx = document.getElementById('cvs-line').getContext('2d');
+      const grad = ctx.createLinearGradient(0,0,0,300);
+      grad.addColorStop(0,'rgba(59,130,246,0.5)'); grad.addColorStop(1,'rgba(59,130,246,0.0)');
+      
+      const hist = filterRange(summary.history, currentRange);
+      
+      replaceChart('cvs-line', {
         type: 'line',
         data: {
-          labels: pfHist.map(p => shortDate(p[0])),
+          labels: hist.map(p=>shortDate(p[0])),
           datasets: [{
-            label: "Value",
-            data: pfHist.map(p => (p[1]||0)/f),
-            borderColor: '#3b82f6',
-            backgroundColor: pfGrad,
-            fill: true,
-            tension: 0.3,
-            pointRadius: 0,
-            pointHoverRadius: 6,
-            borderWidth: 2
+            label: 'Value', data: hist.map(p=>(p[1]||0)/f),
+            borderColor: '#3b82f6', backgroundColor: grad,
+            fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 6
           }]
         },
-        options: stdOptions({ showLegend: false, intersect: false })
-      }));
-
-      // Ticker Cards
-      positions.forEach(p => {
-        const sym = p.symbol;
-        const mode = tickerViewMode[sym] || "SUMMARY";
-        
-        const card = document.createElement("div");
-        card.className = "chart-card";
-        const isUp = (p.profit||0) >= 0;
-        card.style.borderTop = `4px solid ${isUp ? '#10b981' : '#ef4444'}`;
-
-        card.innerHTML = `
-          <div class="chart-card-header">
-            <h2>${sym}</h2>
-            <div class="view-toggle">
-              <button data-m="SUMMARY" class="${mode==='SUMMARY'?'active':''}">Sum</button>
-              <button data-m="HISTORY" class="${mode==='HISTORY'?'active':''}">Hist</button>
-            </div>
-          </div>
-          <div class="chart-container"><canvas></canvas></div>
-        `;
-        dashboardEl.appendChild(card);
-
-        card.querySelectorAll("button").forEach(b => {
-          b.onclick = () => {
-            tickerViewMode[sym] = b.dataset.m;
-            savePrefs();
-            reRender(); // Use reRender here
-          };
-        });
-
-        const ctx = card.querySelector("canvas").getContext("2d");
-        const pCost = (p.cost||0)/f;
-        const pVal = (p.value||0)/f;
-        const pProf = (p.profit||0)/f;
-        const pPct = p.pct;
-
-        if (mode === "HISTORY" && summary.symbolHistory[sym]) {
-          const sHist = filterRange(summary.symbolHistory[sym], currentRange);
-          const sGrad = ctx.createLinearGradient(0, 0, 0, 300);
-          sGrad.addColorStop(0, 'rgba(249, 115, 22, 0.5)');
-          sGrad.addColorStop(1, 'rgba(249, 115, 22, 0.0)');
-
-          charts.push(new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels: sHist.map(x => shortDate(x[0])),
-              datasets: [{
-                label: "Value",
-                data: sHist.map(x => (x[1]||0)/f),
-                borderColor: '#f97316',
-                backgroundColor: sGrad,
-                fill: true,
-                tension: 0.3,
-                pointRadius: 0,
-                pointHoverRadius: 5
-              }]
-            },
-            options: stdOptions({ showLegend: false, intersect: false })
-          }));
-        } else {
-          charts.push(new Chart(ctx, {
-            data: {
-              labels: ["Cost", "Value", "Profit", "%"],
-              datasets: [
-                {
-                  type: 'bar',
-                  label: 'NZD',
-                  data: [pCost, pVal, pProf, null],
-                  backgroundColor: [
-                    '#3f3f46', 
-                    '#3b82f6',
-                    pProf>=0 ? '#10b981' : '#ef4444',
-                    null
-                  ],
-                  borderRadius: 4,
-                  yAxisID: 'y'
-                },
-                {
-                  type: 'line',
-                  label: '%',
-                  data: [null, null, null, pPct],
-                  borderColor: '#fbbf24',
-                  borderWidth: 2,
-                  pointBackgroundColor: '#fbbf24',
-                  yAxisID: 'yPct'
-                }
-              ]
-            },
-            options: {
-              ...stdOptions({ showLegend: false }),
-              scales: {
-                y: { 
-                  beginAtZero: true, 
-                  grid: { color: '#27272a' },
-                  ticks: { callback: v=>fmtMoney(v), color: '#a1a1aa' }
-                },
-                yPct: {
-                  type: 'linear',
-                  position: 'right',
-                  grid: { display: false },
-                  ticks: { callback: v=>v+'%', color: '#a1a1aa' }
-                },
-                x: { grid: { display: false }, ticks: { color: '#a1a1aa' } }
-              }
-            }
-          }));
-        }
+        options: stdOpts({intersect:false})
       });
     }
 
-    function mkCard(title) {
-      const d = document.createElement("div");
-      d.className = "chart-card";
-      d.innerHTML = `<div class="chart-card-header"><h2>${title}</h2></div><div class="chart-container"><canvas></canvas></div>`;
-      return d;
+    function drawTicker(sym, f) {
+      const p = summary.positions.find(x=>x.symbol===sym);
+      if(!p) return;
+      
+      // Update Border Color based on Profit
+      const isUp = (p.profit||0) >= 0;
+      document.getElementById(`card-${sym}`).style.borderTop = `4px solid ${isUp?'#10b981':'#ef4444'}`;
+
+      const mode = tickerViewMode[sym] || "SUMMARY";
+      const canvasId = `cvs-sym-${sym}`;
+      
+      if(mode === "HISTORY") {
+        const hist = filterRange(summary.symbolHistory[sym]||[], currentRange);
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        const grad = ctx.createLinearGradient(0,0,0,300);
+        grad.addColorStop(0,'rgba(249,115,22,0.5)'); grad.addColorStop(1,'rgba(249,115,22,0.0)');
+
+        replaceChart(canvasId, {
+          type: 'line',
+          data: {
+            labels: hist.map(x=>shortDate(x[0])),
+            datasets: [{
+              label: 'Value', data: hist.map(x=>(x[1]||0)/f),
+              borderColor: '#f97316', backgroundColor: grad,
+              fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 5
+            }]
+          },
+          options: stdOpts({intersect:false})
+        });
+      } else {
+        const prof = (p.profit||0)/f;
+        replaceChart(canvasId, {
+          data: {
+            labels: ["Cost", "Value", "Profit", "%"],
+            datasets: [
+              { type: 'bar', label: 'NZD', data: [(p.cost||0)/f, (p.value||0)/f, prof, null], backgroundColor: ['#3f3f46','#3b82f6',prof>=0?'#10b981':'#ef4444',null], borderRadius:4, yAxisID:'y' },
+              { type: 'line', label: '%', data: [null,null,null,p.pct], borderColor: '#fbbf24', borderWidth:2, pointBackgroundColor:'#fbbf24', yAxisID:'yPct' }
+            ]
+          },
+          options: {
+            ...stdOpts(),
+            scales: {
+              y: { grid:{color:'#27272a'}, ticks:{color:'#a1a1aa', callback:v=>fmtMoney(v)} },
+              yPct: { type:'linear', position:'right', grid:{display:false}, ticks:{color:'#a1a1aa', callback:v=>v+'%'} },
+              x: { grid:{display:false}, ticks:{color:'#a1a1aa'} }
+            }
+          }
+        });
+      }
     }
 
-    function stdOptions({ showLegend=true, intersect=true } = {}) {
+    // --- HELPERS & EVENTS ---
+
+    function replaceChart(id, config) {
+      if(chartRegistry[id]) chartRegistry[id].destroy();
+      chartRegistry[id] = new Chart(document.getElementById(id), config);
+    }
+
+    function stdOpts(extra={}) {
       return {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: intersect },
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: extra.intersect===false?false:true },
         plugins: {
-          legend: { display: showLegend, labels: { color: '#fff' } },
+          legend: { display: extra.legend||false, labels:{color:'#fff'} },
           tooltip: {
-            backgroundColor: 'rgba(24, 24, 27, 0.9)',
-            titleColor: '#fff',
-            bodyColor: '#e4e4e7',
-            borderColor: '#3f3f46',
-            borderWidth: 1,
-            callbacks: {
-              label: ctx => {
-                if(ctx.dataset.type==='line' && ctx.chart.config.type!=='line') return fmtPct(ctx.raw) + '%';
-                return fmtMoney(ctx.raw);
-              }
-            }
+            backgroundColor: 'rgba(24,24,27,0.9)', titleColor:'#fff', bodyColor:'#e4e4e7', borderColor:'#3f3f46', borderWidth:1,
+            callbacks: { label: ctx => (ctx.dataset.type==='line'&&ctx.chart.config.type!=='line') ? fmtPct(ctx.raw)+'%' : fmtMoney(ctx.raw) }
           }
         },
         scales: {
-          y: { 
-            grid: { color: '#27272a' },
-            ticks: { color: '#a1a1aa', callback: v => fmtMoney(v) }
-          },
-          x: {
-            grid: { display: false },
-            ticks: { color: '#a1a1aa', maxTicksLimit: 8 }
-          }
-        }
+          y: { grid:{color:'#27272a'}, ticks:{color:'#a1a1aa', callback:v=>fmtMoney(v)} },
+          x: { grid:{display:false}, ticks:{color:'#a1a1aa', maxTicksLimit:8} }
+        },
+        ...extra
       };
     }
 
-    loadData();
-    divideToggle.onchange = () => reRender(); // Use reRender here
+    // Public Global Functions called by HTML buttons
+    window.updateRange = (k) => {
+      currentRange = k;
+      localStorage.setItem("pfRange", k);
+      // Update button styles
+      const container = document.getElementById("range-container");
+      Array.from(container.children).forEach(b => b.className = `range-tab ${b.innerText.toUpperCase().replace(' ','_') === k ? 'active' : ''}`);
+      // Redraw lines
+      drawPfLine(els.divide.checked?12:1);
+      // Also redraw any open History cards to match range
+      Object.keys(tickerViewMode).forEach(sym => {
+        if(tickerViewMode[sym]==="HISTORY") drawTicker(sym, els.divide.checked?12:1);
+      });
+    };
+
+    window.updateTickerMode = (sym, mode) => {
+      tickerViewMode[sym] = mode;
+      localStorage.setItem("pfViewMode", JSON.stringify(tickerViewMode));
+      // Update buttons CSS
+      const container = document.getElementById(`tog-${sym}`);
+      container.children[0].className = mode==='SUMMARY'?'active':'';
+      container.children[1].className = mode==='HISTORY'?'active':'';
+      // Redraw ONLY this chart
+      drawTicker(sym, els.divide.checked?12:1);
+    };
+
+    init();
   </script>
 </body>
 </html>
