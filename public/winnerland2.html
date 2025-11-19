@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Members Dashboard</title>
 
-  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
@@ -218,8 +216,16 @@
       charts = [];
     }
 
-    function money(v) {
-      return "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Helper for Chart Currency: Integer, no Symbol, commas (e.g., 1,234)
+    function fmtChartMoney(v) {
+      if (v === null || v === undefined) return "0";
+      return Math.round(Number(v)).toLocaleString();
+    }
+
+    // Helper for Chart Percent: 2 decimals (e.g., 12.34)
+    function fmtChartPct(v) {
+      if (v === null || v === undefined) return "n/a";
+      return Number(v).toFixed(2);
     }
 
     function shortDateLabel(iso) {
@@ -233,7 +239,6 @@
     async function loadSummary() {
       setStatus("Loading summary from Supabase...");
 
-      // always use latest from flex_summary so summary and history are in sync
       const { data, error } = await supabase
         .from("flex_summary")
         .select("*")
@@ -256,7 +261,21 @@
       setStatus("");
     }
 
+    // New helper to keep only the last entry per calendar day
+    function consolidateByDay(historyArr) {
+      const map = new Map();
+      historyArr.forEach(item => {
+        // item is [isoDate, value]
+        // We split by "T" to get YYYY-MM-DD
+        const dateKey = item[0].split("T")[0]; 
+        // Set/Overwrite keeps the *last* one encountered (assuming input is sorted by date ASC)
+        map.set(dateKey, item);
+      });
+      return Array.from(map.values());
+    }
+
     async function loadHistoryFromTable() {
+      // We order by last_updated ascending so we process chronological order
       const { data, error } = await supabase
         .from("flex_summary")
         .select("data,last_updated")
@@ -269,33 +288,41 @@
       }
 
       const rows = Array.isArray(data) ? data : [];
-      const portfolioHistory = [];
-      const symbolHistoryMap = {};
+      let rawPortfolioHistory = [];
+      let rawSymbolHistoryMap = {};
 
       for (const row of rows) {
         const d = row.data || {};
         const date = d.lastUpdated || row.last_updated;
         if (!date) continue;
 
+        // Portfolio Total
         const totals = d.totals || {};
         const v = Number(totals.value || 0);
         if (Number.isFinite(v)) {
-          portfolioHistory.push([date, v]);
+          rawPortfolioHistory.push([date, v]);
         }
 
+        // Individual Positions
         const positions = Array.isArray(d.positions) ? d.positions : [];
         for (const p of positions) {
           if (!p || !p.symbol) continue;
           const sym = p.symbol;
           const val = Number(p.value || 0);
           if (!Number.isFinite(val)) continue;
-          if (!symbolHistoryMap[sym]) symbolHistoryMap[sym] = [];
-          symbolHistoryMap[sym].push([date, val]);
+          if (!rawSymbolHistoryMap[sym]) rawSymbolHistoryMap[sym] = [];
+          rawSymbolHistoryMap[sym].push([date, val]);
         }
       }
 
-      summary.history = portfolioHistory;
-      summary.symbolHistory = symbolHistoryMap;
+      // Consolidate to 1 point per day
+      summary.history = consolidateByDay(rawPortfolioHistory);
+      
+      // Consolidate symbols too
+      summary.symbolHistory = {};
+      Object.keys(rawSymbolHistoryMap).forEach(sym => {
+        summary.symbolHistory[sym] = consolidateByDay(rawSymbolHistoryMap[sym]);
+      });
     }
 
     function filterHistoryByRange(history, rangeKey) {
@@ -394,12 +421,20 @@
           scales: {
             y: {
               beginAtZero: true,
-              ticks: { callback: v => "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+              // No decimals, no symbol
+              ticks: { callback: v => fmtChartMoney(v) },
               grid: { color: "#444", borderColor: "#444" }
             },
             x: { grid: { color: "#444" } }
           },
-          plugins: { legend: { display: false } }
+          plugins: { 
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                 label: ctx => fmtChartMoney(ctx.parsed.y)
+              }
+            }
+          }
         }
       }));
 
@@ -440,7 +475,7 @@
         data: {
           labels: lineLabels,
           datasets: [{
-            label: "Portfolio value NZD",
+            label: "Value",
             data: lineData,
             fill: false,
             tension: 0.1
@@ -452,16 +487,23 @@
           scales: {
             y: {
               beginAtZero: true,
-              ticks: { callback: v => "$" + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+              ticks: { callback: v => fmtChartMoney(v) },
               grid: { color: "#444", borderColor: "#444" }
             },
             x: { grid: { color: "#444" } }
           },
-          plugins: { legend: { labels: { color: "#fff" } } }
+          plugins: { 
+            legend: { labels: { color: "#fff" } },
+            tooltip: {
+              callbacks: {
+                label: ctx => ctx.dataset.label + ": " + fmtChartMoney(ctx.parsed.y)
+              }
+            }
+          }
         }
       }));
 
-      // range tab handlers, keep scroll position and save preference
+      // range tab handlers
       const tabs = lineCard.querySelectorAll(".range-tab");
       tabs.forEach(tab => {
         const rk = tab.getAttribute("data-range");
@@ -477,7 +519,7 @@
         });
       });
 
-      // per holding cards with Summary / History toggle
+      // per holding cards
       positions.forEach(p => {
         const sym = p.symbol;
         if (!tickerViewMode[sym]) tickerViewMode[sym] = "SUMMARY";
@@ -538,7 +580,7 @@
             data: {
               labels,
               datasets: [{
-                label: `${sym} value NZD`,
+                label: `${sym} Value`,
                 data,
                 fill: false,
                 tension: 0.2
@@ -550,13 +592,18 @@
               scales: {
                 y: {
                   beginAtZero: true,
-                  ticks: { callback: v => money(v) },
+                  ticks: { callback: v => fmtChartMoney(v) },
                   grid: { color: "#444" }
                 },
                 x: { grid: { color: "#444" } }
               },
               plugins: {
-                legend: { labels: { color: "#fff" } }
+                legend: { labels: { color: "#fff" } },
+                tooltip: {
+                  callbacks: {
+                    label: ctx => ctx.dataset.label + ": " + fmtChartMoney(ctx.parsed.y)
+                  }
+                }
               }
             }
           }));
@@ -567,8 +614,9 @@
               datasets: [
                 {
                   type: "bar",
-                  label: "NZD",
-                  data: [ cost, value, profit, null ]
+                  label: "Amount",
+                  data: [ cost, value, profit, null ],
+                  yAxisID: "y"
                 },
                 {
                   type: "line",
@@ -587,16 +635,16 @@
               scales: {
                 y: {
                   beginAtZero: true,
-                  title: { display: true, text: "NZD" },
-                  ticks: { callback: v => money(v) },
+                  title: { display: true, text: "" },
+                  ticks: { callback: v => fmtChartMoney(v) },
                   grid: { color: "#444" }
                 },
                 PCT: {
                   type: "linear",
                   position: "right",
-                  title: { display: true, text: "% Change" },
+                  title: { display: true, text: "%" },
                   grid: { drawOnChartArea: false },
-                  ticks: { callback: v => (v == null ? "n/a" : v + "%") }
+                  ticks: { callback: v => (v == null ? "n/a" : fmtChartPct(v) + "%") }
                 }
               },
               plugins: {
@@ -605,9 +653,9 @@
                     label: ctx => {
                       if (ctx.dataset.type === "line") {
                         const y = ctx.parsed.y;
-                        return "% Change: " + (y == null ? "n/a" : y + "%");
+                        return "% Change: " + fmtChartPct(y) + "%";
                       }
-                      return "NZD " + money(ctx.parsed.y);
+                      return fmtChartMoney(ctx.parsed.y);
                     }
                   }
                 },
