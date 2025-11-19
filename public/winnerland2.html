@@ -33,6 +33,7 @@
       background: #1f2937;
       color: #fff;
       cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
     }
     .btn:hover { background: #273244; }
     .danger { border-color: #ef4444; }
@@ -81,6 +82,7 @@
       border-radius: 10px;
       background: #181818;
       font-size: .95rem;
+      margin-top: 1rem;
     }
 
     .range-tabs {
@@ -125,11 +127,51 @@
       color: #9ca3af;
       cursor: pointer;
       font: inherit;
+      transition: background 0.15s, color 0.15s;
     }
     .view-toggle button.active {
       background: #2563eb;
       color: #fff;
     }
+
+    /* New styles for overall portfolio stats */
+    .portfolio-stats {
+        background: #1e1e1e;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-around;
+        gap: 1rem;
+        text-align: center;
+        box-shadow: 0 2px 12px rgba(0,0,0,.25);
+    }
+    .stat-item {
+        flex: 1;
+        min-width: 150px;
+    }
+    .stat-item h3 {
+        margin: 0 0 0.5rem 0;
+        font-size: 0.9rem;
+        color: #9ca3af;
+    }
+    .stat-item p {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .stat-item .positive { color: #28a745; }
+    .stat-item .negative { color: #dc3545; }
+    .last-updated {
+        font-size: 0.8rem;
+        color: #9ca3af;
+        text-align: right;
+        margin-top: -0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
   </style>
 </head>
 <body>
@@ -149,6 +191,8 @@
     </div>
   </header>
 
+  <div id="portfolioStats" class="portfolio-stats" style="display:none;"></div>
+  <div id="lastUpdated" class="last-updated" style="display:none;"></div>
   <div id="status" class="notice" style="display:none;"></div>
   <div class="dashboard" id="dashboard"></div>
 
@@ -158,6 +202,9 @@
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const statusEl = document.getElementById("status");
+    const portfolioStatsEl = document.getElementById("portfolioStats");
+    const lastUpdatedEl = document.getElementById("lastUpdated");
+
     function setStatus(msg) { statusEl.textContent = msg; statusEl.style.display = msg ? "block" : "none"; }
 
     document.getElementById("btnSignOut").addEventListener("click", async () => {
@@ -217,9 +264,10 @@
     }
 
     // Helper for Chart Currency: Integer, no Symbol, commas (e.g., 1,234)
-    function fmtChartMoney(v) {
+    function fmtChartMoney(v, includeDollar = false) {
       if (v === null || v === undefined) return "0";
-      return Math.round(Number(v)).toLocaleString();
+      const val = Math.round(Number(v)).toLocaleString();
+      return includeDollar ? "$" + val : val;
     }
 
     // Helper for Chart Percent: 2 decimals (e.g., 12.34)
@@ -234,6 +282,12 @@
       const day = d.getDate();
       const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
       return `${day} ${months[d.getMonth()]}`;
+    }
+
+    function fullDateLabel(iso) {
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return iso;
+        return d.toLocaleString(); // More detailed timestamp
     }
 
     async function loadSummary() {
@@ -253,6 +307,10 @@
 
       const row = data?.[0] ?? null;
       summary = row?.data ?? null;
+      if (summary) {
+          // Store the raw lastUpdated from the database record
+          summary.rawLastUpdated = row.last_updated;
+      }
 
       if (!summary) {
         setStatus("No summary available yet.");
@@ -356,6 +414,46 @@
       });
     }
 
+    function renderPortfolioStats() {
+        if (!summary || !summary.totals) {
+            portfolioStatsEl.style.display = "none";
+            return;
+        }
+
+        const totals = summary.totals;
+        const totalValue = Number(totals.value || 0);
+        const totalCost = Number(totals.cost || 0);
+        const totalProfit = Number(totals.profit || 0);
+        const totalPct = totals.pct != null ? Number(totals.pct) : 0;
+
+        portfolioStatsEl.style.display = "flex";
+        portfolioStatsEl.innerHTML = `
+            <div class="stat-item">
+                <h3>Current Value</h3>
+                <p>${fmtChartMoney(totalValue, true)}</p>
+            </div>
+            <div class="stat-item">
+                <h3>Total Cost</h3>
+                <p>${fmtChartMoney(totalCost, true)}</p>
+            </div>
+            <div class="stat-item">
+                <h3>Total Profit</h3>
+                <p class="${totalProfit >= 0 ? 'positive' : 'negative'}">${fmtChartMoney(totalProfit, true)}</p>
+            </div>
+            <div class="stat-item">
+                <h3>% Change</h3>
+                <p class="${totalPct >= 0 ? 'positive' : 'negative'}">${fmtChartPct(totalPct)}%</p>
+            </div>
+        `;
+
+        if (summary.rawLastUpdated) {
+            lastUpdatedEl.textContent = `Last updated: ${fullDateLabel(summary.rawLastUpdated)}`;
+            lastUpdatedEl.style.display = "block";
+        } else {
+            lastUpdatedEl.style.display = "none";
+        }
+    }
+
     function renderCharts(divideBy12, newRangeKey) {
       if (!summary) return;
 
@@ -370,6 +468,8 @@
       const totals = summary.totals || { value: 0, cost: 0, profit: 0, pct: null };
       const positions = Array.isArray(summary.positions) ? summary.positions : [];
       const symbolHistory = summary.symbolHistory || {};
+
+      renderPortfolioStats(); // Render the new stats section
 
       // PIE
       const pieCard = document.createElement("div");
@@ -386,7 +486,16 @@
       const pieData = positions.map(p => Number(p.value || 0) / f);
       charts.push(new Chart(document.getElementById("summaryPie"), {
         type: "doughnut",
-        data: { labels: pieLabels, datasets: [{ data: pieData }] },
+        data: { 
+            labels: pieLabels, 
+            datasets: [{ 
+                data: pieData,
+                backgroundColor: [ // More vibrant color palette
+                    '#4dc9f6', '#f67019', '#f53794', '#537bc4', '#acc236',
+                    '#166a8f', '#00a950', '#58595b', '#8549ba', '#64391e'
+                ]
+            }] 
+        },
         options: {
           responsive: true,
           maintainAspectRatio: false,
@@ -411,8 +520,13 @@
         data: {
           labels: ["Spent", "Profit", "Value"],
           datasets: [{
-            label: "NZD",
-            data: [ (totals.cost || 0) / f, (totals.profit || 0) / f, (totals.value || 0) / f ]
+            label: "Amount",
+            data: [ (totals.cost || 0) / f, (totals.profit || 0) / f, (totals.value || 0) / f ],
+            backgroundColor: [
+                '#537bc4', // Cost (blue)
+                (totals.profit || 0) >= 0 ? '#28a745' : '#dc3545', // Profit (green/red)
+                '#4dc9f6' // Value (light blue)
+            ]
           }]
         },
         options: {
@@ -421,17 +535,22 @@
           scales: {
             y: {
               beginAtZero: true,
-              // No decimals, no symbol
               ticks: { callback: v => fmtChartMoney(v) },
               grid: { color: "#444", borderColor: "#444" }
             },
-            x: { grid: { color: "#444" } }
+            x: { grid: { color: "#444" }, ticks: { color: "#fff" } }
           },
           plugins: { 
             legend: { display: false },
             tooltip: {
               callbacks: {
-                 label: ctx => fmtChartMoney(ctx.parsed.y)
+                 label: ctx => {
+                    if (ctx.label === "Profit") {
+                        const val = Number(ctx.parsed.y);
+                        return (val >= 0 ? '+' : '-') + fmtChartMoney(val, true);
+                    }
+                    return fmtChartMoney(ctx.parsed.y, true);
+                 }
               }
             }
           }
@@ -477,8 +596,20 @@
           datasets: [{
             label: "Value",
             data: lineData,
-            fill: false,
-            tension: 0.1
+            borderColor: '#4dc9f6',
+            backgroundColor: (context) => {
+                const chart = context.chart;
+                const {ctx, chartArea} = chart;
+                if (!chartArea) return null;
+                const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                gradient.addColorStop(0, 'rgba(77, 201, 246, 0.2)'); // Light blue transparent
+                gradient.addColorStop(1, 'rgba(77, 201, 246, 0.6)'); // Light blue solid
+                return gradient;
+            },
+            fill: true, // Enable fill for gradient
+            tension: 0.3, // Slightly more curve
+            pointRadius: 0, // Hide points
+            pointHoverRadius: 5 // Show points on hover
           }]
         },
         options: {
@@ -486,19 +617,25 @@
           maintainAspectRatio: false,
           scales: {
             y: {
-              beginAtZero: true,
+              beginAtZero: false, // Don't force zero for history for better trend view
               ticks: { callback: v => fmtChartMoney(v) },
               grid: { color: "#444", borderColor: "#444" }
             },
-            x: { grid: { color: "#444" } }
+            x: { grid: { color: "#444" }, ticks: { color: "#fff" } }
           },
           plugins: { 
             legend: { labels: { color: "#fff" } },
             tooltip: {
+              mode: 'index',
+              intersect: false,
               callbacks: {
-                label: ctx => ctx.dataset.label + ": " + fmtChartMoney(ctx.parsed.y)
+                label: ctx => ctx.dataset.label + ": " + fmtChartMoney(ctx.parsed.y, true)
               }
             }
+          },
+          hover: {
+              mode: 'nearest',
+              intersect: true
           }
         }
       }));
@@ -545,7 +682,7 @@
         `;
         dashboard.appendChild(card);
 
-        card.style.borderColor = profit >= 0 ? "#28a745" : "#dc3545";
+        card.style.borderColor = profit >= 0 ? "#28a745" : "#dc3545"; // Keep border color based on profit
 
         const viewToggle = card.querySelector(".view-toggle");
         const viewButtons = viewToggle.querySelectorAll("button");
@@ -582,8 +719,20 @@
               datasets: [{
                 label: `${sym} Value`,
                 data,
-                fill: false,
-                tension: 0.2
+                borderColor: '#f67019', // Orange color for individual ticker history
+                backgroundColor: (context) => {
+                    const chart = context.chart;
+                    const {ctx, chartArea} = chart;
+                    if (!chartArea) return null;
+                    const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                    gradient.addColorStop(0, 'rgba(246, 112, 25, 0.2)');
+                    gradient.addColorStop(1, 'rgba(246, 112, 25, 0.6)');
+                    return gradient;
+                },
+                fill: true,
+                tension: 0.3,
+                pointRadius: 0,
+                pointHoverRadius: 5
               }]
             },
             options: {
@@ -591,19 +740,25 @@
               maintainAspectRatio: false,
               scales: {
                 y: {
-                  beginAtZero: true,
+                  beginAtZero: false,
                   ticks: { callback: v => fmtChartMoney(v) },
                   grid: { color: "#444" }
                 },
-                x: { grid: { color: "#444" } }
+                x: { grid: { color: "#444" }, ticks: { color: "#fff" } }
               },
               plugins: {
                 legend: { labels: { color: "#fff" } },
                 tooltip: {
+                  mode: 'index',
+                  intersect: false,
                   callbacks: {
-                    label: ctx => ctx.dataset.label + ": " + fmtChartMoney(ctx.parsed.y)
+                    label: ctx => ctx.dataset.label + ": " + fmtChartMoney(ctx.parsed.y, true)
                   }
                 }
+              },
+              hover: {
+                  mode: 'nearest',
+                  intersect: true
               }
             }
           }));
@@ -616,74 +771,7 @@
                   type: "bar",
                   label: "Amount",
                   data: [ cost, value, profit, null ],
-                  yAxisID: "y"
-                },
-                {
-                  type: "line",
-                  label: "% Change",
-                  data: [ null, null, null, pct ],
-                  yAxisID: "PCT",
-                  tension: 0.3,
-                  pointRadius: 4,
-                  fill: false
-                }
-              ]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  title: { display: true, text: "" },
-                  ticks: { callback: v => fmtChartMoney(v) },
-                  grid: { color: "#444" }
-                },
-                PCT: {
-                  type: "linear",
-                  position: "right",
-                  title: { display: true, text: "%" },
-                  grid: { drawOnChartArea: false },
-                  ticks: { callback: v => (v == null ? "n/a" : fmtChartPct(v) + "%") }
-                }
-              },
-              plugins: {
-                tooltip: {
-                  callbacks: {
-                    label: ctx => {
-                      if (ctx.dataset.type === "line") {
-                        const y = ctx.parsed.y;
-                        return "% Change: " + fmtChartPct(y) + "%";
-                      }
-                      return fmtChartMoney(ctx.parsed.y);
-                    }
-                  }
-                },
-                legend: { position: "bottom" }
-              }
-            }
-          }));
-        }
-      });
-    }
-
-    (async () => {
-      loadRangePreference();
-      loadTickerViewPreference();
-
-      await loadSummary();
-      if (!summary) return;
-
-      await loadHistoryFromTable();
-
-      renderCharts(false);
-
-      divideToggle.addEventListener("change", e => {
-        const prevY = window.scrollY;
-        renderCharts(e.target.checked, currentRange);
-        window.scrollTo(0, prevY);
-      });
-    })();
-  </script>
-</body>
-</html>
+                  yAxisID: "y",
+                  backgroundColor: [
+                    '#537bc4', // Cost (blue)
+                    '#4dc9f6
