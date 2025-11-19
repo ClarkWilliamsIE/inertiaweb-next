@@ -1,238 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Watchlist - Winnerland</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    :root { color-scheme: dark; }
-    * { box-sizing: border-box; }
-    body { 
-        margin:0; background:#0f0f0f; color:#e0e0e0; 
-        font-family:system-ui, -apple-system, sans-serif; 
-        padding: 1rem; padding-bottom: 4rem;
-        overflow-x: hidden; 
-    }
-    
-    /* --- HEADER --- */
-    header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom:1.5rem; }
-    h1 { margin:0; font-size:1.5rem; font-weight:700; letter-spacing:-0.5px; }
-    .nav-row { display:flex; gap:.5rem; }
-
-    /* --- BUTTONS & INPUTS --- */
-    .btn { padding:.5rem .85rem; border-radius:8px; border:1px solid #333; background:#1f1f1f; color:#fff; cursor:pointer; transition:0.2s; font-weight:500; font-size:0.9rem; }
-    .btn:hover { background:#2a2a2a; transform:translateY(-1px); }
-    .btn-cta { background:#3b82f6; border-color:#3b82f6; }
-    .btn-cta:hover { background:#2563eb; }
-    .danger { border-color:#7f1d1d; color:#fca5a5; }
-    
-    input, select { 
-        background:#18181b; color:#fff; border:1px solid #27272a; 
-        border-radius:8px; padding:.6rem .8rem; font-size:0.9rem; 
-        transition:border-color 0.2s; width: 100%;
-    }
-    input:focus, select:focus { outline:none; border-color:#3b82f6; }
-
-    .muted { color:#71717a; font-size:0.85rem; }
-    .text-green { color:#4ade80; } .text-red { color:#f87171; }
-
-    /* --- CARDS --- */
-    .card { background:#18181b; border:1px solid #27272a; border-radius:16px; padding:1.25rem; margin-bottom:1.5rem; box-shadow:0 4px 6px rgba(0,0,0,0.3); }
-    .section-title { font-size:1.1rem; font-weight:600; color:#fff; margin:0 0 1rem 0; }
-
-    /* --- LAYOUT GRID --- */
-    .main-layout {
-        display: grid;
-        grid-template-columns: 1fr 320px; 
-        gap: 1.5rem;
-        align-items: start;
-        width: 100%;
-    }
-    
-    /* --- ADD TICKER BAR --- */
-    .add-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-    .add-bar > * { flex: 1; }
-    .add-bar #ticker { flex: 0 0 100px; } 
-    .add-bar #addBtn { flex: 0 0 auto; }
-
-    /* --- TICKER ITEMS (New Structure) --- */
-    .ticker-list { display:flex; flex-direction:column; gap:0.75rem; width: 100%; }
-
-    /* The Outer Wrapper */
-    .ticker-card {
-      background:#0f0f0f; border:1px solid #27272a; border-radius:12px; overflow:hidden;
-      width: 100%; display: flex; flex-direction: column;
-      transition: border-color 0.2s;
-    }
-
-    /* The Main Row (Always Visible) */
-    .ticker-header {
-      display: flex; align-items: stretch; gap: 0.75rem;
-      width: 100%; position: relative; z-index: 2;
-      background: #0f0f0f;
-    }
-    
-    /* Status Borders */
-    .ticker-card.up .ticker-header { border-left: 4px solid #22c55e; }
-    .ticker-card.down .ticker-header { border-left: 4px solid #ef4444; }
-    .ticker-card.neutral .ticker-header { border-left: 4px solid #555; }
-
-    /* The Expanded Content (Hidden by default) */
-    .ticker-body {
-        display: none;
-        padding: 1rem;
-        background: #131313;
-        border-top: 1px solid #222;
-        font-size: 0.9rem;
-        color: #ccc;
-        line-height: 1.5;
-        animation: slideDown 0.2s ease-out;
-    }
-    .ticker-card.expanded .ticker-body { display: block; }
-
-    @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-
-    .vote-box {
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      width:60px; min-width:60px; background:#141414; border-right:1px solid #27272a;
-      cursor:pointer; 
-    }
-    .vote-box.active { background:rgba(34, 197, 94, 0.15); color:#4ade80; }
-    .vote-count { font-size:1.1rem; font-weight:700; }
-    .vote-lbl { font-size:0.6rem; text-transform:uppercase; color:#71717a; }
-    
-    .ticker-content { 
-        flex: 1; min-width: 0; 
-        padding: 10px 0; display:flex; flex-direction:column; justify-content:center; 
-    }
-    .ticker-symbol { font-size:1rem; font-weight:700; letter-spacing:0.5px; display:flex; align-items:center; gap:0.5rem; white-space: nowrap; }
-    .market-badge { font-size:0.6rem; padding:1px 4px; border-radius:4px; border:1px solid #333; color:#888; }
-    .ticker-note { font-size:0.8rem; color:#a1a1aa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;}
-    .suggester { font-size:0.7rem; color:#555; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-    .price-box { 
-        padding:10px; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; 
-        min-width:80px; 
-    }
-    .pct-lg { font-size:1.1rem; font-weight:700; white-space: nowrap; }
-    .pct-lg.up { color:#4ade80; } .pct-lg.down { color:#f87171; }
-    .price-sm { font-size:0.75rem; color:#71717a; white-space: nowrap; }
-
-    /* Actions Area */
-    .actions { padding:0 5px; display:flex; align-items:center; border-left:1px solid #27272a; gap: 2px; }
-    .btn-icon { 
-        width: 36px; height: 36px; 
-        display: flex; align-items: center; justify-content: center;
-        border:none; background:transparent; color:#555; cursor:pointer; border-radius: 6px;
-    }
-    .btn-icon:hover { background: #222; color: #fff; }
-    .btn-icon svg { width: 20px; height: 20px; fill: currentColor; }
-
-    /* Rotate arrow when expanded */
-    .btn-expand { transition: transform 0.2s; }
-    .ticker-card.expanded .btn-expand { transform: rotate(180deg); }
-
-    /* --- LEADERBOARD --- */
-    .leader-row { display:flex; align-items:center; gap:0.75rem; padding:0.75rem 0; border-bottom:1px solid #27272a; }
-    .rank { font-weight:700; color:#555; width:20px; }
-    .avatar { width:28px; height:28px; border-radius:50%; background:#333; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700; }
-    .player-info { flex:1; }
-    .player-name { font-size:0.9rem; font-weight:600; }
-    .perf-badge { font-size:0.8rem; font-weight:700; padding:2px 6px; border-radius:6px; background:#111; border:1px solid #333; }
-    .perf-badge.up { color:#4ade80; border-color:rgba(34, 197, 94, 0.3); }
-    .perf-badge.down { color:#f87171; border-color:rgba(239, 68, 68, 0.3); }
-
-    @media (max-width: 900px) {
-        .main-layout { grid-template-columns: 1fr; }
-        .add-bar > * { flex: 1 1 100%; }
-        .add-bar #addBtn { flex: 1 1 100%; } 
-    }
-    
-    @media (max-width: 450px) {
-        .card { padding: 1rem; }
-        .ticker-header { gap: 0.5rem; }
-        .vote-box { width: 50px; min-width: 50px; }
-        .price-box { min-width: auto; padding: 10px 5px; }
-        .market-badge { display: none; } 
-        .pct-lg { font-size: 0.95rem; }
-        .price-sm { font-size: 0.7rem; }
-        .ticker-symbol { font-size: 0.95rem; }
-    }
-
-    .loading-veil { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; z-index:50; backdrop-filter:blur(3px); }
-    .spinner { width:30px; height:30px; border:3px solid #333; border-top-color:#3b82f6; border-radius:50%; animation:spin 0.8s linear infinite; }
-    @keyframes spin { to { transform:rotate(360deg); } }
-    #msg { margin-top:0.5rem; font-size:0.85rem; min-height: 1.2em;}
-  </style>
-</head>
-<body>
-
-  <header>
-    <h1>Watchlist</h1>
-    <div class="nav-row">
-      <button class="btn" onclick="location.href='members.html'">Dash</button>
-      <button class="btn" onclick="location.href='polls.html'">Polls</button>
-      <button class="btn danger" id="btnSignOut">Exit</button>
-    </div>
-  </header>
-
-  <div id="loading" class="loading-veil" aria-hidden="true"><div class="spinner"></div></div>
-
-  <main>
-    <section class="card">
-      <h2 class="section-title">Add to Watchlist</h2>
-      <div class="add-bar">
-        <input id="ticker" placeholder="Symbol (e.g. BTC)" style="text-transform:uppercase;" />
-        <select id="market">
-          <option value="AUTO">Market (Auto)</option>
-          <option value="NASDAQ">NASDAQ</option>
-          <option value="NYSE">NYSE</option>
-          <option value="CRYPTO">Crypto</option>
-          <option value="NZE">NZX</option>
-          <option value="ASX">ASX</option>
-        </select>
-        <input id="notes" placeholder="Why is this interesting?" />
-        <button class="btn btn-cta" id="addBtn">+ Add</button>
-      </div>
-      <div id="msg"></div>
-    </section>
-
-    <div class="main-layout">
-        
-        <div style="min-width: 0;"> 
-            <div style="display:flex; justify-content:space-between; margin-bottom:1rem; align-items:center;">
-                <h2 class="section-title" style="margin:0;">Active Tickers</h2>
-                <input id="search" placeholder="Filter..." style="width:120px; padding:0.4rem;" />
-            </div>
-            <div id="list" class="ticker-list">
-                </div>
-        </div>
-
-        <div style="display:flex; flex-direction:column; gap:1.5rem; min-width: 0;">
-            
-            <section class="card" style="padding:1rem;">
-                <h2 class="section-title" style="font-size:0.8rem; text-transform:uppercase; color:#71717a;">Top Suggesters</h2>
-                <div id="leaderWrap">
-                    <div class="muted">Loading...</div>
-                </div>
-            </section>
-
-            <section class="card" style="padding:1rem; background:#141414;">
-                 <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; align-items:center;">
-                    <h2 class="section-title" style="font-size:0.8rem; margin:0; color:#71717a;">ARCHIVE</h2>
-                    <input id="archSearch" placeholder="Search..." style="font-size:0.8rem; padding:0.2rem 0.5rem; width:80px;" />
-                 </div>
-                 <div id="archList" style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:0.5rem;"></div>
-            </section>
-
-        </div>
-    </div>
-
-  </main>
-
-  <script>
+<script>
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
     const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby9-PQORBC7L27BItmvRVowsut2KAgcPyJxeDszODyouSxYB59pOf1TrIGm1SLQEIiccQ/exec";
@@ -241,8 +7,6 @@
     let currentUser = null;
     let items = [], votes = [], myVotes = [];
     let pctMap = {};
-    
-    // State to keep track of which items are expanded
     let expandedItems = new Set();
 
     const el = (id) => document.getElementById(id);
@@ -273,7 +37,8 @@
         });
     }
 
-    async function fetchAll() {
+    // 1. FAST LOAD (Supabase Only)
+    async function fetchBasicData() {
         const [r1, r2] = await Promise.all([
             supabase.from("watchlist_items").select("*").order("created_at", {ascending:false}),
             supabase.from("watchlist_votes").select("item_id, user_id, value")
@@ -282,9 +47,17 @@
         items = r1.data || [];
         votes = r2.data || [];
         myVotes = votes.filter(v => v.user_id === currentUser.id);
+    }
 
+    // 2. SLOW LOAD (Prices)
+    async function fetchPrices() {
         const tickers = Array.from(new Set(items.map(i => (i.ticker||"").toUpperCase()).filter(Boolean))).join(",");
-        if(tickers) pctMap = await loadPctJSONP(tickers);
+        if(tickers) {
+            // Fetch prices silently
+            const newMap = await loadPctJSONP(tickers);
+            pctMap = newMap;
+            render(); // Re-render with prices when they arrive
+        }
     }
 
     function getScore(itemId) { return votes.filter(v => v.item_id === itemId).reduce((a,b) => a + (b.value||0), 0); }
@@ -309,7 +82,6 @@
             let stCls="neutral", pctCls="muted";
             if(data) { if(data.pct>=0) { stCls="up"; pctCls="up"; } else { stCls="down"; pctCls="down"; } }
 
-            // Check if expanded
             const isExpanded = expandedItems.has(i.id);
 
             const card = document.createElement('div');
@@ -332,10 +104,10 @@
                         <div class="price-sm">${priceTxt}</div>
                     </div>
                     <div class="actions">
-                        <button class="btn-icon btn-expand" onclick="toggleExpand('${i.id}')" title="Expand">
+                        <button class="btn-icon btn-expand" onclick="toggleExpand('${i.id}')">
                              <svg viewBox="0 0 24 24"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"></path></svg>
                         </button>
-                        <button class="btn-icon" onclick="toggleArchive('${i.id}', true)" title="Archive">
+                        <button class="btn-icon" onclick="toggleArchive('${i.id}', true)">
                             <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
                         </button>
                     </div>
@@ -392,7 +164,6 @@
         });
     }
 
-    /* --- ACTIONS --- */
     async function addItem() {
         const t = el('ticker').value.trim().toUpperCase();
         if(!t) return showMsg("Enter symbol", false);
@@ -409,7 +180,12 @@
             
             el('ticker').value=""; el('notes').value="";
             showMsg("Added!");
-            await fetchAll(); render();
+            
+            // Re-fetch basic data only to show the item immediately
+            await fetchBasicData();
+            render();
+            // Then fetch price in bg
+            fetchPrices();
         } catch(e) { showMsg("Error", false); }
         el('addBtn').disabled = false;
     }
@@ -417,7 +193,7 @@
     window.toggleExpand = (id) => {
         if(expandedItems.has(id)) expandedItems.delete(id);
         else expandedItems.add(id);
-        render(); // Re-render to update classes
+        render();
     };
 
     window.toggleVote = async (itemId) => {
@@ -437,7 +213,7 @@
 
     window.toggleArchive = async (id, state) => {
         await supabase.from("watchlist_items").update({archived:state}).eq("id", id);
-        await fetchAll(); render();
+        await fetchBasicData(); render();
     };
 
     el('addBtn').onclick = addItem;
@@ -445,12 +221,24 @@
     el('btnSignOut').onclick = async () => { await supabase.auth.signOut(); location.href="login.html"; };
 
     const ch = supabase.channel('public:watchlist');
-    ch.on('postgres_changes', { event:'*', schema:'public', table:'watchlist_items' }, async()=>{ await fetchAll(); render(); });
-    ch.on('postgres_changes', { event:'*', schema:'public', table:'watchlist_votes' }, async()=>{ await fetchAll(); render(); });
+    ch.on('postgres_changes', { event:'*', schema:'public', table:'watchlist_items' }, async()=>{ await fetchBasicData(); render(); fetchPrices(); });
+    ch.on('postgres_changes', { event:'*', schema:'public', table:'watchlist_votes' }, async()=>{ await fetchBasicData(); render(); });
     ch.subscribe();
 
     (async () => {
-        setLoading(true); await guard(); await fetchAll(); render(); setLoading(false);
+        setLoading(true);
+        await guard();
+        
+        // 1. Load Basic Data
+        await fetchBasicData();
+        
+        // 2. RENDER IMMEDIATELY (Stop Loading Wheel)
+        render();
+        setLoading(false);
+
+        // 3. Fetch Prices in Background
+        await fetchPrices();
+        
         setInterval(async () => { 
             const t = Array.from(new Set(items.map(i=>(i.ticker||"").toUpperCase()).filter(Boolean))).join(",");
             if(t) { pctMap = await loadPctJSONP(t); render(); }
@@ -458,5 +246,3 @@
     })();
 
   </script>
-</body>
-</html>
