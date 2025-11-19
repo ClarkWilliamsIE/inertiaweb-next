@@ -3,73 +3,137 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Polls</title>
+  <title>Polls - Winnerland</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
   <style>
     :root { color-scheme: dark; }
-    * { box-sizing: border-box; }
-    body { margin:0; background:#121212; color:#fff; font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-    header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; position:sticky; top:0; background:rgba(18,18,18,.9); border-bottom:1px solid #222; z-index:20; }
-    h1 { font-size:1.05rem; margin:0; }
-    main { padding:16px; max-width:1040px; margin:0 auto; display:flex; flex-direction:column; gap:1rem; }
-
-    .card { background:#1e1e1e; border:1px solid #2a2a2a; border-radius:12px; padding:14px; box-shadow:0 2px 12px rgba(0,0,0,.25); display:flex; flex-direction:column; gap:.75rem; }
-    .card-head { display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
-    .card-tools { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
-    .section-title { margin:.25rem 0; font-size:1rem; }
-
-    .row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
-    .row input { background:#0f0f0f; color:#fff; border:1px solid #333; border-radius:10px; padding:.6rem .7rem; }
-    .btn { padding:.6rem .9rem; border-radius:10px; border:1px solid #333; background:#1f2937; color:#fff; cursor:pointer; }
-    .btn:hover { background:#273244; }
-    .btn-cta { background:#2563eb; border-color:#2563eb; }
-    .btn-cta:hover { background:#1d4ed8; }
-    .btn-ghost { background:#111; }
-
-    /* Grid that scrolls inside the card body */
-    .scroller {
-      max-height: 460px;          /* adjust if you want more or less */
-      overflow:auto;
-      border:1px solid #262626;
-      border-radius:10px;
-      padding:.6rem;
-      background:#151515;
-      display:grid;
-      grid-template-columns: 1fr;
-      gap:.75rem;
+    body {
+      margin: 0; padding: 1rem;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f0f0f; color: #e0e0e0;
     }
-    @media (min-width: 980px) { .scroller { grid-template-columns: 1fr 1fr; } }
+    * { box-sizing: border-box; }
 
-    .poll { display:flex; flex-direction:column; gap:.6rem; background:#171717; border:1px solid #262626; border-radius:12px; padding:12px; }
-    .poll-head { display:flex; gap:.75rem; align-items:center; justify-content:space-between; }
-    .muted { color:#9aa0a6; font-size:.9rem; }
-    .title { font-weight:700; font-size:1rem; }
-    .sep { height:1px; background:#262626; margin:.25rem 0; }
+    /* --- SHARED DASHBOARD STYLES --- */
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+    h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
+    
+    .row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    
+    /* Buttons */
+    .btn {
+      padding: .5rem .85rem; border-radius: 8px; border: 1px solid #333;
+      background: #1f1f1f; color: #fff; cursor: pointer; transition: 0.2s;
+      font-weight: 500; font-size: 0.85rem;
+    }
+    .btn:hover { background: #2a2a2a; transform: translateY(-1px); }
+    .btn-cta { background: #3b82f6; border-color: #3b82f6; }
+    .btn-cta:hover { background: #2563eb; }
+    .btn-ghost { background: transparent; border-color: dashed #444; color: #a1a1aa; }
+    .btn-ghost:hover { border-color: #666; color: #fff; }
+    .danger { border-color: #7f1d1d; color: #fca5a5; }
+    .danger:hover { background: #450a0a; }
 
-    .option { display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:.45rem .55rem; border:1px solid #2a2a2a; border-radius:10px; background:#141414; transition:background .15s ease, border-color .15s ease; }
-    .option.good { border-color:#22c55e; background:#0f1a12; }
-    .option .left { display:flex; flex-direction:column; gap:.2rem; }
+    /* Inputs */
+    input {
+      background: #18181b; border: 1px solid #27272a; color: #fff;
+      border-radius: 8px; padding: 0.6rem 0.8rem; font-size: 0.9rem;
+      transition: border-color 0.2s;
+    }
+    input:focus { outline: none; border-color: #3b82f6; }
 
-    .chips { display:flex; flex-wrap:wrap; gap:.3rem; }
-    .chip { display:inline-flex; align-items:center; gap:.3rem; padding:.1rem .45rem; border:1px solid #333; border-radius:999px; font-size:.78rem; background:#0f0f0f; }
-    .me { border-color:#60a5fa; }
-    .ended { color:#fca5a5; }
-    .success { color:#86efac; }
-    .badge { display:inline-block; margin-left:.4rem; padding:.08rem .4rem; border:1px solid #2a2a2a; border-radius:999px; font-size:.72rem; }
+    /* Stats Grid */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-box { background: #18181b; border: 1px solid #27272a; padding: 1.25rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+    .stat-label { font-size: 0.75rem; color: #a1a1aa; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 1px; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: #fff; }
+    .text-blue { color: #60a5fa; } .text-green { color: #4ade80; }
 
-    .loading-veil { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(2px); }
-    .loading-box { background:#1d1d1d; border:1px solid #2a2a2a; border-radius:12px; padding:14px 16px; display:flex; align-items:center; gap:.75rem; box-shadow:0 6px 24px rgba(0,0,0,.35); }
-    .spinner { width:18px; height:18px; border:3px solid #2f2f2f; border-top-color:#60a5fa; border-radius:50%; animation: spin 0.8s linear infinite; }
+    /* Cards & Layout */
+    .card {
+      background: #18181b; border: 1px solid #27272a; border-radius: 16px;
+      padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-bottom: 1.5rem;
+    }
+    .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .section-title { font-size: 1.1rem; font-weight: 600; color: #fff; margin: 0; }
+    
+    /* --- POLL SPECIFIC STYLES --- */
+    .poll-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem; }
+    
+    .poll-card {
+      background: #0f0f0f; border: 1px solid #27272a; border-radius: 12px;
+      padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;
+      position: relative; overflow: hidden;
+    }
+    /* Add a subtle top border for style */
+    .poll-card::before { content:""; position:absolute; top:0; left:0; right:0; height:3px; background: #3f3f46; }
+    .poll-card.active::before { background: #3b82f6; }
+    .poll-card.ended::before { background: #ef4444; }
+
+    .poll-meta { display: flex; justify-content: space-between; align-items: flex-start; }
+    .poll-title { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 0.25rem; }
+    .poll-timer { font-size: 0.8rem; color: #a1a1aa; font-variant-numeric: tabular-nums; }
+    
+    .options-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    
+    .option-item {
+      position: relative;
+      border: 1px solid #333; border-radius: 8px;
+      background: #18181b; overflow: hidden;
+      cursor: pointer; transition: border-color 0.2s;
+    }
+    .option-item:hover { border-color: #555; }
+    
+    /* The Winning/Leader State */
+    .option-item.leader { border-color: #10b981; box-shadow: 0 0 0 1px #10b981; }
+    .option-item.voted { border-color: #3b82f6; }
+
+    /* The Progress Bar Behind Text */
+    .progress-bar {
+      position: absolute; top: 0; bottom: 0; left: 0;
+      background: rgba(255, 255, 255, 0.08);
+      z-index: 1; transition: width 0.5s ease-out;
+    }
+    .leader .progress-bar { background: rgba(16, 185, 129, 0.2); } /* Green tint */
+    .voted .progress-bar { background: rgba(59, 130, 246, 0.2); } /* Blue tint */
+
+    .option-content {
+      position: relative; z-index: 2;
+      padding: 0.75rem 1rem;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .opt-label { font-weight: 500; font-size: 0.95rem; }
+    .opt-stat { font-size: 0.85rem; color: #a1a1aa; display: flex; align-items: center; gap: 0.5rem; }
+    
+    .badge { 
+      font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 4px; 
+      text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;
+    }
+    .bg-green { background: #064e3b; color: #6ee7b7; }
+    .bg-blue { background: #1e3a8a; color: #93c5fd; }
+
+    /* Chips for voters */
+    .voter-avatars { display: flex; gap: -4px; margin-top: 4px; padding-left: 1rem; padding-bottom: 0.5rem; position: relative; z-index: 2;}
+    .mini-avatar { 
+      width: 20px; height: 20px; border-radius: 50%; background: #333; border: 1px solid #18181b;
+      font-size: 0.6rem; display: flex; align-items: center; justify-content: center; color: #aaa;
+    }
+
+    /* Loading / Utility */
+    .muted { color: #71717a; font-size: 0.9rem; }
+    .loading-veil { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); }
+    .spinner { width:24px; height:24px; border:3px solid #333; border-top-color:#3b82f6; border-radius:50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    #pageErr { display:none; background:#7f1d1d; color:#fee2e2; padding:8px 12px; border-bottom:1px solid #450a0a; }
+    #pageErr { display:none; background:#7f1d1d; color:#fee2e2; padding:1rem; text-align: center; }
   </style>
 </head>
 <body>
   <header>
     <h1>Polls</h1>
-    <div>
-      <button class="btn" onclick="location.href='members.html'">Back to dashboard</button>
+    <div class="row">
+      <button class="btn" onclick="location.href='members.html'">Dashboard</button>
       <button class="btn" onclick="location.href='watchlist.html'">Watchlist</button>
       <button class="btn danger" id="btnSignOut">Sign out</button>
     </div>
@@ -78,298 +142,288 @@
   <div id="pageErr"></div>
 
   <div id="loading" class="loading-veil" aria-hidden="true">
-    <div class="loading-box">
-      <div class="spinner" aria-label="Loading"></div>
-      <div id="loadingText">Loading, please wait</div>
+    <div class="spinner"></div>
+  </div>
+
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-box">
+      <div class="stat-label">Active Polls</div>
+      <div class="stat-value" id="statActive">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Total Votes</div>
+      <div class="stat-value text-blue" id="statVotes">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Your Participation</div>
+      <div class="stat-value text-green" id="statPart">0%</div>
     </div>
   </div>
 
   <main>
-    <!-- Create -->
     <section class="card">
-      <h2 class="section-title">Create a poll</h2>
+      <div class="section-head">
+        <h2 class="section-title">Create New Poll</h2>
+      </div>
       <div class="row">
-        <input id="title" placeholder="Poll title" style="flex:1; min-width:220px;" />
-        <input id="duration" type="number" min="1" max="72" value="48" style="width:120px;" />
-        <label class="muted">hours, limit 72</label>
+        <input id="title" placeholder="What do you want to ask?" style="flex:1; min-width:250px;" />
+        <input id="duration" type="number" min="1" max="72" value="48" style="width:100px;" placeholder="Hrs" />
+        <span class="muted" style="font-size:0.8rem">Hours</span>
       </div>
-      <div class="row" style="align-items:flex-start;">
-        <div id="optionsWrap" style="display:flex; flex-direction:column; gap:.5rem; width:100%;"></div>
-        <button id="btnAddOpt" class="btn btn-ghost" type="button">Add option</button>
+      
+      <div id="optionsWrap" style="display:flex; flex-direction:column; gap:.5rem; margin-top:0.5rem;"></div>
+      
+      <div class="row" style="justify-content:space-between; margin-top:0.5rem;">
+        <button id="btnAddOpt" class="btn btn-ghost" type="button">+ Add Option</button>
+        <button id="btnCreate" class="btn btn-cta">Launch Poll</button>
       </div>
-      <div class="row" style="justify-content:flex-end;">
-        <button id="btnCreate" class="btn btn-cta">Create poll</button>
-      </div>
-      <div id="createMsg" class="muted"></div>
     </section>
 
-    <!-- Active -->
-    <section class="card">
-      <div class="card-head">
-        <h2 class="section-title" style="margin:0;">Active polls</h2>
-        <div class="card-tools">
-          <label class="muted">Filter</label>
-          <input id="search" placeholder="Type to filter" />
-        </div>
-      </div>
-      <div id="activeList" class="scroller"></div>
-    </section>
+    <div class="section-head" style="margin-top:2rem;">
+      <h2 class="section-title">Live Voting</h2>
+      <input id="search" placeholder="Filter polls..." style="padding:0.4rem 0.8rem; font-size:0.85rem; width:200px;" />
+    </div>
+    <div id="activeList" class="poll-grid"></div>
 
-    <!-- Completed -->
-    <section class="card">
-      <div class="card-head">
-        <h2 class="section-title" style="margin:0;">Completed</h2>
-        <div class="card-tools">
-          <label class="muted">Filter</label>
-          <input id="archSearch" placeholder="Filter completed" />
-        </div>
-      </div>
-      <div id="archList" class="scroller"></div>
-    </section>
+    <div class="section-head" style="margin-top:3rem; border-top: 1px solid #27272a; padding-top: 1.5rem;">
+      <h2 class="section-title muted">Past Results</h2>
+    </div>
+    <div id="archList" class="poll-grid"></div>
   </main>
 
   <script>
-    /* config */
+    /* --- CONFIG --- */
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
-    const GREEN_THRESHOLD = 6;
-
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    /* page level error */
-    function showTopError(msg) { const el = document.getElementById('pageErr'); el.style.display = 'block'; el.textContent = `Error, ${msg}`; }
-    window.addEventListener('error', e => showTopError(e.message || 'script error'));
-    window.addEventListener('unhandledrejection', e => showTopError(e?.reason?.message || String(e?.reason || 'promise error')));
-
-    /* state */
+    /* --- STATE --- */
     let currentUser = null;
     let polls = [], options = [], votes = [];
 
-    /* loading */
-    const loadingEl = document.getElementById("loading");
-    const loadingTextEl = document.getElementById("loadingText");
-    let loadingDepth = 0;
-    function setLoading(on, text) { if (on) { loadingDepth += 1; if (text) loadingTextEl.textContent = text; loadingEl.style.display = "flex"; } else { loadingDepth = Math.max(0, loadingDepth - 1); if (loadingDepth === 0) loadingEl.style.display = "none"; } }
-    async function withLoading(label, fn) { try { setLoading(true, label); return await fn(); } finally { setLoading(false); } }
-    function showMsg(el, text, ok=true) { el.textContent = text; el.className = ok ? "success" : "ended"; setTimeout(()=>{ el.textContent = ""; el.className = "muted"; }, 1800); }
-    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c] || c)); }
+    /* --- UTILS --- */
+    const el = (id) => document.getElementById(id);
+    const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c] || c));
+    const showError = (msg) => { el('pageErr').style.display='block'; el('pageErr').textContent = msg; };
+    const setLoading = (on) => el('loading').style.display = on ? 'flex' : 'none';
 
-    /* auth */
     async function guard() {
-      const sess = await supabase.auth.getSession();
-      const session = sess?.data?.session;
-      if (!session) { location.href = "login.html"; return; }
-      const usr = await supabase.auth.getUser();
-      currentUser = usr?.data?.user;
-      if (!currentUser) { location.href = "login.html"; return; }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return location.href = "login.html";
+      currentUser = session.user;
     }
 
-    /* helpers */
-    function formatCountdown(endIso) {
-      const end = new Date(endIso).getTime();
-      const diff = end - Date.now();
-      if (diff <= 0) return "Ended";
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      return `${h}h ${m}m ${s}s left`;
-    }
-    function isEnded(poll) { return new Date(poll.end_at).getTime() <= Date.now(); }
-    function myDisplayName() {
-      const firstName = currentUser?.user_metadata?.first_name || "";
-      const fallback = (currentUser?.email || "").split("@")[0] || "Member";
-      return firstName || fallback;
-    }
-
-    /* data */
+    /* --- DATA --- */
     async function fetchAll() {
-      const p = await supabase.from("polls").select("*").order("created_at", { ascending:false });
+      const [p, o, v] = await Promise.all([
+        supabase.from("polls").select("*").order("created_at", { ascending:false }),
+        supabase.from("poll_options").select("*"),
+        supabase.from("poll_votes").select("*")
+      ]);
       if (p.error) throw p.error;
-      polls = p.data || [];
-      const o = await supabase.from("poll_options").select("*");
       if (o.error) throw o.error;
-      options = o.data || [];
-      const v = await supabase.from("poll_votes").select("*");
       if (v.error) throw v.error;
-      votes = v.data || [];
+      polls = p.data; options = o.data; votes = v.data;
     }
 
-    /* create */
-    async function createPoll() {
-      const title = document.getElementById("title").value.trim();
-      const duration = Math.min(72, Math.max(1, Number(document.getElementById("duration").value || 72)));
-      const msg = document.getElementById("createMsg");
-      if (!title) { showMsg(msg, "Please enter a title", false); return; }
-      const optInputs = Array.from(document.querySelectorAll('#optionsWrap .opt-input'));
-      const opts = optInputs.map(i => i.value.trim()).filter(Boolean).slice(0, 20);
-      if (opts.length < 2) { showMsg(msg, "Add at least two options", false); return; }
-
-      await withLoading("Creating poll", async () => {
-        const endAt = new Date(Date.now() + duration * 3600000).toISOString();
-        const { data: poll, error } = await supabase
-          .from("polls")
-          .insert({ title, created_by: currentUser.id, end_at: endAt })
-          .select("*")
-          .single();
-        if (error) throw error;
-        if (!poll) throw new Error("Could not create poll");
-        const rows = opts.map(label => ({ poll_id: poll.id, label }));
-        const insOpt = await supabase.from("poll_options").insert(rows).select("*");
-        if (insOpt.error) throw insOpt.error;
-        document.getElementById("title").value = "";
-        document.getElementById("duration").value = 72;
-        resetOptionInputs();
-        showMsg(msg, "Poll created");
-        await fetchAll();
-        renderLists();
-      });
-    }
-
-    /* vote */
-    async function vote(pollId, optionId) {
-      const displayName = myDisplayName();
-      const up = await supabase.from("poll_votes").upsert(
-        { poll_id: pollId, option_id: optionId, user_id: currentUser.id, voter_name: displayName },
-        { onConflict: "poll_id,user_id" }
-      );
-      if (up.error) throw up.error;
-    }
-
-    /* indexers */
+    /* --- RENDER LOGIC --- */
     function buildIndex() {
-      const optByPoll = new Map();
-      for (const o of options) {
-        if (!optByPoll.has(o.poll_id)) optByPoll.set(o.poll_id, []);
-        optByPoll.get(o.poll_id).push(o);
-      }
-      const votesByPoll = new Map();
-      for (const v of votes) {
-        if (!votesByPoll.has(v.poll_id)) votesByPoll.set(v.poll_id, []);
-        votesByPoll.get(v.poll_id).push(v);
-      }
-      const votesByOption = new Map();
-      for (const v of votes) {
-        if (!votesByOption.has(v.option_id)) votesByOption.set(v.option_id, []);
-        votesByOption.get(v.option_id).push(v);
-      }
-      return { optByPoll, votesByPoll, votesByOption };
+      // Helper to group data efficiently
+      const optByPoll = {};
+      const votesByPoll = {};
+      const votesByOpt = {};
+      
+      options.forEach(o => {
+        if(!optByPoll[o.poll_id]) optByPoll[o.poll_id] = [];
+        optByPoll[o.poll_id].push(o);
+      });
+      
+      votes.forEach(v => {
+        if(!votesByPoll[v.poll_id]) votesByPoll[v.poll_id] = [];
+        votesByPoll[v.poll_id].push(v);
+        
+        if(!votesByOpt[v.option_id]) votesByOpt[v.option_id] = [];
+        votesByOpt[v.option_id].push(v);
+      });
+
+      return { optByPoll, votesByPoll, votesByOpt };
     }
 
-    /* render */
-    function renderLists() {
-      const q = (document.getElementById("search").value || "").trim().toLowerCase();
-      const aq = (document.getElementById("archSearch").value || "").trim().toLowerCase();
-      const activeWrap = document.getElementById("activeList");
-      const archWrap = document.getElementById("archList");
+    function render() {
+      const { optByPoll, votesByPoll, votesByOpt } = buildIndex();
+      const term = el('search').value.toLowerCase();
+      
+      const activeWrap = el('activeList');
+      const archWrap = el('archList');
       activeWrap.innerHTML = ""; archWrap.innerHTML = "";
-      const { optByPoll, votesByPoll, votesByOption } = buildIndex();
 
-      const active = polls.filter(p => !isEnded(p) && (!q || p.title.toLowerCase().includes(q)));
-      const ended = polls.filter(p => isEnded(p) && (!aq || p.title.toLowerCase().includes(aq)));
+      // 1. Update Top Stats
+      const activeCount = polls.filter(p => new Date(p.end_at) > new Date()).length;
+      const totalVotes = votes.length;
+      const myVotes = votes.filter(v => v.user_id === currentUser.id).length;
+      const participation = polls.length ? Math.round((myVotes / polls.length) * 100) : 0;
 
-      function renderPoll(p, parent) {
-        const opts = (optByPoll.get(p.id) || []).slice();
-        const pVotes = votesByPoll.get(p.id) || [];
-        const myVote = pVotes.find(v => v.user_id === currentUser.id);
-        const endedState = isEnded(p);
-        const box = document.createElement("div");
-        box.className = "poll";
-        const cd = endedState ? "Ended" : formatCountdown(p.end_at);
-        box.innerHTML = `
-          <div class="poll-head">
+      el('statActive').textContent = activeCount;
+      el('statVotes').textContent = totalVotes.toLocaleString();
+      el('statPart').textContent = participation + "%";
+
+
+      // 2. Draw Polls
+      polls.forEach(p => {
+        const isEnded = new Date(p.end_at) <= new Date();
+        if (term && !p.title.toLowerCase().includes(term)) return;
+
+        const pollOpts = optByPoll[p.id] || [];
+        const pollVotes = votesByPoll[p.id] || [];
+        const myVote = pollVotes.find(v => v.user_id === currentUser.id);
+        const totalPollVotes = pollVotes.length;
+
+        // Find leader (most votes)
+        let maxVotes = -1;
+        pollOpts.forEach(o => {
+          const count = (votesByOpt[o.id] || []).length;
+          if(count > maxVotes) maxVotes = count;
+        });
+
+        const card = document.createElement('div');
+        card.className = `poll-card ${isEnded ? 'ended' : 'active'}`;
+        
+        // Timer Logic
+        let timeLabel = "Ended";
+        if (!isEnded) {
+            const diff = new Date(p.end_at) - new Date();
+            const h = Math.floor(diff/3600000);
+            timeLabel = `${h}h remaining`;
+        }
+
+        let html = `
+          <div class="poll-meta">
             <div>
-              <div class="title">${escapeHtml(p.title)}</div>
-              <div class="muted">Ends at ${new Date(p.end_at).toLocaleString()} (${escapeHtml(cd)})</div>
+                <div class="poll-title">${escapeHtml(p.title)}</div>
+                <div class="poll-timer">${timeLabel} • ${totalPollVotes} votes</div>
             </div>
-            ${endedState ? '<div class="ended">Voting closed</div>' : ''}
+            ${isEnded ? '<span class="badge bg-green">Final</span>' : '<span class="badge bg-blue">Live</span>'}
           </div>
-          <div class="sep"></div>
+          <div class="options-list">
         `;
-        opts.sort((a,b) => a.label.localeCompare(b.label));
-        opts.forEach(o => {
-          const arr = votesByOption.get(o.id) || [];
-          const count = arr.length;
-          const you = myVote && myVote.option_id === o.id;
-          const chipHtml = arr.map(v => `<span class="chip ${v.user_id===currentUser.id?'me':''}">${escapeHtml(v.voter_name || 'Member')}</span>`).join(' ');
-          const row = document.createElement('div');
-          row.className = 'option' + (count >= GREEN_THRESHOLD ? ' good' : '');
-          row.innerHTML = `
-            <div class="left">
-              <div>
-                <strong>${escapeHtml(o.label)}</strong>
-                <span class="muted">(${count} vote${count===1?'':'s'})</span>
-                ${count >= GREEN_THRESHOLD ? '<span class="badge">Popular</span>' : ''}
+
+        // Sort options alphabetically
+        pollOpts.sort((a,b) => a.label.localeCompare(b.label));
+
+        pollOpts.forEach(o => {
+          const vArr = votesByOpt[o.id] || [];
+          const count = vArr.length;
+          const pct = totalPollVotes > 0 ? Math.round((count / totalPollVotes) * 100) : 0;
+          const isLeader = count === maxVotes && count > 0;
+          const isMyVote = myVote && myVote.option_id === o.id;
+
+          // Visual Classes
+          let classes = "option-item";
+          if (isLeader) classes += " leader";
+          if (isMyVote) classes += " voted";
+
+          html += `
+            <div class="${classes}" onclick="castVote('${p.id}', '${o.id}', ${isEnded})">
+              <div class="progress-bar" style="width: ${pct}%"></div>
+              <div class="option-content">
+                <span class="opt-label">${escapeHtml(o.label)}</span>
+                <span class="opt-stat">
+                  ${isLeader ? '<span class="badge bg-green">WIN</span>' : ''}
+                  ${isMyVote ? '<span class="badge bg-blue">YOU</span>' : ''}
+                  <strong>${pct}%</strong>
+                </span>
               </div>
-              <div class="chips">${chipHtml || '<span class="muted">No votes yet</span>'}</div>
-            </div>
-            <div>
-              <button class="btn ${you?'btn-cta':''}" ${endedState?'disabled':''} data-poll="${p.id}" data-opt="${o.id}">${you?'Your vote':'Vote'}</button>
             </div>
           `;
-          box.appendChild(row);
         });
-        parent.appendChild(box);
-      }
 
-      if (!active.length) activeWrap.innerHTML = '<div class="muted">No active polls</div>';
-      if (!ended.length) archWrap.innerHTML = '<div class="muted">No completed polls</div>';
+        html += `</div>`; // End options list
+        card.innerHTML = html;
 
-      active.forEach(p => renderPoll(p, activeWrap));
-      ended.forEach(p => renderPoll(p, archWrap));
-
-      document.querySelectorAll('.option .btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const pollId = btn.getAttribute('data-poll');
-          const optId = btn.getAttribute('data-opt');
-          try { await vote(pollId, optId); await fetchAll(); renderLists(); } catch(e) { showTopError(e.message || e); }
-        });
+        if (isEnded) archWrap.appendChild(card);
+        else activeWrap.appendChild(card);
       });
+
+      if(activeWrap.children.length === 0) activeWrap.innerHTML = `<div class="muted" style="grid-column:1/-1; text-align:center; padding:2rem;">No active polls right now.</div>`;
     }
 
-    /* realtime */
-    function setupRealtime() {
-      const channel = supabase.channel('polls_rt');
-      channel.on('postgres_changes', { event:'*', schema:'public', table:'polls' }, async () => { await fetchAll(); renderLists(); });
-      channel.on('postgres_changes', { event:'*', schema:'public', table:'poll_options' }, async () => { await fetchAll(); renderLists(); });
-      channel.on('postgres_changes', { event:'*', schema:'public', table:'poll_votes' }, async () => { await fetchAll(); renderLists(); });
-      channel.subscribe();
+    /* --- ACTIONS --- */
+    async function createPoll() {
+      const title = el('title').value.trim();
+      const dur = Number(el('duration').value) || 48;
+      const optInputs = document.querySelectorAll('.opt-input');
+      const labels = Array.from(optInputs).map(i => i.value.trim()).filter(Boolean);
+
+      if(!title || labels.length < 2) return alert("Title and at least 2 options required.");
+
+      setLoading(true);
+      const endAt = new Date(Date.now() + dur * 3600000).toISOString();
+      
+      const { data: poll, error } = await supabase.from("polls").insert({ title, created_by: currentUser.id, end_at: endAt }).select().single();
+      if(error) { setLoading(false); return showError(error.message); }
+
+      const optRows = labels.map(l => ({ poll_id: poll.id, label: l }));
+      await supabase.from("poll_options").insert(optRows);
+
+      // Reset UI
+      el('title').value = "";
+      resetInputs();
+      await fetchAll();
+      render();
+      setLoading(false);
     }
 
-    /* option inputs */
-    function addOptionInput(value) {
-      const safeValue = typeof value === 'string' ? value : '';
-      const wrap = document.getElementById('optionsWrap');
-      const row = document.createElement('div');
-      row.className = 'row';
-      row.innerHTML = `
-        <input class="opt-input" placeholder="Option" value="${safeValue.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" style="flex:1; min-width:220px;" />
-        <button class="btn btn-ghost" type="button">Remove</button>
-      `;
-      row.querySelector('button').addEventListener('click', () => row.remove());
-      wrap.appendChild(row);
-    }
-    function resetOptionInputs() {
-      const wrap = document.getElementById('optionsWrap');
-      wrap.innerHTML = '';
-      addOptionInput('');
-      addOptionInput('');
+    async function castVote(pollId, optId, isEnded) {
+      if (isEnded) return; 
+      // Optimistic UI update could go here, but let's rely on realtime/fetch for safety
+      setLoading(true);
+      const displayName = (currentUser.user_metadata?.first_name) || currentUser.email.split('@')[0];
+      
+      const { error } = await supabase.from("poll_votes").upsert(
+        { poll_id: pollId, option_id: optId, user_id: currentUser.id, voter_name: displayName },
+        { onConflict: "poll_id, user_id" }
+      );
+
+      if(error) showError(error.message);
+      else {
+        await fetchAll();
+        render();
+      }
+      setLoading(false);
     }
 
-    /* wire up */
-    document.getElementById('btnCreate').addEventListener('click', createPoll);
-    document.getElementById('btnAddOpt').addEventListener('click', () => addOptionInput(''));
-    document.getElementById('search').addEventListener('input', ()=> renderLists());
-    document.getElementById('archSearch').addEventListener('input', ()=> renderLists());
-    document.getElementById('btnSignOut').addEventListener('click', async () => { await supabase.auth.signOut(); location.href = 'login.html'; });
-
-    /* start */
-    async function init() {
-      try {
-        await withLoading('Loading polls', async () => { await guard(); resetOptionInputs(); await fetchAll(); renderLists(); setupRealtime(); });
-        setInterval(()=> renderLists(), 1000);
-      } catch (e) { showTopError(e.message || e); }
+    /* --- INPUT HELPERS --- */
+    function addInput() {
+      const div = document.createElement('div');
+      div.className = "row";
+      div.innerHTML = `<input class="opt-input" placeholder="Option Label" style="flex:1" /> <button class="btn btn-ghost" onclick="this.parentElement.remove()">✕</button>`;
+      el('optionsWrap').appendChild(div);
     }
-    init();
+    function resetInputs() {
+      el('optionsWrap').innerHTML = "";
+      addInput(); addInput();
+    }
+
+    /* --- INIT --- */
+    el('btnCreate').onclick = createPoll;
+    el('btnAddOpt').onclick = addInput;
+    el('search').oninput = render;
+    el('btnSignOut').onclick = async () => { await supabase.auth.signOut(); location.href="login.html"; };
+
+    // Realtime Subscription
+    supabase.channel('public:polls').on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, async () => {
+        await fetchAll(); render();
+    }).subscribe();
+
+    (async () => {
+      setLoading(true);
+      await guard();
+      resetInputs();
+      await fetchAll();
+      render();
+      setLoading(false);
+    })();
+
   </script>
 </body>
 </html>
