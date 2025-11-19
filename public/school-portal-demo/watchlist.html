@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Watchlist - Winnerland</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -12,8 +12,8 @@
     body { 
         margin:0; background:#0f0f0f; color:#e0e0e0; 
         font-family:system-ui, -apple-system, sans-serif; 
-        padding: 1rem;
-        padding-bottom: 4rem; /* Space for scrolling on mobile */
+        padding: 1rem; padding-bottom: 4rem;
+        overflow-x: hidden; /* Prevent horizontal scroll */
     }
     
     /* --- HEADER --- */
@@ -41,41 +41,32 @@
     .muted { color:#71717a; font-size:0.85rem; }
     .text-green { color:#4ade80; } .text-red { color:#f87171; }
 
-    /* --- STATS GRID --- */
-    .stats-grid { 
-        display:grid; grid-template-columns:repeat(auto-fit, minmax(100px, 1fr)); 
-        gap:0.75rem; margin-bottom:1.5rem; 
-    }
-    .stat-box { background:#18181b; border:1px solid #27272a; padding:1rem; border-radius:12px; text-align:center; }
-    .stat-label { font-size:0.7rem; color:#a1a1aa; text-transform:uppercase; margin-bottom:0.25rem; letter-spacing:0.5px; }
-    .stat-value { font-size:1.25rem; font-weight:700; color:#fff; }
-
     /* --- CARDS --- */
     .card { background:#18181b; border:1px solid #27272a; border-radius:16px; padding:1.25rem; margin-bottom:1.5rem; box-shadow:0 4px 6px rgba(0,0,0,0.3); }
     .section-title { font-size:1.1rem; font-weight:600; color:#fff; margin:0 0 1rem 0; }
 
-    /* --- LAYOUT GRID (The Responsive Fix) --- */
+    /* --- LAYOUT GRID --- */
     .main-layout {
         display: grid;
-        grid-template-columns: 1fr 320px; /* Desktop: Sidebar is 320px */
+        grid-template-columns: 1fr 320px; 
         gap: 1.5rem;
         align-items: start;
+        width: 100%;
     }
     
     /* --- ADD TICKER BAR --- */
-    .add-bar {
-        display: flex; gap: 0.5rem; flex-wrap: wrap;
-    }
-    .add-bar > * { flex: 1; } /* Items grow to fill space */
-    .add-bar #ticker { flex: 0 0 100px; } /* Ticker stays smallish */
+    .add-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .add-bar > * { flex: 1; }
+    .add-bar #ticker { flex: 0 0 100px; } 
     .add-bar #addBtn { flex: 0 0 auto; }
 
     /* --- TICKER ITEMS --- */
-    .ticker-list { display:flex; flex-direction:column; gap:1rem; }
+    .ticker-list { display:flex; flex-direction:column; gap:0.75rem; width: 100%; }
 
     .ticker-item {
       display:flex; align-items:stretch; gap:0.75rem;
       background:#0f0f0f; border:1px solid #27272a; border-radius:12px; overflow:hidden;
+      width: 100%; /* Ensure it fills container */
     }
     
     /* Status Borders */
@@ -85,23 +76,31 @@
 
     .vote-box {
       display:flex; flex-direction:column; align-items:center; justify-content:center;
-      width:60px; min-width:60px; background:#141414; border-right:1px solid #27272a;
+      width:60px; min-width:60px; /* Fixed width */
+      background:#141414; border-right:1px solid #27272a;
       cursor:pointer; 
     }
     .vote-box.active { background:rgba(34, 197, 94, 0.15); color:#4ade80; }
     .vote-count { font-size:1.1rem; font-weight:700; }
     .vote-lbl { font-size:0.6rem; text-transform:uppercase; color:#71717a; }
     
-    .ticker-content { flex:1; padding:10px 0; min-width:0; display:flex; flex-direction:column; justify-content:center; }
-    .ticker-symbol { font-size:1rem; font-weight:700; letter-spacing:0.5px; display:flex; align-items:center; gap:0.5rem; }
+    .ticker-content { 
+        flex: 1; /* Grow to fill space */
+        min-width: 0; /* CRITICAL: Allows flex child to shrink below content size */
+        padding: 10px 0; display:flex; flex-direction:column; justify-content:center; 
+    }
+    .ticker-symbol { font-size:1rem; font-weight:700; letter-spacing:0.5px; display:flex; align-items:center; gap:0.5rem; white-space: nowrap; }
     .market-badge { font-size:0.6rem; padding:1px 4px; border-radius:4px; border:1px solid #333; color:#888; }
     .ticker-note { font-size:0.8rem; color:#a1a1aa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;}
-    .suggester { font-size:0.7rem; color:#555; }
+    .suggester { font-size:0.7rem; color:#555; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-    .price-box { padding:10px; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; min-width:80px; }
-    .pct-lg { font-size:1.1rem; font-weight:700; }
+    .price-box { 
+        padding:10px; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; 
+        min-width:80px; /* Default width */
+    }
+    .pct-lg { font-size:1.1rem; font-weight:700; white-space: nowrap; }
     .pct-lg.up { color:#4ade80; } .pct-lg.down { color:#f87171; }
-    .price-sm { font-size:0.75rem; color:#71717a; }
+    .price-sm { font-size:0.75rem; color:#71717a; white-space: nowrap; }
 
     .actions { padding:0 10px; display:flex; align-items:center; border-left:1px solid #27272a; }
     .btn-icon { padding:8px; border:none; background:transparent; color:#555; font-size:1.2rem; cursor:pointer; }
@@ -118,21 +117,26 @@
 
     /* --- RESPONSIVE BREAKPOINTS --- */
     @media (max-width: 900px) {
-        .main-layout { grid-template-columns: 1fr; /* Stack layout on mobile */ }
-        
-        .add-bar > * { flex: 1 1 100%; /* Inputs take full width */ }
+        .main-layout { grid-template-columns: 1fr; }
+        .add-bar > * { flex: 1 1 100%; }
         .add-bar #addBtn { flex: 1 1 100%; } 
-        
-        /* Keep ticker symbol and note readable */
-        .ticker-symbol { font-size: 1rem; }
-        .ticker-note { font-size: 0.8rem; }
     }
     
-    @media (max-width: 400px) {
-        /* Tiny screens: Hide market badge or reduce padding */
-        .market-badge { display: none; }
+    @media (max-width: 450px) {
+        /* Mobile specific tweaks */
         .card { padding: 1rem; }
-        .price-box { min-width: 70px; padding-left: 0; }
+        
+        /* Tighten the ticker card */
+        .ticker-item { gap: 0.5rem; }
+        .vote-box { width: 50px; min-width: 50px; } /* Shrink vote box */
+        .price-box { min-width: auto; padding: 10px 5px; } /* Let price box shrink */
+        .actions { padding: 0 5px; }
+        
+        /* Hide non-essential info on tiny screens */
+        .market-badge { display: none; } 
+        .pct-lg { font-size: 0.95rem; }
+        .price-sm { font-size: 0.7rem; }
+        .ticker-symbol { font-size: 0.95rem; }
     }
 
     .loading-veil { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; z-index:50; backdrop-filter:blur(3px); }
@@ -153,21 +157,6 @@
   </header>
 
   <div id="loading" class="loading-veil" aria-hidden="true"><div class="spinner"></div></div>
-
-  <div class="stats-grid">
-    <div class="stat-box">
-      <div class="stat-label">Total</div>
-      <div class="stat-value" id="statTotal">0</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-label">Green</div>
-      <div class="stat-value text-green" id="statGreen">0</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-label">Red</div>
-      <div class="stat-value text-red" id="statRed">0</div>
-    </div>
-  </div>
 
   <main>
     <section class="card">
@@ -190,8 +179,7 @@
 
     <div class="main-layout">
         
-        <div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:1rem; align-items:center;">
+        <div style="min-width: 0;"> <div style="display:flex; justify-content:space-between; margin-bottom:1rem; align-items:center;">
                 <h2 class="section-title" style="margin:0;">Active Tickers</h2>
                 <input id="search" placeholder="Filter..." style="width:120px; padding:0.4rem;" />
             </div>
@@ -199,7 +187,7 @@
                 </div>
         </div>
 
-        <div style="display:flex; flex-direction:column; gap:1.5rem;">
+        <div style="display:flex; flex-direction:column; gap:1.5rem; min-width: 0;">
             
             <section class="card" style="padding:1rem;">
                 <h2 class="section-title" style="font-size:0.8rem; text-transform:uppercase; color:#71717a;">Top Suggesters</h2>
@@ -283,11 +271,6 @@
         const active = items.filter(i => !i.archived).map(i => ({ ...i, score: getScore(i.id), myVote: myVotes.find(v => v.item_id === i.id)?.value || 0 }));
         active.sort((a,b) => b.score - a.score || a.ticker.localeCompare(b.ticker));
 
-        // Stats
-        let g=0, r=0;
-        active.forEach(i => { const p=getPctData(i.ticker); if(p) (p.pct>=0?g++:r++); });
-        el('statTotal').textContent = active.length; el('statGreen').textContent = g; el('statRed').textContent = r;
-
         // Active List
         const list = el('list'); list.innerHTML = "";
         if(active.length === 0) list.innerHTML = `<div class="muted" style="text-align:center; padding:2rem;">No items found</div>`;
@@ -369,7 +352,6 @@
         });
     }
 
-    /* --- ACTIONS --- */
     async function addItem() {
         const t = el('ticker').value.trim().toUpperCase();
         if(!t) return showMsg("Enter symbol", false);
@@ -381,7 +363,6 @@
                 ticker: t, notes: el('notes').value.trim(), created_by: currentUser.id, suggested_by_name: name, archived: false
             });
             if(error) throw error;
-            // Log to sheet
             fetch(SHEET_WEBAPP_URL, { method:"POST", mode:"no-cors", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({ticker:t, notes:el('notes').value, user_id:currentUser.id}) });
             
             el('ticker').value=""; el('notes').value="";
