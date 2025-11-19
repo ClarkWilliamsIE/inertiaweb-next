@@ -2,143 +2,169 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>Watchlist - Winnerland</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    body { margin:0; background:#0f0f0f; color:#e0e0e0; font-family:system-ui, -apple-system, sans-serif; padding: 1rem; }
+    body { 
+        margin:0; background:#0f0f0f; color:#e0e0e0; 
+        font-family:system-ui, -apple-system, sans-serif; 
+        padding: 1rem;
+        padding-bottom: 4rem; /* Space for scrolling on mobile */
+    }
     
-    /* --- SHARED HEADER & UTILS --- */
-    header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; }
+    /* --- HEADER --- */
+    header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap: 1rem; margin-bottom:1.5rem; }
     h1 { margin:0; font-size:1.5rem; font-weight:700; letter-spacing:-0.5px; }
     
-    .row { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
-    .btn { padding:.5rem .85rem; border-radius:8px; border:1px solid #333; background:#1f1f1f; color:#fff; cursor:pointer; transition:0.2s; font-weight:500; }
+    .nav-row { display:flex; gap:.5rem; }
+
+    /* --- BUTTONS & INPUTS --- */
+    .btn { padding:.5rem .85rem; border-radius:8px; border:1px solid #333; background:#1f1f1f; color:#fff; cursor:pointer; transition:0.2s; font-weight:500; font-size:0.9rem; }
     .btn:hover { background:#2a2a2a; transform:translateY(-1px); }
+    .btn:active { transform:translateY(0); }
     .btn-cta { background:#3b82f6; border-color:#3b82f6; }
     .btn-cta:hover { background:#2563eb; }
     .btn-ghost { background:transparent; border-color:dashed #444; color:#a1a1aa; }
-    .btn-ghost:hover { border-color:#666; color:#fff; }
     .danger { border-color:#7f1d1d; color:#fca5a5; }
-    .danger:hover { background:#450a0a; }
     
-    input, select { background:#18181b; color:#fff; border:1px solid #27272a; border-radius:8px; padding:.6rem .8rem; font-size:0.9rem; transition:border-color 0.2s; }
+    input, select { 
+        background:#18181b; color:#fff; border:1px solid #27272a; 
+        border-radius:8px; padding:.6rem .8rem; font-size:0.9rem; 
+        transition:border-color 0.2s; width: 100%;
+    }
     input:focus, select:focus { outline:none; border-color:#3b82f6; }
 
     .muted { color:#71717a; font-size:0.85rem; }
-    .text-green { color:#4ade80; } .text-red { color:#f87171; } .text-blue { color:#60a5fa; }
+    .text-green { color:#4ade80; } .text-red { color:#f87171; }
 
     /* --- STATS GRID --- */
-    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:1rem; margin-bottom:2rem; }
-    .stat-box { background:#18181b; border:1px solid #27272a; padding:1.25rem; border-radius:12px; text-align:center; box-shadow:0 4px 6px rgba(0,0,0,0.2); }
-    .stat-label { font-size:0.75rem; color:#a1a1aa; text-transform:uppercase; margin-bottom:0.5rem; letter-spacing:1px; }
-    .stat-value { font-size:1.5rem; font-weight:700; color:#fff; }
+    .stats-grid { 
+        display:grid; grid-template-columns:repeat(auto-fit, minmax(100px, 1fr)); 
+        gap:0.75rem; margin-bottom:1.5rem; 
+    }
+    .stat-box { background:#18181b; border:1px solid #27272a; padding:1rem; border-radius:12px; text-align:center; }
+    .stat-label { font-size:0.7rem; color:#a1a1aa; text-transform:uppercase; margin-bottom:0.25rem; letter-spacing:0.5px; }
+    .stat-value { font-size:1.25rem; font-weight:700; color:#fff; }
 
     /* --- CARDS --- */
-    .card { background:#18181b; border:1px solid #27272a; border-radius:16px; padding:1.5rem; margin-bottom:1.5rem; box-shadow:0 4px 6px rgba(0,0,0,0.3); }
+    .card { background:#18181b; border:1px solid #27272a; border-radius:16px; padding:1.25rem; margin-bottom:1.5rem; box-shadow:0 4px 6px rgba(0,0,0,0.3); }
     .section-title { font-size:1.1rem; font-weight:600; color:#fff; margin:0 0 1rem 0; }
 
-    /* --- TICKER LIST --- */
-    .grid { display:grid; grid-template-columns:1fr; gap:1rem; }
-    @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
+    /* --- LAYOUT GRID (The Responsive Fix) --- */
+    .main-layout {
+        display: grid;
+        grid-template-columns: 1fr 320px; /* Desktop: Sidebar is 320px */
+        gap: 1.5rem;
+        align-items: start;
+    }
+    
+    /* --- ADD TICKER BAR --- */
+    .add-bar {
+        display: flex; gap: 0.5rem; flex-wrap: wrap;
+    }
+    .add-bar > * { flex: 1; } /* Items grow to fill space */
+    .add-bar #ticker { flex: 0 0 100px; } /* Ticker stays smallish */
+    .add-bar #addBtn { flex: 0 0 auto; }
+
+    /* --- TICKER ITEMS --- */
+    .ticker-list { display:flex; flex-direction:column; gap:1rem; }
 
     .ticker-item {
-      display:flex; align-items:stretch; gap:1rem;
-      background:#0f0f0f; border:1px solid #27272a; border-radius:12px; padding:0;
-      position:relative; overflow:hidden; transition:transform 0.2s;
+      display:flex; align-items:stretch; gap:0.75rem;
+      background:#0f0f0f; border:1px solid #27272a; border-radius:12px; overflow:hidden;
     }
-    .ticker-item:hover { transform:translateY(-2px); border-color:#444; }
     
-    /* Left colored border based on performance */
+    /* Status Borders */
     .ticker-item.up { border-left: 4px solid #22c55e; }
     .ticker-item.down { border-left: 4px solid #ef4444; }
     .ticker-item.neutral { border-left: 4px solid #555; }
 
-    /* Vote Box */
     .vote-box {
       display:flex; flex-direction:column; align-items:center; justify-content:center;
-      width:70px; background:#141414; border-right:1px solid #27272a;
-      cursor:pointer; transition:background 0.2s;
+      width:60px; min-width:60px; background:#141414; border-right:1px solid #27272a;
+      cursor:pointer; 
     }
-    .vote-box:hover { background:#1a1a1a; }
     .vote-box.active { background:rgba(34, 197, 94, 0.15); color:#4ade80; }
-    .vote-count { font-size:1.2rem; font-weight:700; line-height:1; }
-    .vote-lbl { font-size:0.65rem; text-transform:uppercase; color:#71717a; margin-top:2px; }
+    .vote-count { font-size:1.1rem; font-weight:700; }
+    .vote-lbl { font-size:0.6rem; text-transform:uppercase; color:#71717a; }
     
-    /* Content */
-    .ticker-content { flex:1; padding:12px 0; display:flex; flex-direction:column; justify-content:center; min-width:0; }
-    .ticker-symbol { font-size:1.1rem; font-weight:700; letter-spacing:0.5px; display:flex; align-items:center; gap:0.5rem; }
-    .market-badge { font-size:0.65rem; padding:1px 4px; border-radius:4px; border:1px solid #333; color:#888; font-weight:400; }
-    .ticker-note { font-size:0.85rem; color:#a1a1aa; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .suggester { font-size:0.75rem; color:#555; margin-top:2px; }
+    .ticker-content { flex:1; padding:10px 0; min-width:0; display:flex; flex-direction:column; justify-content:center; }
+    .ticker-symbol { font-size:1rem; font-weight:700; letter-spacing:0.5px; display:flex; align-items:center; gap:0.5rem; }
+    .market-badge { font-size:0.6rem; padding:1px 4px; border-radius:4px; border:1px solid #333; color:#888; }
+    .ticker-note { font-size:0.8rem; color:#a1a1aa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;}
+    .suggester { font-size:0.7rem; color:#555; }
 
-    /* Price Box */
-    .price-box { padding:12px 16px; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; min-width:100px; }
-    .pct-lg { font-size:1.2rem; font-weight:700; }
+    .price-box { padding:10px; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; min-width:80px; }
+    .pct-lg { font-size:1.1rem; font-weight:700; }
     .pct-lg.up { color:#4ade80; } .pct-lg.down { color:#f87171; }
-    .price-sm { font-size:0.8rem; color:#71717a; }
+    .price-sm { font-size:0.75rem; color:#71717a; }
 
-    /* Actions (Archive) */
-    .actions { padding:12px; display:flex; align-items:center; border-left:1px solid #27272a; }
-    .btn-icon { padding:6px; border-radius:6px; border:none; background:transparent; color:#555; cursor:pointer; }
-    .btn-icon:hover { background:#222; color:#ccc; }
+    .actions { padding:0 10px; display:flex; align-items:center; border-left:1px solid #27272a; }
+    .btn-icon { padding:8px; border:none; background:transparent; color:#555; font-size:1.2rem; cursor:pointer; }
 
     /* --- LEADERBOARD --- */
-    .leader-row {
-        display:flex; align-items:center; gap:1rem; padding:0.75rem;
-        border-bottom:1px solid #27272a;
-    }
-    .leader-row:last-child { border-bottom:none; }
-    .rank { font-size:1.1rem; font-weight:700; color:#555; width:25px; }
-    .avatar { width:32px; height:32px; border-radius:50%; background:#333; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700; color:#ccc; }
+    .leader-row { display:flex; align-items:center; gap:0.75rem; padding:0.75rem 0; border-bottom:1px solid #27272a; }
+    .rank { font-weight:700; color:#555; width:20px; }
+    .avatar { width:28px; height:28px; border-radius:50%; background:#333; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700; }
     .player-info { flex:1; }
-    .player-name { font-size:0.95rem; font-weight:600; }
-    .player-stats { font-size:0.8rem; color:#71717a; }
-    
-    .perf-badge { font-size:0.9rem; font-weight:700; padding:2px 8px; border-radius:6px; background:#111; border:1px solid #333; }
-    .perf-badge.up { border-color:rgba(34, 197, 94, 0.3); color:#4ade80; background:rgba(34, 197, 94, 0.05); }
-    .perf-badge.down { border-color:rgba(239, 68, 68, 0.3); color:#f87171; background:rgba(239, 68, 68, 0.05); }
+    .player-name { font-size:0.9rem; font-weight:600; }
+    .perf-badge { font-size:0.8rem; font-weight:700; padding:2px 6px; border-radius:6px; background:#111; border:1px solid #333; }
+    .perf-badge.up { color:#4ade80; border-color:rgba(34, 197, 94, 0.3); }
+    .perf-badge.down { color:#f87171; border-color:rgba(239, 68, 68, 0.3); }
 
-    /* --- UTILS --- */
-    .loading-veil { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; backdrop-filter:blur(4px); }
-    .spinner { width:24px; height:24px; border:3px solid #333; border-top-color:#3b82f6; border-radius:50%; animation:spin 0.8s linear infinite; }
-    @keyframes spin { to { transform:rotate(360deg); } }
-    #err { display:none; background:#450a0a; color:#fca5a5; padding:1rem; margin-bottom:1rem; border-radius:8px; border:1px solid #7f1d1d; }
-    #msg { margin-top:0.5rem; font-size:0.85rem; }
-    #msg.ok { color:#4ade80; }
+    /* --- RESPONSIVE BREAKPOINTS --- */
+    @media (max-width: 900px) {
+        .main-layout { grid-template-columns: 1fr; /* Stack layout on mobile */ }
+        
+        .add-bar > * { flex: 1 1 100%; /* Inputs take full width */ }
+        .add-bar #addBtn { flex: 1 1 100%; } 
+        
+        /* Keep ticker symbol and note readable */
+        .ticker-symbol { font-size: 1rem; }
+        .ticker-note { font-size: 0.8rem; }
+    }
     
-    .arch-list { max-height:200px; overflow-y:auto; }
-    .arch-item { display:flex; justify-content:space-between; padding:0.5rem; border-bottom:1px solid #27272a; font-size:0.9rem; color:#777; }
+    @media (max-width: 400px) {
+        /* Tiny screens: Hide market badge or reduce padding */
+        .market-badge { display: none; }
+        .card { padding: 1rem; }
+        .price-box { min-width: 70px; padding-left: 0; }
+    }
+
+    .loading-veil { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; z-index:50; backdrop-filter:blur(3px); }
+    .spinner { width:30px; height:30px; border:3px solid #333; border-top-color:#3b82f6; border-radius:50%; animation:spin 0.8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    #msg { margin-top:0.5rem; font-size:0.85rem; min-height: 1.2em;}
   </style>
 </head>
 <body>
 
   <header>
     <h1>Watchlist</h1>
-    <div class="row">
-      <button class="btn" onclick="location.href='members.html'">Dashboard</button>
+    <div class="nav-row">
+      <button class="btn" onclick="location.href='members.html'">Dash</button>
       <button class="btn" onclick="location.href='polls.html'">Polls</button>
-      <button class="btn danger" id="btnSignOut">Sign out</button>
+      <button class="btn danger" id="btnSignOut">Exit</button>
     </div>
   </header>
 
-  <div id="err"></div>
   <div id="loading" class="loading-veil" aria-hidden="true"><div class="spinner"></div></div>
 
   <div class="stats-grid">
     <div class="stat-box">
-      <div class="stat-label">Total Watchlist</div>
+      <div class="stat-label">Total</div>
       <div class="stat-value" id="statTotal">0</div>
     </div>
     <div class="stat-box">
-      <div class="stat-label">In The Green</div>
+      <div class="stat-label">Green</div>
       <div class="stat-value text-green" id="statGreen">0</div>
     </div>
     <div class="stat-box">
-      <div class="stat-label">In The Red</div>
+      <div class="stat-label">Red</div>
       <div class="stat-value text-red" id="statRed">0</div>
     </div>
   </div>
@@ -146,48 +172,48 @@
   <main>
     <section class="card">
       <h2 class="section-title">Add to Watchlist</h2>
-      <div class="row">
-        <input id="ticker" placeholder="Symbol (e.g. AAPL)" style="width:140px; font-weight:700; text-transform:uppercase;" />
+      <div class="add-bar">
+        <input id="ticker" placeholder="Symbol (e.g. BTC)" style="text-transform:uppercase;" />
         <select id="market">
           <option value="AUTO">Market (Auto)</option>
           <option value="NASDAQ">NASDAQ</option>
           <option value="NYSE">NYSE</option>
+          <option value="CRYPTO">Crypto</option>
           <option value="NZE">NZX</option>
           <option value="ASX">ASX</option>
-          <option value="CRYPTO">Crypto</option>
         </select>
-        <input id="notes" placeholder="Why is this interesting?" style="flex:1; min-width:200px;" />
+        <input id="notes" placeholder="Why is this interesting?" />
         <button class="btn btn-cta" id="addBtn">+ Add</button>
       </div>
       <div id="msg"></div>
     </section>
 
-    <div style="display:grid; grid-template-columns: 1fr 300px; gap:1.5rem;">
+    <div class="main-layout">
         
         <div>
-            <div class="row" style="justify-content:space-between; margin-bottom:1rem;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:1rem; align-items:center;">
                 <h2 class="section-title" style="margin:0;">Active Tickers</h2>
-                <input id="search" placeholder="Filter..." style="padding:0.4rem 0.8rem;" />
+                <input id="search" placeholder="Filter..." style="width:120px; padding:0.4rem;" />
             </div>
-            <div id="list" class="grid">
+            <div id="list" class="ticker-list">
                 </div>
         </div>
 
         <div style="display:flex; flex-direction:column; gap:1.5rem;">
             
             <section class="card" style="padding:1rem;">
-                <h2 class="section-title" style="font-size:0.9rem; text-transform:uppercase; letter-spacing:1px; color:#71717a;">Top Suggesters</h2>
+                <h2 class="section-title" style="font-size:0.8rem; text-transform:uppercase; color:#71717a;">Top Suggesters</h2>
                 <div id="leaderWrap">
                     <div class="muted">Loading...</div>
                 </div>
             </section>
 
             <section class="card" style="padding:1rem; background:#141414;">
-                 <div class="row" style="justify-content:space-between; margin-bottom:0.5rem;">
-                    <h2 class="section-title" style="font-size:0.9rem; margin:0; color:#71717a;">ARCHIVE</h2>
-                    <input id="archSearch" placeholder="Search..." style="font-size:0.8rem; padding:0.2rem 0.5rem; width:100px;" />
+                 <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; align-items:center;">
+                    <h2 class="section-title" style="font-size:0.8rem; margin:0; color:#71717a;">ARCHIVE</h2>
+                    <input id="archSearch" placeholder="Search..." style="font-size:0.8rem; padding:0.2rem 0.5rem; width:80px;" />
                  </div>
-                 <div id="archList" class="arch-list"></div>
+                 <div id="archList" style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:0.5rem;"></div>
             </section>
 
         </div>
@@ -196,41 +222,32 @@
   </main>
 
   <script>
-    /* --- CONFIG --- */
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
     const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby9-PQORBC7L27BItmvRVowsut2KAgcPyJxeDszODyouSxYB59pOf1TrIGm1SLQEIiccQ/exec";
-
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    /* --- STATE --- */
     let currentUser = null;
     let items = [], votes = [], myVotes = [];
     let pctMap = {};
 
-    /* --- UTILS --- */
     const el = (id) => document.getElementById(id);
     const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&gt;","</":"&lt;/","'":"&#39;","\"":"&quot;" }[c] || c));
     const setLoading = (on) => el('loading').style.display = on ? 'flex' : 'none';
-    const showMsg = (txt, ok=true) => { const m=el('msg'); m.textContent=txt; m.className=ok?'ok':'text-red'; setTimeout(()=>m.textContent='',2000); };
+    const showMsg = (txt, ok=true) => { const m=el('msg'); m.textContent=txt; m.className=ok?'text-green':'text-red'; setTimeout(()=>m.textContent='',2000); };
     
-    /* --- DATA FETCHING --- */
     async function guard() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return location.href = "login.html";
       currentUser = session.user;
     }
 
-    // Google Sheets JSONP Fetcher (Same as before, just cleaner implementation)
     function loadPctJSONP(tickers) {
         return new Promise(resolve => {
             const cb = "CB_" + Math.random().toString(36).slice(2);
             window[cb] = (raw) => {
-                delete window[cb];
-                document.getElementById(cb)?.remove();
-                // Normalize keys to UPPERCASE
-                const map = {};
-                const data = raw?.data || {};
+                delete window[cb]; document.getElementById(cb)?.remove();
+                const map = {}; const data = raw?.data || {};
                 for(let k in data) map[String(k).toUpperCase()] = data[k];
                 resolve(map);
             };
@@ -243,79 +260,48 @@
     }
 
     async function fetchAll() {
-        // 1. Load DB Items
-        const p1 = supabase.from("watchlist_items").select("*").order("created_at", {ascending:false});
-        const p2 = supabase.from("watchlist_votes").select("item_id, user_id, value");
-        
-        const [r1, r2] = await Promise.all([p1, p2]);
+        const [r1, r2] = await Promise.all([
+            supabase.from("watchlist_items").select("*").order("created_at", {ascending:false}),
+            supabase.from("watchlist_votes").select("item_id, user_id, value")
+        ]);
         if(r1.error) console.error(r1.error);
-        if(r2.error) console.error(r2.error);
-
         items = r1.data || [];
         votes = r2.data || [];
         myVotes = votes.filter(v => v.user_id === currentUser.id);
 
-        // 2. Get Prices
         const tickers = Array.from(new Set(items.map(i => (i.ticker||"").toUpperCase()).filter(Boolean))).join(",");
-        if(tickers) {
-            pctMap = await loadPctJSONP(tickers);
-        }
+        if(tickers) pctMap = await loadPctJSONP(tickers);
     }
 
-    /* --- LOGIC & RENDERING --- */
-    
-    function getScore(itemId) {
-        return votes.filter(v => v.item_id === itemId).reduce((a,b) => a + (b.value||0), 0);
-    }
-
-    function getPctData(ticker) {
-        return pctMap[(ticker||"").toUpperCase()] || null;
-    }
+    function getScore(itemId) { return votes.filter(v => v.item_id === itemId).reduce((a,b) => a + (b.value||0), 0); }
+    function getPctData(ticker) { return pctMap[(ticker||"").toUpperCase()] || null; }
 
     function render() {
         const term = el('search').value.toUpperCase();
         const archTerm = el('archSearch').value.toUpperCase();
         
-        // Calculate Scores & Merge
-        const active = items.filter(i => !i.archived).map(i => {
-            return { ...i, score: getScore(i.id), myVote: myVotes.find(v => v.item_id === i.id)?.value || 0 };
-        });
-        
-        // Sort: High Score -> then Ticker Name
+        const active = items.filter(i => !i.archived).map(i => ({ ...i, score: getScore(i.id), myVote: myVotes.find(v => v.item_id === i.id)?.value || 0 }));
         active.sort((a,b) => b.score - a.score || a.ticker.localeCompare(b.ticker));
 
-        // --- 1. RENDER STATS ---
-        let greenCount = 0, redCount = 0;
-        active.forEach(i => {
-            const p = getPctData(i.ticker);
-            if(p) { if(p.pct >= 0) greenCount++; else redCount++; }
-        });
-        el('statTotal').textContent = active.length;
-        el('statGreen').textContent = greenCount;
-        el('statRed').textContent = redCount;
+        // Stats
+        let g=0, r=0;
+        active.forEach(i => { const p=getPctData(i.ticker); if(p) (p.pct>=0?g++:r++); });
+        el('statTotal').textContent = active.length; el('statGreen').textContent = g; el('statRed').textContent = r;
 
-        // --- 2. RENDER ACTIVE LIST ---
-        const list = el('list');
-        list.innerHTML = "";
-        
+        // Active List
+        const list = el('list'); list.innerHTML = "";
+        if(active.length === 0) list.innerHTML = `<div class="muted" style="text-align:center; padding:2rem;">No items found</div>`;
+
         active.forEach(i => {
             if(term && !i.ticker.toUpperCase().includes(term)) return;
-            
             const data = getPctData(i.ticker);
-            const pctVal = data ? data.pct : 0;
             const pctTxt = data ? (data.pct * 100).toFixed(2) + "%" : "n/a";
             const priceTxt = data && data.price ? "$" + Number(data.price).toFixed(2) : "-";
-            
-            // Styles based on performance
-            let statusClass = "neutral";
-            let pctClass = "muted";
-            if(data) {
-                if(pctVal >= 0) { statusClass = "up"; pctClass = "up"; }
-                else { statusClass = "down"; pctClass = "down"; }
-            }
+            let stCls="neutral", pctCls="muted";
+            if(data) { if(data.pct>=0) { stCls="up"; pctCls="up"; } else { stCls="down"; pctCls="down"; } }
 
             const card = document.createElement('div');
-            card.className = `ticker-item ${statusClass}`;
+            card.className = `ticker-item ${stCls}`;
             card.innerHTML = `
                 <div class="vote-box ${i.myVote===1?'active':''}" onclick="toggleVote('${i.id}')">
                     <div class="vote-count">${i.score}</div>
@@ -323,181 +309,122 @@
                 </div>
                 <div class="ticker-content">
                     <div class="ticker-symbol">
-                        ${escapeHtml(i.ticker)} <span class="market-badge">${i.ticker.length > 4 ? 'CRYPTO' : 'STOCK'}</span>
+                        ${escapeHtml(i.ticker)} <span class="market-badge">${i.ticker.length>4?'CRYPTO':'STOCK'}</span>
                     </div>
                     <div class="ticker-note">${escapeHtml(i.notes || "No notes")}</div>
                     <div class="suggester">By ${escapeHtml(i.suggested_by_name || "Member")}</div>
                 </div>
                 <div class="price-box">
-                    <div class="pct-lg ${pctClass}">${pctTxt}</div>
+                    <div class="pct-lg ${pctCls}">${pctTxt}</div>
                     <div class="price-sm">${priceTxt}</div>
                 </div>
                 <div class="actions">
-                    <button class="btn-icon" title="Archive" onclick="toggleArchive('${i.id}', true)">✕</button>
+                    <button class="btn-icon" onclick="toggleArchive('${i.id}', true)">✕</button>
                 </div>
             `;
             list.appendChild(card);
         });
 
-        // --- 3. RENDER LEADERBOARD ---
-        const userStats = {};
+        // Leaderboard
+        const uStats = {};
         items.forEach(i => {
-            const name = i.suggested_by_name || "Anon";
+            const n = i.suggested_by_name || "Anon";
             const d = getPctData(i.ticker);
             if(d) {
-                if(!userStats[name]) userStats[name] = { count: 0, sum: 0 };
-                userStats[name].count++;
-                userStats[name].sum += d.pct;
+                if(!uStats[n]) uStats[n] = { c:0, s:0 };
+                uStats[n].c++; uStats[n].s += d.pct;
             }
         });
-        
-        const leaders = Object.keys(userStats).map(name => ({
-            name, 
-            count: userStats[name].count,
-            avg: userStats[name].sum / userStats[name].count
-        })).sort((a,b) => b.avg - a.avg);
-
-        const leaderWrap = el('leaderWrap');
-        leaderWrap.innerHTML = "";
-        if(leaders.length === 0) leaderWrap.innerHTML = `<div class="muted">No data yet</div>`;
-        
+        const leaders = Object.keys(uStats).map(n => ({ name:n, count:uStats[n].c, avg:uStats[n].s/uStats[n].c })).sort((a,b)=>b.avg-a.avg);
+        const lWrap = el('leaderWrap'); lWrap.innerHTML = "";
+        if(leaders.length===0) lWrap.innerHTML=`<div class="muted">No data yet</div>`;
         leaders.forEach((l, idx) => {
-            const initials = l.name.substring(0,2).toUpperCase();
-            const avgPct = (l.avg * 100).toFixed(2);
-            const badgeClass = l.avg >= 0 ? "up" : "down";
-            
-            leaderWrap.innerHTML += `
+            const ab = l.avg>=0 ? "up":"down";
+            lWrap.innerHTML += `
                 <div class="leader-row">
                     <div class="rank">${idx+1}</div>
-                    <div class="avatar">${initials}</div>
+                    <div class="avatar">${l.name.substring(0,2).toUpperCase()}</div>
                     <div class="player-info">
                         <div class="player-name">${escapeHtml(l.name)}</div>
-                        <div class="player-stats">${l.count} picks</div>
+                        <div class="suggester">${l.count} picks</div>
                     </div>
-                    <div class="perf-badge ${badgeClass}">${avgPct}%</div>
+                    <div class="perf-badge ${ab}">${(l.avg*100).toFixed(2)}%</div>
                 </div>
             `;
         });
 
-        // --- 4. RENDER ARCHIVE ---
-        const archList = el('archList');
-        archList.innerHTML = "";
-        const archived = items.filter(i => i.archived);
-        archived.forEach(i => {
+        // Archive
+        const aList = el('archList'); aList.innerHTML = "";
+        items.filter(i=>i.archived).forEach(i => {
             if(archTerm && !i.ticker.toUpperCase().includes(archTerm)) return;
             const d = getPctData(i.ticker);
-            const pTxt = d ? (d.pct*100).toFixed(2)+"%" : "";
-            const col = d ? (d.pct>=0 ? 'text-green' : 'text-red') : '';
-            
-            const div = document.createElement('div');
-            div.className = "arch-item";
-            div.innerHTML = `
-                <div>
-                    <strong>${i.ticker}</strong> <span class="${col}" style="font-size:0.8rem">${pTxt}</span>
-                    <div style="font-size:0.75rem; color:#555">By ${i.suggested_by_name}</div>
+            const col = d ? (d.pct>=0?'text-green':'text-red') : 'muted';
+            const txt = d ? (d.pct*100).toFixed(2)+"%" : "n/a";
+            aList.innerHTML += `
+                <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid #27272a; font-size:0.85rem;">
+                    <div><strong>${i.ticker}</strong> <span class="${col}">${txt}</span></div>
+                    <button class="btn-ghost" style="padding:2px 6px; font-size:0.7rem;" onclick="toggleArchive('${i.id}', false)">Restore</button>
                 </div>
-                <button class="btn-icon" onclick="toggleArchive('${i.id}', false)">↺</button>
             `;
-            archList.appendChild(div);
         });
-        if(archived.length === 0) archList.innerHTML = `<div class="muted" style="padding:0.5rem;">Empty</div>`;
     }
 
     /* --- ACTIONS --- */
-    
     async function addItem() {
-        const btn = el('addBtn');
         const t = el('ticker').value.trim().toUpperCase();
-        const n = el('notes').value.trim();
-        const m = el('market').value;
+        if(!t) return showMsg("Enter symbol", false);
+        el('addBtn').disabled = true;
         
-        if(!t) return showMsg("Enter a ticker", false);
-        
-        btn.disabled = true; btn.textContent = "...";
-        const displayName = (currentUser.user_metadata?.first_name) || currentUser.email.split('@')[0];
-
         try {
-            const { error } = await supabase.from("watchlist_items").insert({
-                ticker: t, notes: n, created_by: currentUser.id, suggested_by_name: displayName, archived: false
+            const name = (currentUser.user_metadata?.first_name) || currentUser.email.split('@')[0];
+            const {error} = await supabase.from("watchlist_items").insert({
+                ticker: t, notes: el('notes').value.trim(), created_by: currentUser.id, suggested_by_name: name, archived: false
             });
             if(error) throw error;
+            // Log to sheet
+            fetch(SHEET_WEBAPP_URL, { method:"POST", mode:"no-cors", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({ticker:t, notes:el('notes').value, user_id:currentUser.id}) });
             
-            // Fire and forget sheet update
-            fetch(SHEET_WEBAPP_URL, {
-                 method: "POST", mode: "no-cors", headers: {"Content-Type":"text/plain"},
-                 body: JSON.stringify({ email: currentUser.email, user_id: currentUser.id, ticker: t, notes: n, market: m })
-            });
-
-            el('ticker').value = ""; el('notes').value = "";
+            el('ticker').value=""; el('notes').value="";
             showMsg("Added!");
-            await fetchAll();
-            render();
-        } catch(e) {
-            console.error(e);
-            showMsg("Error adding", false);
-        } finally {
-            btn.disabled = false; btn.textContent = "+ Add";
-        }
+            await fetchAll(); render();
+        } catch(e) { showMsg("Error", false); }
+        el('addBtn').disabled = false;
     }
 
     window.toggleVote = async (itemId) => {
-        const existing = myVotes.find(v => v.item_id === itemId);
-        // Optimistic update
-        if(existing) {
+        const exists = myVotes.find(v => v.item_id === itemId);
+        if(exists) {
              myVotes = myVotes.filter(v => v.item_id !== itemId);
-             // Update total votes in memory for snappy UI
-             const vIdx = votes.findIndex(v => v.item_id === itemId && v.user_id === currentUser.id);
-             if(vIdx > -1) votes.splice(vIdx, 1);
+             const idx = votes.findIndex(v => v.item_id === itemId && v.user_id === currentUser.id);
+             if(idx>-1) votes.splice(idx,1);
+             supabase.from("watchlist_votes").delete().match({ item_id: itemId, user_id: currentUser.id }).then();
         } else {
              myVotes.push({ item_id: itemId, user_id: currentUser.id, value: 1 });
              votes.push({ item_id: itemId, user_id: currentUser.id, value: 1 });
+             supabase.from("watchlist_votes").insert({ item_id: itemId, user_id: currentUser.id, value: 1 }).then();
         }
-        render(); // Re-render UI immediately
-
-        // Server update
-        if(existing) {
-            await supabase.from("watchlist_votes").delete().match({ item_id: itemId, user_id: currentUser.id });
-        } else {
-            await supabase.from("watchlist_votes").insert({ item_id: itemId, user_id: currentUser.id, value: 1 });
-        }
-        // Background re-fetch to ensure sync
-        fetchAll(); 
-    };
-
-    window.toggleArchive = async (itemId, state) => {
-        setLoading(true);
-        await supabase.from("watchlist_items").update({ archived: state }).eq("id", itemId);
-        await fetchAll();
         render();
-        setLoading(false);
     };
 
-    /* --- INITIALIZATION --- */
+    window.toggleArchive = async (id, state) => {
+        await supabase.from("watchlist_items").update({archived:state}).eq("id", id);
+        await fetchAll(); render();
+    };
+
     el('addBtn').onclick = addItem;
-    el('search').oninput = render;
-    el('archSearch').oninput = render;
+    el('search').oninput = render; el('archSearch').oninput = render;
     el('btnSignOut').onclick = async () => { await supabase.auth.signOut(); location.href="login.html"; };
 
-    // Realtime
     const ch = supabase.channel('public:watchlist');
-    const reload = async () => { await fetchAll(); render(); };
-    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'watchlist_items' }, reload);
-    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'watchlist_votes' }, reload);
+    ch.on('postgres_changes', { event:'*', schema:'public', table:'watchlist_items' }, async()=>{ await fetchAll(); render(); });
+    ch.on('postgres_changes', { event:'*', schema:'public', table:'watchlist_votes' }, async()=>{ await fetchAll(); render(); });
     ch.subscribe();
 
     (async () => {
-        setLoading(true);
-        await guard();
-        await fetchAll();
-        render();
-        setLoading(false);
-        // Refresh prices every minute
-        setInterval(async () => {
-            const tickers = Array.from(new Set(items.map(i => (i.ticker||"").toUpperCase()).filter(Boolean))).join(",");
-            if(tickers) {
-                pctMap = await loadPctJSONP(tickers);
-                render();
-            }
+        setLoading(true); await guard(); await fetchAll(); render(); setLoading(false);
+        setInterval(async () => { 
+            const t = Array.from(new Set(items.map(i=>(i.ticker||"").toUpperCase()).filter(Boolean))).join(",");
+            if(t) { pctMap = await loadPctJSONP(t); render(); }
         }, 60000);
     })();
 
