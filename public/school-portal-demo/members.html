@@ -115,7 +115,7 @@
     // STATE
     let summary = null;
     let chartRegistry = {}; 
-    let currentRange = localStorage.getItem("pfRange") || "YEAR"; 
+    let currentRange = localStorage.getItem("pfRange") || "DAY"; 
     let tickerViewMode = {};
     try { tickerViewMode = JSON.parse(localStorage.getItem("pfViewMode") || "{}"); } catch(_){}
 
@@ -133,18 +133,43 @@
     const setStatus = (msg) => { els.status.textContent = msg; els.status.style.display = msg ? "block" : "none"; };
     const fmtMoney = (v, sign=false) => { if(v==null) return "0"; const s=Math.round(Number(v)).toLocaleString(); return sign?"$"+s:s; };
     const fmtPct = (v) => (v==null) ? "n/a" : Number(v).toFixed(2);
-    const shortDate = (iso) => { const d=new Date(iso); return isNaN(d)?iso : `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`; };
+    
+    // Smart Date Formatter based on Range
+    const smartDate = (iso, range) => { 
+      const d = new Date(iso); 
+      if(isNaN(d)) return iso;
+      
+      if(range === 'DAY') {
+        // Show time for intraday (e.g., 10:30)
+        return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      } else if (range === 'ALL' || range === 'YEAR') {
+        // Show Month Year for long ranges (e.g. Nov 23)
+        return `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]} ${d.getFullYear().toString().substr(-2)}`;
+      }
+      // Default (e.g., 20 Nov)
+      return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`; 
+    };
     
     const consolidate = (arr) => {
-      const map = new Map();
-      arr.forEach(i => map.set(i[0].split("T")[0], i));
-      return Array.from(map.values());
+      // For charts, we usually consolidate by day, but if range is DAY we need all points!
+      // Simple pass-through for now to support intraday granularity
+      return arr;
     };
 
     const filterRange = (hist, rng) => {
       if(!hist?.length) return [];
-      const days = { WEEK:7, MONTH:30, SIX_MONTHS:180, YEAR:365 }[rng] || 365;
-      const cut = new Date(hist[hist.length-1][0]).getTime() - (days*86400000);
+      if(rng === 'ALL') return hist; // Return everything
+      
+      // Milliseconds Back
+      const ms = { 
+        DAY: 86400000, // 24 hours
+        WEEK: 604800000, 
+        MONTH: 2592000000, 
+        SIX_MONTHS: 15552000000, 
+        YEAR: 31536000000 
+      }[rng] || 31536000000;
+
+      const cut = new Date().getTime() - ms;
       return hist.filter(p => new Date(p[0]).getTime() >= cut);
     };
 
@@ -167,7 +192,8 @@
       summary = sumData[0].data;
       summary.lastUpdatedDate = sumData[0].last_updated;
 
-      const { data: histData } = await supabase.from("flex_summary").select("data,last_updated").order("last_updated",{ascending:true}).limit(5000);
+      // Fetch more history for granular charts
+      const { data: histData } = await supabase.from("flex_summary").select("data,last_updated").order("last_updated",{ascending:true}).limit(10000);
       
       const rawPf = [], rawSym = {};
       (histData||[]).forEach(r => {
@@ -183,9 +209,8 @@
         });
       });
 
-      summary.history = consolidate(rawPf);
-      summary.symbolHistory = {};
-      for(const k in rawSym) summary.symbolHistory[k] = consolidate(rawSym[k]);
+      summary.history = rawPf; // Keep all points
+      summary.symbolHistory = rawSym;
 
       setStatus("");
       buildLayout(); 
@@ -212,7 +237,8 @@
         </div>`;
 
       // C. Portfolio Line
-      const tabs = ['WEEK','MONTH','SIX_MONTHS','YEAR'].map(k => 
+      // Added DAY and ALL buttons here
+      const tabs = ['DAY', 'WEEK','MONTH','YEAR', 'ALL'].map(k => 
         `<button class="range-tab ${currentRange===k?'active':''}" onclick="updateRange('${k}')">${k.replace('_',' ').toLowerCase()}</button>`
       ).join('');
       
@@ -246,7 +272,7 @@
       const div = els.divide.checked ? 11 : 1;
       const totals = summary.totals || {};
 
-      // 1. UPDATE TITLE (WINNERLAND / LOOSERLAND)
+      // 1. UPDATE TITLE
       const totalProfit = Number(totals.profit || 0);
       if (totalProfit >= 0) {
         els.title.textContent = "WINNERLAND";
@@ -287,7 +313,6 @@
     // --- INDIVIDUAL CHART DRAWERS ---
 
     function drawAlloc(f) {
-      // PIE CHART FIX: No grids, no axis
       replaceChart('cvs-alloc', {
         type: 'doughnut',
         data: {
@@ -304,11 +329,7 @@
           plugins: {
             legend: { display: true, position: 'right', labels:{color:'#fff', boxWidth:12} }
           },
-          // Explicitly disable scales to remove grid
-          scales: {
-            x: { display: false },
-            y: { display: false }
-          },
+          scales: { x: { display: false }, y: { display: false } },
           cutout: '65%'
         }
       });
@@ -341,7 +362,7 @@
       replaceChart('cvs-line', {
         type: 'line',
         data: {
-          labels: hist.map(p=>shortDate(p[0])),
+          labels: hist.map(p=>smartDate(p[0], currentRange)),
           datasets: [{
             label: 'Value', data: hist.map(p=>(p[1]||0)/f),
             borderColor: '#3b82f6', backgroundColor: grad,
@@ -363,6 +384,7 @@
       const canvasId = `cvs-sym-${sym}`;
       
       if(mode === "HISTORY") {
+        // IMPORTANT: Use the global currentRange here too!
         const hist = filterRange(summary.symbolHistory[sym]||[], currentRange);
         const ctx = document.getElementById(canvasId).getContext('2d');
         const grad = ctx.createLinearGradient(0,0,0,300);
@@ -371,7 +393,7 @@
         replaceChart(canvasId, {
           type: 'line',
           data: {
-            labels: hist.map(x=>shortDate(x[0])),
+            labels: hist.map(x=>smartDate(x[0], currentRange)),
             datasets: [{
               label: 'Value', data: hist.map(x=>(x[1]||0)/f),
               borderColor: '#f97316', backgroundColor: grad,
@@ -434,7 +456,11 @@
       localStorage.setItem("pfRange", k);
       const container = document.getElementById("range-container");
       Array.from(container.children).forEach(b => b.className = `range-tab ${b.innerText.toUpperCase().replace(' ','_') === k ? 'active' : ''}`);
+      
+      // Refresh Global Chart
       drawPfLine(els.divide.checked?11:1);
+      
+      // Refresh All Ticker History Charts
       Object.keys(tickerViewMode).forEach(sym => {
         if(tickerViewMode[sym]==="HISTORY") drawTicker(sym, els.divide.checked?11:1);
       });
