@@ -17,7 +17,6 @@
     }
     header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
     
-    /* The Main Title Styling */
     h1 { margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; text-transform: uppercase; }
     
     .row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
@@ -28,7 +27,6 @@
     .btn:hover { background: #2a2a2a; }
     .danger { border-color: #7f1d1d; color: #fca5a5; }
 
-    /* NEW: Admin Icon Button */
     .icon-btn {
       display: inline-flex; align-items: center; justify-content: center;
       width: 36px; height: 36px; border-radius: 8px;
@@ -74,6 +72,15 @@
     .range-tabs button { border-radius: 99px; padding: 0.35rem 0.85rem; }
     .view-toggle button.active, .range-tabs button.active { background: #52525b; color: #fff; }
 
+    /* NEW: Mini Tabs for Tickers */
+    .mini-tabs { display: flex; justify-content: center; gap: 4px; margin-bottom: 10px; }
+    .mini-btn {
+      padding: 2px 8px; font-size: 0.65rem; border: 1px solid #333; background: transparent;
+      color: #71717a; border-radius: 4px; cursor: pointer; font-weight: 600;
+    }
+    .mini-btn:hover { color: #fff; border-color: #52525b; }
+    .mini-btn.active { background: #3f3f46; color: #fff; border-color: #52525b; }
+
     .notice { padding: 1rem; background: #18181b; border: 1px solid #3f3f46; border-radius: 8px; color: #fbbf24; margin-bottom: 1rem; }
     .last-updated { font-size: 0.75rem; color: #71717a; text-align: right; margin-top: 0.5rem; }
   </style>
@@ -115,9 +122,18 @@
     // STATE
     let summary = null;
     let chartRegistry = {}; 
-    let currentRange = localStorage.getItem("pfRange") || "DAY"; 
+    
+    // Global Portfolio Range
+    let globalRange = localStorage.getItem("pfGlobalRange") || "DAY"; 
+    
+    // Individual Ticker View Mode (Summary vs History)
     let tickerViewMode = {};
     try { tickerViewMode = JSON.parse(localStorage.getItem("pfViewMode") || "{}"); } catch(_){}
+
+    // NEW: Individual Ticker Ranges (e.g. { "GHY": "WEEK" })
+    let tickerRangeMode = {};
+    try { tickerRangeMode = JSON.parse(localStorage.getItem("pfTickerRanges") || "{}"); } catch(_){}
+
 
     // DOM ELEMENTS
     const els = {
@@ -134,41 +150,20 @@
     const fmtMoney = (v, sign=false) => { if(v==null) return "0"; const s=Math.round(Number(v)).toLocaleString(); return sign?"$"+s:s; };
     const fmtPct = (v) => (v==null) ? "n/a" : Number(v).toFixed(2);
     
-    // Smart Date Formatter based on Range
     const smartDate = (iso, range) => { 
       const d = new Date(iso); 
       if(isNaN(d)) return iso;
-      
-      if(range === 'DAY') {
-        // Show time for intraday (e.g., 10:30)
-        return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-      } else if (range === 'ALL' || range === 'YEAR') {
-        // Show Month Year for long ranges (e.g. Nov 23)
-        return `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]} ${d.getFullYear().toString().substr(-2)}`;
-      }
-      // Default (e.g., 20 Nov)
+      if(range === 'DAY') return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      if (range === 'ALL' || range === 'YEAR') return `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]} ${d.getFullYear().toString().substr(-2)}`;
       return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`; 
     };
     
-    const consolidate = (arr) => {
-      // For charts, we usually consolidate by day, but if range is DAY we need all points!
-      // Simple pass-through for now to support intraday granularity
-      return arr;
-    };
+    const consolidate = (arr) => arr; // Simple pass-through
 
     const filterRange = (hist, rng) => {
       if(!hist?.length) return [];
-      if(rng === 'ALL') return hist; // Return everything
-      
-      // Milliseconds Back
-      const ms = { 
-        DAY: 86400000, // 24 hours
-        WEEK: 604800000, 
-        MONTH: 2592000000, 
-        SIX_MONTHS: 15552000000, 
-        YEAR: 31536000000 
-      }[rng] || 31536000000;
-
+      if(rng === 'ALL') return hist;
+      const ms = { DAY: 86400000, WEEK: 604800000, MONTH: 2592000000, SIX_MONTHS: 15552000000, YEAR: 31536000000 }[rng] || 31536000000;
       const cut = new Date().getTime() - ms;
       return hist.filter(p => new Date(p[0]).getTime() >= cut);
     };
@@ -177,10 +172,8 @@
     async function init() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) location.href = "login.html";
-      
       document.getElementById("btnSignOut").onclick = async () => { await supabase.auth.signOut(); location.href="login.html"; };
       els.divide.onchange = () => refreshCharts(); 
-
       await loadData();
     }
 
@@ -192,7 +185,6 @@
       summary = sumData[0].data;
       summary.lastUpdatedDate = sumData[0].last_updated;
 
-      // Fetch more history for granular charts
       const { data: histData } = await supabase.from("flex_summary").select("data,last_updated").order("last_updated",{ascending:true}).limit(10000);
       
       const rawPf = [], rawSym = {};
@@ -209,7 +201,7 @@
         });
       });
 
-      summary.history = rawPf; // Keep all points
+      summary.history = rawPf; 
       summary.symbolHistory = rawSym;
 
       setStatus("");
@@ -236,10 +228,9 @@
           <div class="chart-container"><canvas id="cvs-sum"></canvas></div>
         </div>`;
 
-      // C. Portfolio Line
-      // Added DAY and ALL buttons here
+      // C. Portfolio Line (GLOBAL CONTROL)
       const tabs = ['DAY', 'WEEK','MONTH','YEAR', 'ALL'].map(k => 
-        `<button class="range-tab ${currentRange===k?'active':''}" onclick="updateRange('${k}')">${k.replace('_',' ').toLowerCase()}</button>`
+        `<button class="range-tab ${globalRange===k?'active':''}" onclick="updateGlobalRange('${k}')">${k.replace('_',' ').toLowerCase()}</button>`
       ).join('');
       
       els.dash.innerHTML += `
@@ -249,10 +240,17 @@
           <div class="chart-container"><canvas id="cvs-line"></canvas></div>
         </div>`;
 
-      // D. Tickers
+      // D. Tickers (INDIVIDUAL CONTROLS)
       (summary.positions||[]).forEach(p => {
         const sym = p.symbol;
         const mode = tickerViewMode[sym] || "SUMMARY";
+        const currentTickerRange = tickerRangeMode[sym] || "YEAR";
+        
+        // Generate Mini Buttons
+        const miniTabs = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(k => 
+          `<button class="mini-btn ${currentTickerRange===k?'active':''}" onclick="updateTickerRange('${sym}', '${k}')">${k[0]}</button>`
+        ).join('');
+
         els.dash.innerHTML += `
           <div class="chart-card" id="card-${sym}">
             <div class="chart-card-header">
@@ -262,6 +260,11 @@
                 <button onclick="updateTickerMode('${sym}','HISTORY')" class="${mode==='HISTORY'?'active':''}">Hist</button>
               </div>
             </div>
+            
+            <div id="ctrl-${sym}" class="mini-tabs" style="display:${mode==='HISTORY'?'flex':'none'}">
+              ${miniTabs}
+            </div>
+
             <div class="chart-container"><canvas id="cvs-sym-${sym}"></canvas></div>
           </div>`;
       });
@@ -272,17 +275,12 @@
       const div = els.divide.checked ? 11 : 1;
       const totals = summary.totals || {};
 
-      // 1. UPDATE TITLE
+      // Update Title
       const totalProfit = Number(totals.profit || 0);
-      if (totalProfit >= 0) {
-        els.title.textContent = "WINNERLAND";
-        els.title.style.color = "#4ade80"; // Green
-      } else {
-        els.title.textContent = "LOOSERLAND";
-        els.title.style.color = "#f87171"; // Red
-      }
+      els.title.textContent = totalProfit >= 0 ? "WINNERLAND" : "LOOSERLAND";
+      els.title.style.color = totalProfit >= 0 ? "#4ade80" : "#f87171";
 
-      // 2. Stats Grid
+      // Stats Grid
       const tProf = totalProfit / div;
       const tPct = totals.pct || 0;
       els.stats.style.display = "grid";
@@ -292,6 +290,7 @@
         <div class="stat-box"><div class="stat-label">Profit</div><div class="stat-value ${tProf>=0?'text-green':'text-red'}">${tProf>=0?'+':''}${fmtMoney(tProf, true)}</div></div>
         <div class="stat-box"><div class="stat-label">Return</div><div class="stat-value ${tPct>=0?'text-green':'text-red'}">${tPct>=0?'+':''}${fmtPct(tPct)}%</div></div>
       `;
+      
       if(summary.lastUpdatedDate) {
         els.updated.style.display = "block";
         els.updated.textContent = "Last updated: " + new Date(summary.lastUpdatedDate).toLocaleString();
@@ -304,13 +303,13 @@
       // Draw Global Charts
       drawAlloc(div);
       drawSumBar(div);
-      drawPfLine(div);
+      drawPfLine(div); // Uses globalRange
 
       // Draw Ticker Charts
       (summary.positions||[]).forEach(p => drawTicker(p.symbol, div));
     }
 
-    // --- INDIVIDUAL CHART DRAWERS ---
+    // --- DRAWERS ---
 
     function drawAlloc(f) {
       replaceChart('cvs-alloc', {
@@ -324,11 +323,8 @@
           }]
         },
         options: {
-          responsive: true, 
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: true, position: 'right', labels:{color:'#fff', boxWidth:12} }
-          },
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: true, position: 'right', labels:{color:'#fff', boxWidth:12} } },
           scales: { x: { display: false }, y: { display: false } },
           cutout: '65%'
         }
@@ -357,12 +353,13 @@
       const grad = ctx.createLinearGradient(0,0,0,300);
       grad.addColorStop(0,'rgba(59,130,246,0.5)'); grad.addColorStop(1,'rgba(59,130,246,0.0)');
       
-      const hist = filterRange(summary.history, currentRange);
+      // Use GLOBAL range
+      const hist = filterRange(summary.history, globalRange);
       
       replaceChart('cvs-line', {
         type: 'line',
         data: {
-          labels: hist.map(p=>smartDate(p[0], currentRange)),
+          labels: hist.map(p=>smartDate(p[0], globalRange)),
           datasets: [{
             label: 'Value', data: hist.map(p=>(p[1]||0)/f),
             borderColor: '#3b82f6', backgroundColor: grad,
@@ -384,8 +381,9 @@
       const canvasId = `cvs-sym-${sym}`;
       
       if(mode === "HISTORY") {
-        // IMPORTANT: Use the global currentRange here too!
-        const hist = filterRange(summary.symbolHistory[sym]||[], currentRange);
+        // Use INDIVIDUAL range
+        const range = tickerRangeMode[sym] || "YEAR"; 
+        const hist = filterRange(summary.symbolHistory[sym]||[], range);
         const ctx = document.getElementById(canvasId).getContext('2d');
         const grad = ctx.createLinearGradient(0,0,0,300);
         grad.addColorStop(0,'rgba(249,115,22,0.5)'); grad.addColorStop(1,'rgba(249,115,22,0.0)');
@@ -393,7 +391,7 @@
         replaceChart(canvasId, {
           type: 'line',
           data: {
-            labels: hist.map(x=>smartDate(x[0], currentRange)),
+            labels: hist.map(x=>smartDate(x[0], range)),
             datasets: [{
               label: 'Value', data: hist.map(x=>(x[1]||0)/f),
               borderColor: '#f97316', backgroundColor: grad,
@@ -450,28 +448,49 @@
       };
     }
 
-    // Public Global Functions called by HTML buttons
-    window.updateRange = (k) => {
-      currentRange = k;
-      localStorage.setItem("pfRange", k);
+    // --- PUBLIC ACTIONS ---
+
+    window.updateGlobalRange = (k) => {
+      globalRange = k;
+      localStorage.setItem("pfGlobalRange", k);
+      // Update Tabs Visuals
       const container = document.getElementById("range-container");
       Array.from(container.children).forEach(b => b.className = `range-tab ${b.innerText.toUpperCase().replace(' ','_') === k ? 'active' : ''}`);
-      
-      // Refresh Global Chart
+      // Redraw Main Chart Only
       drawPfLine(els.divide.checked?11:1);
-      
-      // Refresh All Ticker History Charts
-      Object.keys(tickerViewMode).forEach(sym => {
-        if(tickerViewMode[sym]==="HISTORY") drawTicker(sym, els.divide.checked?11:1);
-      });
     };
+
+    window.updateTickerRange = (sym, k) => {
+      // Update State
+      tickerRangeMode[sym] = k;
+      localStorage.setItem("pfTickerRanges", JSON.stringify(tickerRangeMode));
+      
+      // Update Mini Tabs Visuals
+      const container = document.getElementById(`ctrl-${sym}`);
+      // The button text is just the first letter, so we check against our known list order or index, 
+      // OR we just reconstruct the buttons. Reconstructing is cleaner:
+      const miniTabsHTML = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(key => 
+          `<button class="mini-btn ${k===key?'active':''}" onclick="updateTickerRange('${sym}', '${key}')">${key[0]}</button>`
+      ).join('');
+      container.innerHTML = miniTabsHTML;
+
+      // Redraw Ticker Chart Only
+      drawTicker(sym, els.divide.checked?11:1);
+    }
 
     window.updateTickerMode = (sym, mode) => {
       tickerViewMode[sym] = mode;
       localStorage.setItem("pfViewMode", JSON.stringify(tickerViewMode));
+      
+      // Toggle Buttons Styles
       const container = document.getElementById(`tog-${sym}`);
       container.children[0].className = mode==='SUMMARY'?'active':'';
       container.children[1].className = mode==='HISTORY'?'active':'';
+      
+      // Toggle Controls Visibility
+      const controls = document.getElementById(`ctrl-${sym}`);
+      if(controls) controls.style.display = (mode === 'HISTORY' ? 'flex' : 'none');
+
       drawTicker(sym, els.divide.checked?11:1);
     };
 
