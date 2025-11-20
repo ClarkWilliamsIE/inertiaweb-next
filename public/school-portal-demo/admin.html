@@ -1,1 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin - Ledger Entry</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0; padding: 1rem;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f0f0f; color: #e0e0e0;
+    }
+    
+    /* --- HEADER --- */
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+    h1 { margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; text-transform: uppercase; color: #a1a1aa; }
+    .btn {
+      padding: .5rem .85rem; border-radius: 8px; border: 1px solid #333;
+      background: #1f1f1f; color: #fff; cursor: pointer; transition: 0.2s; text-decoration: none; font-size: 0.9rem;
+    }
+    .btn:hover { background: #2a2a2a; }
+    .btn-primary { background: #3b82f6; border-color: #2563eb; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-danger { border-color: #7f1d1d; color: #fca5a5; background: transparent; }
+    .btn-danger:hover { background: #450a0a; }
 
+    /* --- LAYOUT --- */
+    .container { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
+    
+    /* --- CARDS --- */
+    .card {
+      background: #18181b; border: 1px solid #27272a; border-radius: 16px;
+      padding: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .card h2 { margin: 0 0 1rem 0; font-size: 1.1rem; font-weight: 600; color: #fff; }
+
+    /* --- FORM --- */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .full-width { grid-column: span 2; }
+    
+    .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    label { font-size: 0.8rem; text-transform: uppercase; color: #71717a; font-weight: 600; }
+    
+    input, select {
+      background: #27272a; border: 1px solid #3f3f46; color: #fff;
+      padding: 0.75rem; border-radius: 8px; font-size: 1rem; outline: none;
+    }
+    input:focus, select:focus { border-color: #3b82f6; }
+
+    /* --- TABLE --- */
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { text-align: left; color: #71717a; font-size: 0.75rem; text-transform: uppercase; padding-bottom: 0.5rem; border-bottom: 1px solid #27272a; }
+    td { padding: 0.75rem 0; border-bottom: 1px solid #27272a; color: #d4d4d8; }
+    tr:last-child td { border-bottom: none; }
+    
+    .badge { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .badge-buy { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .badge-sell { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    
+    .text-right { text-align: right; }
+    .action-col { width: 40px; text-align: center; }
+    .delete-btn { background: none; border: none; color: #52525b; cursor: pointer; font-size: 1.2rem; }
+    .delete-btn:hover { color: #ef4444; }
+
+    #message { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; display: none; text-align: center; }
+    .success { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+    .error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+  </style>
+</head>
+<body>
+
+  <header class="container">
+    <div style="display:flex; align-items:center; gap:1rem; width:100%;">
+      <h1>Ledger Admin</h1>
+      <div style="flex:1"></div>
+      <a href="index.html" class="btn">Back to Dashboard</a>
+    </div>
+  </header>
+
+  <div class="container">
+    
+    <div id="message"></div>
+
+    <div class="card">
+      <h2>Record New Trade</h2>
+      <form id="tradeForm">
+        <div class="form-grid">
+          
+          <div class="form-group">
+            <label>Symbol</label>
+            <input type="text" id="symbol" placeholder="e.g. GHY" required style="text-transform: uppercase;">
+          </div>
+
+          <div class="form-group">
+            <label>Type</label>
+            <select id="type">
+              <option value="BUY">BUY</option>
+              <option value="SELL">SELL</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Quantity</label>
+            <input type="number" id="quantity" placeholder="0" step="any" required>
+          </div>
+
+          <div class="form-group">
+            <label>Price per Share</label>
+            <input type="number" id="price" placeholder="0.00" step="any" required>
+          </div>
+
+          <div class="full-width" style="margin-top: 0.5rem;">
+            <button type="submit" class="btn btn-primary" style="width:100%; font-weight:600; padding: 0.75rem;">Record Trade</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Recent Transactions</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Symbol</th>
+            <th>Type</th>
+            <th class="text-right">Qty</th>
+            <th class="text-right">Price</th>
+            <th class="action-col"></th>
+          </tr>
+        </thead>
+        <tbody id="historyTable">
+          </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <script>
+    // --- CONFIG ---
+    const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // --- DOM ELEMENTS ---
+    const form = document.getElementById('tradeForm');
+    const tableBody = document.getElementById('historyTable');
+    const msgBox = document.getElementById('message');
+
+    // --- INIT ---
+    init();
+
+    async function init() {
+      // Check Auth
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) window.location.href = "login.html";
+
+      loadHistory();
+    }
+
+    // --- LOAD HISTORY ---
+    async function loadHistory() {
+      const { data, error } = await supabase
+        .from('trades')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(15);
+
+      if (error) {
+        showMsg("Error loading history", "error");
+        return;
+      }
+
+      tableBody.innerHTML = "";
+      
+      if(data.length === 0) {
+        tableBody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:2rem; color:#52525b'>No trades recorded yet.</td></tr>";
+        return;
+      }
+
+      data.forEach(trade => {
+        const date = new Date(trade.date).toLocaleDateString();
+        const badgeClass = trade.type === 'BUY' ? 'badge-buy' : 'badge-sell';
+        
+        const row = `
+          <tr>
+            <td>${date}</td>
+            <td style="font-weight:bold; color:#fff;">${trade.symbol}</td>
+            <td><span class="badge ${badgeClass}">${trade.type}</span></td>
+            <td class="text-right">${Number(trade.quantity).toLocaleString()}</td>
+            <td class="text-right">$${Number(trade.price).toLocaleString()}</td>
+            <td class="action-col">
+              <button class="delete-btn" onclick="deleteTrade('${trade.id}')" title="Delete Trade">&times;</button>
+            </td>
+          </tr>
+        `;
+        tableBody.innerHTML += row;
+      });
+    }
+
+    // --- SUBMIT TRADE ---
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      
+      const symbol = document.getElementById('symbol').value.toUpperCase().trim();
+      const type = document.getElementById('type').value;
+      const qty = document.getElementById('quantity').value;
+      const price = document.getElementById('price').value;
+
+      // Insert
+      const { error } = await supabase.from('trades').insert({
+        symbol: symbol,
+        type: type,
+        quantity: qty,
+        price: price,
+        date: new Date().toISOString()
+      });
+
+      if (error) {
+        showMsg("Error saving trade: " + error.message, "error");
+      } else {
+        showMsg("Trade recorded successfully!", "success");
+        form.reset();
+        document.getElementById('symbol').focus();
+        loadHistory(); // Refresh table
+      }
+    };
+
+    // --- DELETE TRADE ---
+    window.deleteTrade = async (id) => {
+      if(!confirm("Are you sure you want to delete this trade entry? This will recalculate your averages.")) return;
+
+      const { error } = await supabase.from('trades').delete().eq('id', id);
+      
+      if(error) {
+        showMsg("Failed to delete: " + error.message, "error");
+      } else {
+        loadHistory();
+      }
+    };
+
+    // --- UTILS ---
+    function showMsg(text, type) {
+      msgBox.textContent = text;
+      msgBox.className = type;
+      msgBox.style.display = 'block';
+      setTimeout(() => { msgBox.style.display = 'none'; }, 3000);
+    }
+
+  </script>
+</body>
+</html>
