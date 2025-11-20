@@ -58,7 +58,21 @@
       box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
     .chart-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .chart-card h2 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+    
+    /* NEW: Adjusted H2 to align items */
+    .chart-card h2 { 
+      margin: 0; font-size: 1.1rem; font-weight: 600; 
+      display: flex; align-items: center; gap: 8px; 
+    }
+    
+    /* NEW: Profit Badge Styles */
+    .badge-pnl {
+      font-size: 0.85rem; font-weight: 600; padding: 2px 8px; border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+    .bg-green { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+    .bg-red { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+
     .chart-container { position: relative; flex: 1; height: 240px; width: 100%; }
 
     /* Toggles */
@@ -72,7 +86,7 @@
     .range-tabs button { border-radius: 99px; padding: 0.35rem 0.85rem; }
     .view-toggle button.active, .range-tabs button.active { background: #52525b; color: #fff; }
 
-    /* NEW: Mini Tabs for Tickers */
+    /* Mini Tabs */
     .mini-tabs { display: flex; justify-content: center; gap: 4px; margin-bottom: 10px; }
     .mini-btn {
       padding: 2px 8px; font-size: 0.65rem; border: 1px solid #333; background: transparent;
@@ -122,15 +136,9 @@
     // STATE
     let summary = null;
     let chartRegistry = {}; 
-    
-    // Global Portfolio Range
     let globalRange = localStorage.getItem("pfGlobalRange") || "DAY"; 
-    
-    // Individual Ticker View Mode (Summary vs History)
     let tickerViewMode = {};
     try { tickerViewMode = JSON.parse(localStorage.getItem("pfViewMode") || "{}"); } catch(_){}
-
-    // NEW: Individual Ticker Ranges (e.g. { "GHY": "WEEK" })
     let tickerRangeMode = {};
     try { tickerRangeMode = JSON.parse(localStorage.getItem("pfTickerRanges") || "{}"); } catch(_){}
 
@@ -158,7 +166,7 @@
       return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`; 
     };
     
-    const consolidate = (arr) => arr; // Simple pass-through
+    const consolidate = (arr) => arr; 
 
     const filterRange = (hist, rng) => {
       if(!hist?.length) return [];
@@ -228,7 +236,7 @@
           <div class="chart-container"><canvas id="cvs-sum"></canvas></div>
         </div>`;
 
-      // C. Portfolio Line (GLOBAL CONTROL)
+      // C. Portfolio Line
       const tabs = ['DAY', 'WEEK','MONTH','YEAR', 'ALL'].map(k => 
         `<button class="range-tab ${globalRange===k?'active':''}" onclick="updateGlobalRange('${k}')">${k.replace('_',' ').toLowerCase()}</button>`
       ).join('');
@@ -240,21 +248,24 @@
           <div class="chart-container"><canvas id="cvs-line"></canvas></div>
         </div>`;
 
-      // D. Tickers (INDIVIDUAL CONTROLS)
+      // D. Tickers
       (summary.positions||[]).forEach(p => {
         const sym = p.symbol;
         const mode = tickerViewMode[sym] || "SUMMARY";
         const currentTickerRange = tickerRangeMode[sym] || "YEAR";
         
-        // Generate Mini Buttons
         const miniTabs = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(k => 
           `<button class="mini-btn ${currentTickerRange===k?'active':''}" onclick="updateTickerRange('${sym}', '${k}')">${k[0]}</button>`
         ).join('');
 
+        // NEW: Added badge span next to ticker name
         els.dash.innerHTML += `
           <div class="chart-card" id="card-${sym}">
             <div class="chart-card-header">
-              <h2>${sym}</h2>
+              <h2>
+                ${sym} 
+                <span id="badge-${sym}" class="badge-pnl"></span>
+              </h2>
               <div class="view-toggle" id="tog-${sym}">
                 <button onclick="updateTickerMode('${sym}','SUMMARY')" class="${mode==='SUMMARY'?'active':''}">Sum</button>
                 <button onclick="updateTickerMode('${sym}','HISTORY')" class="${mode==='HISTORY'?'active':''}">Hist</button>
@@ -275,7 +286,6 @@
       const div = els.divide.checked ? 11 : 1;
       const totals = summary.totals || {};
 
-      // Update Title
       const totalProfit = Number(totals.profit || 0);
       els.title.textContent = totalProfit >= 0 ? "WINNERLAND" : "LOOSERLAND";
       els.title.style.color = totalProfit >= 0 ? "#4ade80" : "#f87171";
@@ -303,10 +313,20 @@
       // Draw Global Charts
       drawAlloc(div);
       drawSumBar(div);
-      drawPfLine(div); // Uses globalRange
+      drawPfLine(div);
 
-      // Draw Ticker Charts
-      (summary.positions||[]).forEach(p => drawTicker(p.symbol, div));
+      // Draw Ticker Charts & Update Badges
+      (summary.positions||[]).forEach(p => {
+        // NEW: Update PnL Badge
+        const badge = document.getElementById(`badge-${p.symbol}`);
+        if(badge) {
+           const val = (p.profit||0)/div;
+           badge.textContent = (val>=0?'+':'') + fmtMoney(val, true);
+           badge.className = `badge-pnl ${val>=0?'bg-green':'bg-red'}`;
+        }
+
+        drawTicker(p.symbol, div);
+      });
     }
 
     // --- DRAWERS ---
@@ -353,7 +373,6 @@
       const grad = ctx.createLinearGradient(0,0,0,300);
       grad.addColorStop(0,'rgba(59,130,246,0.5)'); grad.addColorStop(1,'rgba(59,130,246,0.0)');
       
-      // Use GLOBAL range
       const hist = filterRange(summary.history, globalRange);
       
       replaceChart('cvs-line', {
@@ -381,7 +400,6 @@
       const canvasId = `cvs-sym-${sym}`;
       
       if(mode === "HISTORY") {
-        // Use INDIVIDUAL range
         const range = tickerRangeMode[sym] || "YEAR"; 
         const hist = filterRange(summary.symbolHistory[sym]||[], range);
         const ctx = document.getElementById(canvasId).getContext('2d');
@@ -453,28 +471,21 @@
     window.updateGlobalRange = (k) => {
       globalRange = k;
       localStorage.setItem("pfGlobalRange", k);
-      // Update Tabs Visuals
       const container = document.getElementById("range-container");
       Array.from(container.children).forEach(b => b.className = `range-tab ${b.innerText.toUpperCase().replace(' ','_') === k ? 'active' : ''}`);
-      // Redraw Main Chart Only
       drawPfLine(els.divide.checked?11:1);
     };
 
     window.updateTickerRange = (sym, k) => {
-      // Update State
       tickerRangeMode[sym] = k;
       localStorage.setItem("pfTickerRanges", JSON.stringify(tickerRangeMode));
       
-      // Update Mini Tabs Visuals
       const container = document.getElementById(`ctrl-${sym}`);
-      // The button text is just the first letter, so we check against our known list order or index, 
-      // OR we just reconstruct the buttons. Reconstructing is cleaner:
       const miniTabsHTML = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(key => 
           `<button class="mini-btn ${k===key?'active':''}" onclick="updateTickerRange('${sym}', '${key}')">${key[0]}</button>`
       ).join('');
       container.innerHTML = miniTabsHTML;
 
-      // Redraw Ticker Chart Only
       drawTicker(sym, els.divide.checked?11:1);
     }
 
@@ -482,12 +493,10 @@
       tickerViewMode[sym] = mode;
       localStorage.setItem("pfViewMode", JSON.stringify(tickerViewMode));
       
-      // Toggle Buttons Styles
       const container = document.getElementById(`tog-${sym}`);
       container.children[0].className = mode==='SUMMARY'?'active':'';
       container.children[1].className = mode==='HISTORY'?'active':'';
       
-      // Toggle Controls Visibility
       const controls = document.getElementById(`ctrl-${sym}`);
       if(controls) controls.style.display = (mode === 'HISTORY' ? 'flex' : 'none');
 
