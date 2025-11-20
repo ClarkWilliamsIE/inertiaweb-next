@@ -59,13 +59,12 @@
     }
     .chart-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     
-    /* NEW: Adjusted H2 to align items */
     .chart-card h2 { 
       margin: 0; font-size: 1.1rem; font-weight: 600; 
       display: flex; align-items: center; gap: 8px; 
     }
     
-    /* NEW: Profit Badge Styles */
+    /* Profit Badge Styles */
     .badge-pnl {
       font-size: 0.85rem; font-weight: 600; padding: 2px 8px; border-radius: 6px;
       letter-spacing: 0.5px;
@@ -137,8 +136,11 @@
     let summary = null;
     let chartRegistry = {}; 
     let globalRange = localStorage.getItem("pfGlobalRange") || "DAY"; 
+    
+    // VIEW MODE: Load from storage or default to empty
     let tickerViewMode = {};
     try { tickerViewMode = JSON.parse(localStorage.getItem("pfViewMode") || "{}"); } catch(_){}
+
     let tickerRangeMode = {};
     try { tickerRangeMode = JSON.parse(localStorage.getItem("pfTickerRanges") || "{}"); } catch(_){}
 
@@ -251,14 +253,14 @@
       // D. Tickers
       (summary.positions||[]).forEach(p => {
         const sym = p.symbol;
-        const mode = tickerViewMode[sym] || "SUMMARY";
+        // DEFAULT CHANGE: Use "HISTORY" if not set in storage
+        const mode = tickerViewMode[sym] || "HISTORY";
         const currentTickerRange = tickerRangeMode[sym] || "YEAR";
         
         const miniTabs = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(k => 
           `<button class="mini-btn ${currentTickerRange===k?'active':''}" onclick="updateTickerRange('${sym}', '${k}')">${k[0]}</button>`
         ).join('');
 
-        // NEW: Added badge span next to ticker name
         els.dash.innerHTML += `
           <div class="chart-card" id="card-${sym}">
             <div class="chart-card-header">
@@ -290,14 +292,16 @@
       els.title.textContent = totalProfit >= 0 ? "WINNERLAND" : "LOOSERLAND";
       els.title.style.color = totalProfit >= 0 ? "#4ade80" : "#f87171";
 
-      // Stats Grid
+      // Stats Grid - Dynamic "Loss" label
       const tProf = totalProfit / div;
       const tPct = totals.pct || 0;
+      const profitLabel = tProf >= 0 ? "Profit" : "Loss";
+
       els.stats.style.display = "grid";
       els.stats.innerHTML = `
         <div class="stat-box"><div class="stat-label">Value</div><div class="stat-value text-blue">${fmtMoney((totals.value||0)/div, true)}</div></div>
         <div class="stat-box"><div class="stat-label">Cost</div><div class="stat-value">${fmtMoney((totals.cost||0)/div, true)}</div></div>
-        <div class="stat-box"><div class="stat-label">Profit</div><div class="stat-value ${tProf>=0?'text-green':'text-red'}">${tProf>=0?'+':''}${fmtMoney(tProf, true)}</div></div>
+        <div class="stat-box"><div class="stat-label">${profitLabel}</div><div class="stat-value ${tProf>=0?'text-green':'text-red'}">${tProf>=0?'+':''}${fmtMoney(tProf, true)}</div></div>
         <div class="stat-box"><div class="stat-label">Return</div><div class="stat-value ${tPct>=0?'text-green':'text-red'}">${tPct>=0?'+':''}${fmtPct(tPct)}%</div></div>
       `;
       
@@ -306,25 +310,20 @@
         els.updated.textContent = "Last updated: " + new Date(summary.lastUpdatedDate).toLocaleString();
       }
 
-      // Update Labels
       document.getElementById('lbl-alloc').innerText = "Allocation " + (div>1?"(1/11)":"");
       document.getElementById('lbl-sum').innerText = "Summary " + (div>1?"(1/11)":"");
 
-      // Draw Global Charts
       drawAlloc(div);
       drawSumBar(div);
       drawPfLine(div);
 
-      // Draw Ticker Charts & Update Badges
       (summary.positions||[]).forEach(p => {
-        // NEW: Update PnL Badge
         const badge = document.getElementById(`badge-${p.symbol}`);
         if(badge) {
            const val = (p.profit||0)/div;
            badge.textContent = (val>=0?'+':'') + fmtMoney(val, true);
            badge.className = `badge-pnl ${val>=0?'bg-green':'bg-red'}`;
         }
-
         drawTicker(p.symbol, div);
       });
     }
@@ -354,10 +353,12 @@
     function drawSumBar(f) {
       const t = summary.totals;
       const prof = (t.profit||0)/f;
+      const lbl = prof >= 0 ? "Profit" : "Loss"; // Dynamic Label
+
       replaceChart('cvs-sum', {
         type: 'bar',
         data: {
-          labels: ["Spent", "Profit", "Value"],
+          labels: ["Spent", lbl, "Value"],
           datasets: [{
             data: [(t.cost||0)/f, prof, (t.value||0)/f],
             backgroundColor: ['#3f3f46', prof>=0?'#10b981':'#ef4444', '#3b82f6'],
@@ -396,7 +397,8 @@
       const isUp = (p.profit||0) >= 0;
       document.getElementById(`card-${sym}`).style.borderTop = `4px solid ${isUp?'#10b981':'#ef4444'}`;
 
-      const mode = tickerViewMode[sym] || "SUMMARY";
+      // DEFAULT CHANGE: Use "HISTORY" if not set
+      const mode = tickerViewMode[sym] || "HISTORY"; 
       const canvasId = `cvs-sym-${sym}`;
       
       if(mode === "HISTORY") {
@@ -420,9 +422,11 @@
         });
       } else {
         const prof = (p.profit||0)/f;
+        const lbl = prof >= 0 ? "Profit" : "Loss"; // Dynamic Label
+
         replaceChart(canvasId, {
           data: {
-            labels: ["Cost", "Value", "Profit", "%"],
+            labels: ["Cost", "Value", lbl, "%"],
             datasets: [
               { type: 'bar', label: 'NZD', data: [(p.cost||0)/f, (p.value||0)/f, prof, null], backgroundColor: ['#3f3f46','#3b82f6',prof>=0?'#10b981':'#ef4444',null], borderRadius:4, yAxisID:'y' },
               { type: 'line', label: '%', data: [null,null,null,p.pct], borderColor: '#fbbf24', borderWidth:2, pointBackgroundColor:'#fbbf24', yAxisID:'yPct' }
