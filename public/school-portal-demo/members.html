@@ -83,7 +83,7 @@
     <h1 id="page-title">Members Dashboard</h1>
     <div class="row">
       <label class="row" style="gap:.5rem; font-size: 0.9rem; color: #a1a1aa;">
-        <span>Divide by 12</span>
+        <span>Divide by 11</span>
         <span class="switch">
           <input type="checkbox" id="divideToggle" />
           <span class="slider"></span>
@@ -243,7 +243,7 @@
 
     // 2. REFRESH DATA 
     function refreshCharts() {
-      const div = els.divide.checked ? 12 : 1;
+      const div = els.divide.checked ? 11 : 1;
       const totals = summary.totals || {};
 
       // 1. UPDATE TITLE (WINNERLAND / LOOSERLAND)
@@ -272,8 +272,8 @@
       }
 
       // Update Labels
-      document.getElementById('lbl-alloc').innerText = "Allocation " + (div>1?"(1/12)":"");
-      document.getElementById('lbl-sum').innerText = "Summary " + (div>1?"(1/12)":"");
+      document.getElementById('lbl-alloc').innerText = "Allocation " + (div>1?"(1/11)":"");
+      document.getElementById('lbl-sum').innerText = "Summary " + (div>1?"(1/11)":"");
 
       // Draw Global Charts
       drawAlloc(div);
@@ -434,9 +434,9 @@
       localStorage.setItem("pfRange", k);
       const container = document.getElementById("range-container");
       Array.from(container.children).forEach(b => b.className = `range-tab ${b.innerText.toUpperCase().replace(' ','_') === k ? 'active' : ''}`);
-      drawPfLine(els.divide.checked?12:1);
+      drawPfLine(els.divide.checked?11:1);
       Object.keys(tickerViewMode).forEach(sym => {
-        if(tickerViewMode[sym]==="HISTORY") drawTicker(sym, els.divide.checked?12:1);
+        if(tickerViewMode[sym]==="HISTORY") drawTicker(sym, els.divide.checked?11:1);
       });
     };
 
@@ -446,7 +446,7 @@
       const container = document.getElementById(`tog-${sym}`);
       container.children[0].className = mode==='SUMMARY'?'active':'';
       container.children[1].className = mode==='HISTORY'?'active':'';
-      drawTicker(sym, els.divide.checked?12:1);
+      drawTicker(sym, els.divide.checked?11:1);
     };
 
     init();
