@@ -1,513 +1,518 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <style>
-    :root { color-scheme: dark; }
-    body {
-      margin: 0; padding: 1rem;
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #0f0f0f; color: #e0e0e0;
-    }
-    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
-    
-    h1 { margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; text-transform: uppercase; }
-    
-    .row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
-    .btn {
-      padding: .5rem .85rem; border-radius: 8px; border: 1px solid #333;
-      background: #1f1f1f; color: #fff; cursor: pointer; transition: 0.2s;
-    }
-    .btn:hover { background: #2a2a2a; }
-    .danger { border-color: #7f1d1d; color: #fca5a5; }
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0; padding: 1rem;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f0f0f; color: #e0e0e0;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+    
+    h1 { margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; text-transform: uppercase; }
+    
+    .row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .btn {
+      padding: .5rem .85rem; border-radius: 8px; border: 1px solid #333;
+      background: #1f1f1f; color: #fff; cursor: pointer; transition: 0.2s;
+    }
+    .btn:hover { background: #2a2a2a; }
+    .danger { border-color: #7f1d1d; color: #fca5a5; }
 
-    .icon-btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 36px; height: 36px; border-radius: 8px;
-      color: #a1a1aa; text-decoration: none; transition: 0.2s;
-      background: #1f1f1f; border: 1px solid #333;
-    }
-    .icon-btn:hover { background: #2a2a2a; color: #fff; border-color: #52525b; }
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 8px;
+      color: #a1a1aa; text-decoration: none; transition: 0.2s;
+      background: #1f1f1f; border: 1px solid #333;
+    }
+    .icon-btn:hover { background: #2a2a2a; color: #fff; border-color: #52525b; }
 
-    /* Switch */
-    .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
-    .switch input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; cursor: pointer; inset: 0; background-color: #333; transition: .2s; border-radius: 24px; }
-    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; transition: .2s; border-radius: 50%; }
-    input:checked + .slider { background-color: #3b82f6; }
-    input:checked + .slider:before { transform: translateX(22px); }
+    /* Switch */
+    .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background-color: #333; transition: .2s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; transition: .2s; border-radius: 50%; }
+    input:checked + .slider { background-color: #3b82f6; }
+    input:checked + .slider:before { transform: translateX(22px); }
 
-    /* Stats Grid */
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-    .stat-box { background: #18181b; border: 1px solid #27272a; padding: 1.25rem; border-radius: 12px; text-align: center; }
-    .stat-label { font-size: 0.85rem; color: #a1a1aa; text-transform: uppercase; margin-bottom: 0.5rem; }
-    .stat-value { font-size: 1.5rem; font-weight: 700; color: #fff; }
-    .text-green { color: #4ade80; } .text-red { color: #f87171; } .text-blue { color: #60a5fa; }
+    /* Stats Grid */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-box { background: #18181b; border: 1px solid #27272a; padding: 1.25rem; border-radius: 12px; text-align: center; }
+    .stat-label { font-size: 0.85rem; color: #a1a1aa; text-transform: uppercase; margin-bottom: 0.5rem; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: #fff; }
+    .text-green { color: #4ade80; } .text-red { color: #f87171; } .text-blue { color: #60a5fa; }
 
-    /* Dashboard */
-    .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; }
-    .chart-card {
-      background: #18181b; border: 1px solid #27272a; border-radius: 16px;
-      padding: 1.25rem; display: flex; flex-direction: column;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-    .chart-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    
-    .chart-card h2 { 
-      margin: 0; font-size: 1.1rem; font-weight: 600; 
-      display: flex; align-items: center; gap: 8px; 
-    }
-    
-    /* Profit Badge Styles */
-    .badge-pnl {
-      font-size: 0.85rem; font-weight: 600; padding: 2px 8px; border-radius: 6px;
-      letter-spacing: 0.5px;
-    }
-    .bg-green { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
-    .bg-red { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+    /* Dashboard */
+    .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; }
+    .chart-card {
+      background: #18181b; border: 1px solid #27272a; border-radius: 16px;
+      padding: 1.25rem; display: flex; flex-direction: column;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .chart-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    
+    .chart-card h2 { 
+      margin: 0; font-size: 1.1rem; font-weight: 600; 
+      display: flex; align-items: center; gap: 8px; 
+    }
+    
+    /* Profit Badge Styles */
+    .badge-pnl {
+      font-size: 0.85rem; font-weight: 600; padding: 2px 8px; border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+    .bg-green { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+    .bg-red { background: rgba(248, 113, 113, 0.15); color: #f87171; }
 
-    .chart-container { position: relative; flex: 1; height: 240px; width: 100%; }
+    .chart-container { position: relative; flex: 1; height: 240px; width: 100%; }
 
-    /* Toggles */
-    .view-toggle, .range-tabs { display: inline-flex; background: #27272a; padding: 2px; border-radius: 8px; }
-    .range-tabs { border-radius: 99px; margin: 0 auto 1rem auto; }
-    
-    .view-toggle button, .range-tabs button {
-      padding: 0.25rem 0.75rem; border: none; background: transparent; color: #a1a1aa;
-      cursor: pointer; font-size: 0.75rem; border-radius: 6px; font-weight: 500;
-    }
-    .range-tabs button { border-radius: 99px; padding: 0.35rem 0.85rem; }
-    .view-toggle button.active, .range-tabs button.active { background: #52525b; color: #fff; }
+    /* Toggles */
+    .view-toggle, .range-tabs { display: inline-flex; background: #27272a; padding: 2px; border-radius: 8px; }
+    .range-tabs { border-radius: 99px; margin: 0 auto 1rem auto; }
+    
+    .view-toggle button, .range-tabs button {
+      padding: 0.25rem 0.75rem; border: none; background: transparent; color: #a1a1aa;
+      cursor: pointer; font-size: 0.75rem; border-radius: 6px; font-weight: 500;
+    }
+    .range-tabs button { border-radius: 99px; padding: 0.35rem 0.85rem; }
+    .view-toggle button.active, .range-tabs button.active { background: #52525b; color: #fff; }
 
-    /* Mini Tabs */
-    .mini-tabs { display: flex; justify-content: center; gap: 4px; margin-bottom: 10px; }
-    .mini-btn {
-      padding: 2px 8px; font-size: 0.65rem; border: 1px solid #333; background: transparent;
-      color: #71717a; border-radius: 4px; cursor: pointer; font-weight: 600;
-    }
-    .mini-btn:hover { color: #fff; border-color: #52525b; }
-    .mini-btn.active { background: #3f3f46; color: #fff; border-color: #52525b; }
+    /* Mini Tabs */
+    .mini-tabs { display: flex; justify-content: center; gap: 4px; margin-bottom: 10px; }
+    .mini-btn {
+      padding: 2px 8px; font-size: 0.65rem; border: 1px solid #333; background: transparent;
+      color: #71717a; border-radius: 4px; cursor: pointer; font-weight: 600;
+    }
+    .mini-btn:hover { color: #fff; border-color: #52525b; }
+    .mini-btn.active { background: #3f3f46; color: #fff; border-color: #52525b; }
 
-    .notice { padding: 1rem; background: #18181b; border: 1px solid #3f3f46; border-radius: 8px; color: #fbbf24; margin-bottom: 1rem; }
-    .last-updated { font-size: 0.75rem; color: #71717a; text-align: right; margin-top: 0.5rem; }
-  </style>
+    .notice { padding: 1rem; background: #18181b; border: 1px solid #3f3f46; border-radius: 8px; color: #fbbf24; margin-bottom: 1rem; }
+    .last-updated { font-size: 0.75rem; color: #71717a; text-align: right; margin-top: 0.5rem; }
+  </style>
 </head>
 <body>
-  <header>
-    <h1 id="page-title">Members Dashboard</h1>
-    <div class="row">
-      <label class="row" style="gap:.5rem; font-size: 0.9rem; color: #a1a1aa;">
-        <span>Divide by 11</span>
-        <span class="switch">
-          <input type="checkbox" id="divideToggle" />
-          <span class="slider"></span>
-        </span>
-      </label>
-      
-      <button class="btn" onclick="location.href='watchlist.html'">Watchlist</button>
-      <button class="btn" onclick="location.href='polls.html'">Polls</button>
-      
-      <a href="admin.html" class="icon-btn" title="Admin Ledger">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-      </a>
-      
-      <button class="btn danger" id="btnSignOut">Sign out</button>
-    </div>
-  </header>
+  <header>
+    <h1 id="page-title">Members Dashboard</h1>
+    <div class="row">
+      <label class="row" style="gap:.5rem; font-size: 0.9rem; color: #a1a1aa;">
+        <span>Divide by 11</span>
+        <span class="switch">
+          <input type="checkbox" id="divideToggle" />
+          <span class="slider"></span>
+        </span>
+      </label>
+      
+      <button class="btn" onclick="location.href='watchlist.html'">Watchlist</button>
+      <button class="btn" onclick="location.href='polls.html'">Polls</button>
+      
+      <a href="admin.html" class="icon-btn" title="Admin Ledger">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </a>
+      
+      <button class="btn danger" id="btnSignOut">Sign out</button>
+    </div>
+  </header>
 
-  <div id="status" class="notice" style="display:none;"></div>
-  <div id="statsGrid" class="stats-grid" style="display:none;"></div>
-  <div id="dashboard" class="dashboard"></div>
-  <div id="lastUpdated" class="last-updated" style="display:none;"></div>
+  <div id="status" class="notice" style="display:none;"></div>
+  <div id="statsGrid" class="stats-grid" style="display:none;"></div>
+  <div id="dashboard" class="dashboard"></div>
+  <div id="lastUpdated" class="last-updated" style="display:none;"></div>
 
-  <script>
-    // CONFIG
-    const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  <script>
+    // CONFIG
+    const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // STATE
-    let summary = null;
-    let chartRegistry = {}; 
-    let globalRange = localStorage.getItem("pfGlobalRange") || "DAY"; 
-    
-    // VIEW MODE: Load from storage or default to empty
-    let tickerViewMode = {};
-    try { tickerViewMode = JSON.parse(localStorage.getItem("pfViewMode") || "{}"); } catch(_){}
+    // STATE
+    let summary = null;
+    let chartRegistry = {}; 
+    let globalRange = localStorage.getItem("pfGlobalRange") || "DAY"; 
+    
+    // VIEW MODE: Load from storage or default to empty
+    let tickerViewMode = {};
+    try { tickerViewMode = JSON.parse(localStorage.getItem("pfViewMode") || "{}"); } catch(_){}
 
-    let tickerRangeMode = {};
-    try { tickerRangeMode = JSON.parse(localStorage.getItem("pfTickerRanges") || "{}"); } catch(_){}
+    let tickerRangeMode = {};
+    try { tickerRangeMode = JSON.parse(localStorage.getItem("pfTickerRanges") || "{}"); } catch(_){}
 
 
-    // DOM ELEMENTS
-    const els = {
-      title: document.getElementById("page-title"),
-      status: document.getElementById("status"),
-      stats: document.getElementById("statsGrid"),
-      dash: document.getElementById("dashboard"),
-      updated: document.getElementById("lastUpdated"),
-      divide: document.getElementById("divideToggle")
-    };
+    // DOM ELEMENTS
+    const els = {
+      title: document.getElementById("page-title"),
+      status: document.getElementById("status"),
+      stats: document.getElementById("statsGrid"),
+      dash: document.getElementById("dashboard"),
+      updated: document.getElementById("lastUpdated"),
+      divide: document.getElementById("divideToggle")
+    };
 
-    // UTILS
-    const setStatus = (msg) => { els.status.textContent = msg; els.status.style.display = msg ? "block" : "none"; };
-    const fmtMoney = (v, sign=false) => { if(v==null) return "0"; const s=Math.round(Number(v)).toLocaleString(); return sign?"$"+s:s; };
-    const fmtPct = (v) => (v==null) ? "n/a" : Number(v).toFixed(2);
-    
-    const smartDate = (iso, range) => { 
-      const d = new Date(iso); 
-      if(isNaN(d)) return iso;
-      if(range === 'DAY') return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-      if (range === 'ALL' || range === 'YEAR') return `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]} ${d.getFullYear().toString().substr(-2)}`;
-      return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`; 
-    };
-    
-    const consolidate = (arr) => arr; 
+    // UTILS
+    const setStatus = (msg) => { els.status.textContent = msg; els.status.style.display = msg ? "block" : "none"; };
+    const fmtMoney = (v, sign=false) => { if(v==null) return "0"; const s=Math.round(Number(v)).toLocaleString(); return sign?"$"+s:s; };
+    const fmtPct = (v) => (v==null) ? "n/a" : Number(v).toFixed(2);
+    
+    const smartDate = (iso, range) => { 
+      const d = new Date(iso); 
+      if(isNaN(d)) return iso;
+      if(range === 'DAY') return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      if (range === 'ALL' || range === 'YEAR') return `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]} ${d.getFullYear().toString().substr(-2)}`;
+      return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`; 
+    };
+    
+    const consolidate = (arr) => arr; 
 
-    const filterRange = (hist, rng) => {
-      if(!hist?.length) return [];
-      if(rng === 'ALL') return hist;
-      const ms = { DAY: 86400000, WEEK: 604800000, MONTH: 2592000000, SIX_MONTHS: 15552000000, YEAR: 31536000000 }[rng] || 31536000000;
-      const cut = new Date().getTime() - ms;
-      return hist.filter(p => new Date(p[0]).getTime() >= cut);
-    };
+    const filterRange = (hist, rng) => {
+      if(!hist?.length) return [];
+      if(rng === 'ALL') return hist;
+      const ms = { DAY: 86400000, WEEK: 604800000, MONTH: 2592000000, SIX_MONTHS: 15552000000, YEAR: 31536000000 }[rng] || 31536000000;
+      const cut = new Date().getTime() - ms;
+      return hist.filter(p => new Date(p[0]).getTime() >= cut);
+    };
 
-    // MAIN LOGIC
-    async function init() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) location.href = "login.html";
-      document.getElementById("btnSignOut").onclick = async () => { await supabase.auth.signOut(); location.href="login.html"; };
-      els.divide.onchange = () => refreshCharts(); 
-      await loadData();
-    }
+    // MAIN LOGIC
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) location.href = "login.html";
+      document.getElementById("btnSignOut").onclick = async () => { await supabase.auth.signOut(); location.href="login.html"; };
+      els.divide.onchange = () => refreshCharts(); 
+      await loadData();
+    }
 
-    async function loadData() {
-      setStatus("Loading...");
-      const { data: sumData } = await supabase.from("flex_summary").select("*").order("last_updated",{ascending:false}).limit(1);
-      if(!sumData?.length) { setStatus("No data."); return; }
+    async function loadData() {
+      setStatus("Loading...");
+      const { data: sumData } = await supabase.from("flex_summary").select("*").order("last_updated",{ascending:false}).limit(1);
+      if(!sumData?.length) { setStatus("No data."); return; }
 
-      summary = sumData[0].data;
-      summary.lastUpdatedDate = sumData[0].last_updated;
+      summary = sumData[0].data;
+      summary.lastUpdatedDate = sumData[0].last_updated;
 
-      const { data: histData } = await supabase.from("flex_summary").select("data,last_updated").order("last_updated",{ascending:true}).limit(10000);
-      
-      const rawPf = [], rawSym = {};
-      (histData||[]).forEach(r => {
-        const dt = r.data.lastUpdated || r.last_updated;
-        if(!dt) return;
-        const val = Number(r.data.totals?.value || 0);
-        if(isFinite(val)) rawPf.push([dt, val]);
-        (r.data.positions||[]).forEach(p => {
-          if(p?.symbol) {
-            if(!rawSym[p.symbol]) rawSym[p.symbol]=[];
-            rawSym[p.symbol].push([dt, Number(p.value||0)]);
-          }
-        });
-      });
+      const { data: histData } = await supabase.from("flex_summary").select("data,last_updated").order("last_updated",{ascending:true}).limit(10000);
+      
+      const rawPf = [], rawSym = {};
+      (histData||[]).forEach(r => {
+        const dt = r.data.lastUpdated || r.last_updated;
+        if(!dt) return;
+        const val = Number(r.data.totals?.value || 0);
+        if(isFinite(val)) rawPf.push([dt, val]);
+        (r.data.positions||[]).forEach(p => {
+          if(p?.symbol) {
+            if(!rawSym[p.symbol]) rawSym[p.symbol]=[];
+            rawSym[p.symbol].push([dt, Number(p.value||0)]);
+          }
+        });
+      });
 
-      summary.history = rawPf; 
-      summary.symbolHistory = rawSym;
+      summary.history = rawPf; 
+      summary.symbolHistory = rawSym;
 
-      setStatus("");
-      buildLayout(); 
-      refreshCharts(); 
-    }
+      setStatus("");
+      buildLayout(); 
+      refreshCharts(); 
+    }
 
-    // 1. BUILD HTML STRUCTURE
-    function buildLayout() {
-      els.dash.innerHTML = "";
-      els.stats.innerHTML = ""; 
-      
-      // A. Allocation
-      els.dash.innerHTML += `
-        <div class="chart-card">
-          <div class="chart-card-header"><h2 id="lbl-alloc">Allocation</h2></div>
-          <div class="chart-container"><canvas id="cvs-alloc"></canvas></div>
-        </div>`;
+    // 1. BUILD HTML STRUCTURE
+    function buildLayout() {
+      els.dash.innerHTML = "";
+      els.stats.innerHTML = ""; 
+      
+      // A. Allocation
+      els.dash.innerHTML += `
+        <div class="chart-card">
+          <div class="chart-card-header"><h2 id="lbl-alloc">Allocation</h2></div>
+          <div class="chart-container"><canvas id="cvs-alloc"></canvas></div>
+        </div>`;
 
-      // B. Summary Bar
-      els.dash.innerHTML += `
-        <div class="chart-card">
-          <div class="chart-card-header"><h2 id="lbl-sum">Summary</h2></div>
-          <div class="chart-container"><canvas id="cvs-sum"></canvas></div>
-        </div>`;
+      // B. Summary Bar
+      els.dash.innerHTML += `
+        <div class="chart-card">
+          <div class="chart-card-header"><h2 id="lbl-sum">Summary</h2></div>
+          <div class="chart-container"><canvas id="cvs-sum"></canvas></div>
+        </div>`;
 
-      // C. Portfolio Line
-      const tabs = ['DAY', 'WEEK','MONTH','YEAR', 'ALL'].map(k => 
-        `<button class="range-tab ${globalRange===k?'active':''}" onclick="updateGlobalRange('${k}')">${k.replace('_',' ').toLowerCase()}</button>`
-      ).join('');
-      
-      els.dash.innerHTML += `
-        <div class="chart-card">
-          <div class="chart-card-header"><h2>Portfolio Value</h2></div>
-          <div class="range-tabs" id="range-container">${tabs}</div>
-          <div class="chart-container"><canvas id="cvs-line"></canvas></div>
-        </div>`;
+      // C. Portfolio Line
+      const tabs = ['DAY', 'WEEK','MONTH','YEAR', 'ALL'].map(k => 
+        `<button class="range-tab ${globalRange===k?'active':''}" onclick="updateGlobalRange('${k}')">${k.replace('_',' ').toLowerCase()}</button>`
+      ).join('');
+      
+      els.dash.innerHTML += `
+        <div class="chart-card">
+          <div class="chart-card-header"><h2>Portfolio Value</h2></div>
+          <div class="range-tabs" id="range-container">${tabs}</div>
+          <div class="chart-container"><canvas id="cvs-line"></canvas></div>
+        </div>`;
 
-      // D. Tickers
-      (summary.positions||[]).forEach(p => {
-        const sym = p.symbol;
-        // DEFAULT CHANGE: Use "HISTORY" if not set in storage
-        const mode = tickerViewMode[sym] || "HISTORY";
-        const currentTickerRange = tickerRangeMode[sym] || "YEAR";
-        
-        const miniTabs = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(k => 
-          `<button class="mini-btn ${currentTickerRange===k?'active':''}" onclick="updateTickerRange('${sym}', '${k}')">${k[0]}</button>`
-        ).join('');
+      // D. Tickers
+      (summary.positions||[]).forEach(p => {
+        const sym = p.symbol;
+        // DEFAULT CHANGE: Use "HISTORY" if not set in storage
+        const mode = tickerViewMode[sym] || "HISTORY";
+        const currentTickerRange = tickerRangeMode[sym] || "YEAR";
+        
+        const miniTabs = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(k => 
+          `<button class="mini-btn ${currentTickerRange===k?'active':''}" onclick="updateTickerRange('${sym}', '${k}')">${k[0]}</button>`
+        ).join('');
 
-        els.dash.innerHTML += `
-          <div class="chart-card" id="card-${sym}">
-            <div class="chart-card-header">
-              <h2>
-                ${sym} 
-                <span id="badge-${sym}" class="badge-pnl"></span>
-              </h2>
-              <div class="view-toggle" id="tog-${sym}">
-                <button onclick="updateTickerMode('${sym}','SUMMARY')" class="${mode==='SUMMARY'?'active':''}">Sum</button>
-                <button onclick="updateTickerMode('${sym}','HISTORY')" class="${mode==='HISTORY'?'active':''}">Hist</button>
-              </div>
-            </div>
-            
-            <div id="ctrl-${sym}" class="mini-tabs" style="display:${mode==='HISTORY'?'flex':'none'}">
-              ${miniTabs}
-            </div>
+        els.dash.innerHTML += `
+          <div class="chart-card" id="card-${sym}">
+            <div class="chart-card-header">
+              <h2>
+                ${sym} 
+                <span id="badge-${sym}" class="badge-pnl"></span>
+              </h2>
+              <div class="view-toggle" id="tog-${sym}">
+                <button onclick="updateTickerMode('${sym}','SUMMARY')" class="${mode==='SUMMARY'?'active':''}">Sum</button>
+                <button onclick="updateTickerMode('${sym}','HISTORY')" class="${mode==='HISTORY'?'active':''}">Hist</button>
+              </div>
+            </div>
+            
+            <div id="ctrl-${sym}" class="mini-tabs" style="display:${mode==='HISTORY'?'flex':'none'}">
+              ${miniTabs}
+            </div>
 
-            <div class="chart-container"><canvas id="cvs-sym-${sym}"></canvas></div>
-          </div>`;
-      });
-    }
+            <div class="chart-container"><canvas id="cvs-sym-${sym}"></canvas></div>
+          </div>`;
+      });
+    }
 
-    // 2. REFRESH DATA 
-    function refreshCharts() {
-      const div = els.divide.checked ? 11 : 1;
-      const totals = summary.totals || {};
+    // 2. REFRESH DATA 
+    function refreshCharts() {
+      const div = els.divide.checked ? 11 : 1;
+      const totals = summary.totals || {};
 
-      const totalProfit = Number(totals.profit || 0);
-      els.title.textContent = totalProfit >= 0 ? "WINNERLAND" : "LOOSERLAND";
-      els.title.style.color = totalProfit >= 0 ? "#4ade80" : "#f87171";
+      const totalProfit = Number(totals.profit || 0);
+      els.title.textContent = totalProfit >= 0 ? "WINNERLAND" : "LOOSERLAND";
+      els.title.style.color = totalProfit >= 0 ? "#4ade80" : "#f87171";
 
-      // Stats Grid - Dynamic "Loss" label
-      const tProf = totalProfit / div;
-      const tPct = totals.pct || 0;
-      const profitLabel = tProf >= 0 ? "Profit" : "Loss";
+      // Stats Grid - Dynamic "Loss" label
+      const tProf = totalProfit / div;
+      const tPct = totals.pct || 0;
+      const profitLabel = tProf >= 0 ? "Profit" : "Loss";
 
-      els.stats.style.display = "grid";
-      els.stats.innerHTML = `
-        <div class="stat-box"><div class="stat-label">Value</div><div class="stat-value text-blue">${fmtMoney((totals.value||0)/div, true)}</div></div>
-        <div class="stat-box"><div class="stat-label">Cost</div><div class="stat-value">${fmtMoney((totals.cost||0)/div, true)}</div></div>
-        <div class="stat-box"><div class="stat-label">${profitLabel}</div><div class="stat-value ${tProf>=0?'text-green':'text-red'}">${tProf>=0?'+':''}${fmtMoney(tProf, true)}</div></div>
-        <div class="stat-box"><div class="stat-label">Return</div><div class="stat-value ${tPct>=0?'text-green':'text-red'}">${tPct>=0?'+':''}${fmtPct(tPct)}%</div></div>
-      `;
-      
-      if(summary.lastUpdatedDate) {
-        els.updated.style.display = "block";
-        els.updated.textContent = "Last updated: " + new Date(summary.lastUpdatedDate).toLocaleString();
-      }
+      els.stats.style.display = "grid";
+      els.stats.innerHTML = `
+        <div class="stat-box"><div class="stat-label">Value</div><div class="stat-value text-blue">${fmtMoney((totals.value||0)/div, true)}</div></div>
+        <div class="stat-box"><div class="stat-label">Cost</div><div class="stat-value">${fmtMoney((totals.cost||0)/div, true)}</div></div>
+        <div class="stat-box"><div class="stat-label">${profitLabel}</div><div class="stat-value ${tProf>=0?'text-green':'text-red'}">${tProf>=0?'+':''}${fmtMoney(tProf, true)}</div></div>
+        <div class="stat-box"><div class="stat-label">Return</div><div class="stat-value ${tPct>=0?'text-green':'text-red'}">${tPct>=0?'+':''}${fmtPct(tPct)}%</div></div>
+      `;
+      
+      if(summary.lastUpdatedDate) {
+        els.updated.style.display = "block";
+        els.updated.textContent = "Last updated: " + new Date(summary.lastUpdatedDate).toLocaleString();
+      }
 
-      document.getElementById('lbl-alloc').innerText = "Allocation " + (div>1?"(1/11)":"");
-      document.getElementById('lbl-sum').innerText = "Summary " + (div>1?"(1/11)":"");
+      document.getElementById('lbl-alloc').innerText = "Allocation " + (div>1?"(1/11)":"");
+      document.getElementById('lbl-sum').innerText = "Summary " + (div>1?"(1/11)":"");
 
-      drawAlloc(div);
-      drawSumBar(div);
-      drawPfLine(div);
+      drawAlloc(div);
+      drawSumBar(div);
+      drawPfLine(div);
 
-      (summary.positions||[]).forEach(p => {
-        const badge = document.getElementById(`badge-${p.symbol}`);
-        if(badge) {
-           const val = (p.profit||0)/div;
-           badge.textContent = (val>=0?'+':'') + fmtMoney(val, true);
-           badge.className = `badge-pnl ${val>=0?'bg-green':'bg-red'}`;
-        }
-        drawTicker(p.symbol, div);
-      });
-    }
+      (summary.positions||[]).forEach(p => {
+        const badge = document.getElementById(`badge-${p.symbol}`);
+        if(badge) {
+           const val = (p.profit||0)/div;
+            const pct = p.pct || 0; // Get the percentage change
+           const sign = val >= 0 ? '+' : '';
 
-    // --- DRAWERS ---
+           // Updated content: Profit/Loss Amount (Percentage)
+           badge.textContent = `${sign}${fmtMoney(val, true)} (${sign}${fmtPct(pct)}%)`;
+           
+           badge.className = `badge-pnl ${val>=0?'bg-green':'bg-red'}`;
+        }
+        drawTicker(p.symbol, div);
+      });
+    }
 
-    function drawAlloc(f) {
-      replaceChart('cvs-alloc', {
-        type: 'doughnut',
-        data: {
-          labels: summary.positions.map(p=>p.symbol),
-          datasets: [{
-            data: summary.positions.map(p=>(p.value||0)/f),
-            backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16'],
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: true, position: 'right', labels:{color:'#fff', boxWidth:12} } },
-          scales: { x: { display: false }, y: { display: false } },
-          cutout: '65%'
-        }
-      });
-    }
+    // --- DRAWERS ---
 
-    function drawSumBar(f) {
-      const t = summary.totals;
-      const prof = (t.profit||0)/f;
-      const lbl = prof >= 0 ? "Profit" : "Loss"; // Dynamic Label
+    function drawAlloc(f) {
+      replaceChart('cvs-alloc', {
+        type: 'doughnut',
+        data: {
+          labels: summary.positions.map(p=>p.symbol),
+          datasets: [{
+            data: summary.positions.map(p=>(p.value||0)/f),
+            backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: true, position: 'right', labels:{color:'#fff', boxWidth:12} } },
+          scales: { x: { display: false }, y: { display: false } },
+          cutout: '65%'
+        }
+      });
+    }
 
-      replaceChart('cvs-sum', {
-        type: 'bar',
-        data: {
-          labels: ["Spent", lbl, "Value"],
-          datasets: [{
-            data: [(t.cost||0)/f, prof, (t.value||0)/f],
-            backgroundColor: ['#3f3f46', prof>=0?'#10b981':'#ef4444', '#3b82f6'],
-            borderRadius: 6
-          }]
-        },
-        options: stdOpts()
-      });
-    }
+    function drawSumBar(f) {
+      const t = summary.totals;
+      const prof = (t.profit||0)/f;
+      const lbl = prof >= 0 ? "Profit" : "Loss"; // Dynamic Label
 
-    function drawPfLine(f) {
-      const ctx = document.getElementById('cvs-line').getContext('2d');
-      const grad = ctx.createLinearGradient(0,0,0,300);
-      grad.addColorStop(0,'rgba(59,130,246,0.5)'); grad.addColorStop(1,'rgba(59,130,246,0.0)');
-      
-      const hist = filterRange(summary.history, globalRange);
-      
-      replaceChart('cvs-line', {
-        type: 'line',
-        data: {
-          labels: hist.map(p=>smartDate(p[0], globalRange)),
-          datasets: [{
-            label: 'Value', data: hist.map(p=>(p[1]||0)/f),
-            borderColor: '#3b82f6', backgroundColor: grad,
-            fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 6
-          }]
-        },
-        options: stdOpts({intersect:false})
-      });
-    }
+      replaceChart('cvs-sum', {
+        type: 'bar',
+        data: {
+          labels: ["Spent", lbl, "Value"],
+          datasets: [{
+            data: [(t.cost||0)/f, prof, (t.value||0)/f],
+            backgroundColor: ['#3f3f46', prof>=0?'#10b981':'#ef4444', '#3b82f6'],
+            borderRadius: 6
+          }]
+        },
+        options: stdOpts()
+      });
+    }
 
-    function drawTicker(sym, f) {
-      const p = summary.positions.find(x=>x.symbol===sym);
-      if(!p) return;
-      
-      const isUp = (p.profit||0) >= 0;
-      document.getElementById(`card-${sym}`).style.borderTop = `4px solid ${isUp?'#10b981':'#ef4444'}`;
+    function drawPfLine(f) {
+      const ctx = document.getElementById('cvs-line').getContext('2d');
+      const grad = ctx.createLinearGradient(0,0,0,300);
+      grad.addColorStop(0,'rgba(59,130,246,0.5)'); grad.addColorStop(1,'rgba(59,130,246,0.0)');
+      
+      const hist = filterRange(summary.history, globalRange);
+      
+      replaceChart('cvs-line', {
+        type: 'line',
+        data: {
+          labels: hist.map(p=>smartDate(p[0], globalRange)),
+          datasets: [{
+            label: 'Value', data: hist.map(p=>(p[1]||0)/f),
+            borderColor: '#3b82f6', backgroundColor: grad,
+            fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 6
+          }]
+        },
+        options: stdOpts({intersect:false})
+      });
+    }
 
-      // DEFAULT CHANGE: Use "HISTORY" if not set
-      const mode = tickerViewMode[sym] || "HISTORY"; 
-      const canvasId = `cvs-sym-${sym}`;
-      
-      if(mode === "HISTORY") {
-        const range = tickerRangeMode[sym] || "YEAR"; 
-        const hist = filterRange(summary.symbolHistory[sym]||[], range);
-        const ctx = document.getElementById(canvasId).getContext('2d');
-        const grad = ctx.createLinearGradient(0,0,0,300);
-        grad.addColorStop(0,'rgba(249,115,22,0.5)'); grad.addColorStop(1,'rgba(249,115,22,0.0)');
+    function drawTicker(sym, f) {
+      const p = summary.positions.find(x=>x.symbol===sym);
+      if(!p) return;
+      
+      const isUp = (p.profit||0) >= 0;
+      document.getElementById(`card-${sym}`).style.borderTop = `4px solid ${isUp?'#10b981':'#ef4444'}`;
 
-        replaceChart(canvasId, {
-          type: 'line',
-          data: {
-            labels: hist.map(x=>smartDate(x[0], range)),
-            datasets: [{
-              label: 'Value', data: hist.map(x=>(x[1]||0)/f),
-              borderColor: '#f97316', backgroundColor: grad,
-              fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 5
-            }]
-          },
-          options: stdOpts({intersect:false})
-        });
-      } else {
-        const prof = (p.profit||0)/f;
-        const lbl = prof >= 0 ? "Profit" : "Loss"; // Dynamic Label
+      // DEFAULT CHANGE: Use "HISTORY" if not set
+      const mode = tickerViewMode[sym] || "HISTORY"; 
+      const canvasId = `cvs-sym-${sym}`;
+      
+      if(mode === "HISTORY") {
+        const range = tickerRangeMode[sym] || "YEAR"; 
+        const hist = filterRange(summary.symbolHistory[sym]||[], range);
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        const grad = ctx.createLinearGradient(0,0,0,300);
+        grad.addColorStop(0,'rgba(249,115,22,0.5)'); grad.addColorStop(1,'rgba(249,115,22,0.0)');
 
-        replaceChart(canvasId, {
-          data: {
-            labels: ["Cost", "Value", lbl, "%"],
-            datasets: [
-              { type: 'bar', label: 'NZD', data: [(p.cost||0)/f, (p.value||0)/f, prof, null], backgroundColor: ['#3f3f46','#3b82f6',prof>=0?'#10b981':'#ef4444',null], borderRadius:4, yAxisID:'y' },
-              { type: 'line', label: '%', data: [null,null,null,p.pct], borderColor: '#fbbf24', borderWidth:2, pointBackgroundColor:'#fbbf24', yAxisID:'yPct' }
-            ]
-          },
-          options: {
-            ...stdOpts(),
-            scales: {
-              y: { grid:{color:'#27272a'}, ticks:{color:'#a1a1aa', callback:v=>fmtMoney(v)} },
-              yPct: { type:'linear', position:'right', grid:{display:false}, ticks:{color:'#a1a1aa', callback:v=>v+'%'} },
-              x: { grid:{display:false}, ticks:{color:'#a1a1aa'} }
-            }
-          }
-        });
-      }
-    }
+        replaceChart(canvasId, {
+          type: 'line',
+          data: {
+            labels: hist.map(x=>smartDate(x[0], range)),
+            datasets: [{
+              label: 'Value', data: hist.map(x=>(x[1]||0)/f),
+              borderColor: '#f97316', backgroundColor: grad,
+              fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 5
+            }]
+          },
+          options: stdOpts({intersect:false})
+        });
+      } else {
+        const prof = (p.profit||0)/f;
+        const lbl = prof >= 0 ? "Profit" : "Loss"; // Dynamic Label
 
-    // --- HELPERS & EVENTS ---
+        replaceChart(canvasId, {
+          data: {
+            labels: ["Cost", "Value", lbl, "%"],
+            datasets: [
+              { type: 'bar', label: 'NZD', data: [(p.cost||0)/f, (p.value||0)/f, prof, null], backgroundColor: ['#3f3f46','#3b82f6',prof>=0?'#10b981':'#ef4444',null], borderRadius:4, yAxisID:'y' },
+              { type: 'line', label: '%', data: [null,null,null,p.pct], borderColor: '#fbbf24', borderWidth:2, pointBackgroundColor:'#fbbf24', yAxisID:'yPct' }
+            ]
+          },
+          options: {
+            ...stdOpts(),
+            scales: {
+              y: { grid:{color:'#27272a'}, ticks:{color:'#a1a1aa', callback:v=>fmtMoney(v)} },
+              yPct: { type:'linear', position:'right', grid:{display:false}, ticks:{color:'#a1a1aa', callback:v=>v+'%'} },
+              x: { grid:{display:false}, ticks:{color:'#a1a1aa'} }
+            }
+          }
+        });
+      }
+    }
 
-    function replaceChart(id, config) {
-      if(chartRegistry[id]) chartRegistry[id].destroy();
-      chartRegistry[id] = new Chart(document.getElementById(id), config);
-    }
+    // --- HELPERS & EVENTS ---
 
-    function stdOpts(extra={}) {
-      return {
-        responsive: true, maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: extra.intersect===false?false:true },
-        plugins: {
-          legend: { display: extra.legend||false, labels:{color:'#fff'} },
-          tooltip: {
-            backgroundColor: 'rgba(24,24,27,0.9)', titleColor:'#fff', bodyColor:'#e4e4e7', borderColor:'#3f3f46', borderWidth:1,
-            callbacks: { label: ctx => (ctx.dataset.type==='line'&&ctx.chart.config.type!=='line') ? fmtPct(ctx.raw)+'%' : fmtMoney(ctx.raw) }
-          }
-        },
-        scales: {
-          y: { grid:{color:'#27272a'}, ticks:{color:'#a1a1aa', callback:v=>fmtMoney(v)} },
-          x: { grid:{display:false}, ticks:{color:'#a1a1aa', maxTicksLimit:8} }
-        },
-        ...extra
-      };
-    }
+    function replaceChart(id, config) {
+      if(chartRegistry[id]) chartRegistry[id].destroy();
+      chartRegistry[id] = new Chart(document.getElementById(id), config);
+    }
 
-    // --- PUBLIC ACTIONS ---
+    function stdOpts(extra={}) {
+      return {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: extra.intersect===false?false:true },
+        plugins: {
+          legend: { display: extra.legend||false, labels:{color:'#fff'} },
+          tooltip: {
+            backgroundColor: 'rgba(24,24,27,0.9)', titleColor:'#fff', bodyColor:'#e4e4e7', borderColor:'#3f3f46', borderWidth:1,
+            callbacks: { label: ctx => (ctx.dataset.type==='line'&&ctx.chart.config.type!=='line') ? fmtPct(ctx.raw)+'%' : fmtMoney(ctx.raw) }
+          }
+        },
+        scales: {
+          y: { grid:{color:'#27272a'}, ticks:{color:'#a1a1aa', callback:v=>fmtMoney(v)} },
+          x: { grid:{display:false}, ticks:{color:'#a1a1aa', maxTicksLimit:8} }
+        },
+        ...extra
+      };
+    }
 
-    window.updateGlobalRange = (k) => {
-      globalRange = k;
-      localStorage.setItem("pfGlobalRange", k);
-      const container = document.getElementById("range-container");
-      Array.from(container.children).forEach(b => b.className = `range-tab ${b.innerText.toUpperCase().replace(' ','_') === k ? 'active' : ''}`);
-      drawPfLine(els.divide.checked?11:1);
-    };
+    // --- PUBLIC ACTIONS ---
 
-    window.updateTickerRange = (sym, k) => {
-      tickerRangeMode[sym] = k;
-      localStorage.setItem("pfTickerRanges", JSON.stringify(tickerRangeMode));
-      
-      const container = document.getElementById(`ctrl-${sym}`);
-      const miniTabsHTML = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(key => 
-          `<button class="mini-btn ${k===key?'active':''}" onclick="updateTickerRange('${sym}', '${key}')">${key[0]}</button>`
-      ).join('');
-      container.innerHTML = miniTabsHTML;
+    window.updateGlobalRange = (k) => {
+      globalRange = k;
+      localStorage.setItem("pfGlobalRange", k);
+      const container = document.getElementById("range-container");
+      Array.from(container.children).forEach(b => b.className = `range-tab ${b.innerText.toUpperCase().replace(' ','_') === k ? 'active' : ''}`);
+      drawPfLine(els.divide.checked?11:1);
+    };
 
-      drawTicker(sym, els.divide.checked?11:1);
-    }
+    window.updateTickerRange = (sym, k) => {
+      tickerRangeMode[sym] = k;
+      localStorage.setItem("pfTickerRanges", JSON.stringify(tickerRangeMode));
+      
+      const container = document.getElementById(`ctrl-${sym}`);
+      const miniTabsHTML = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(key => 
+          `<button class="mini-btn ${k===key?'active':''}" onclick="updateTickerRange('${sym}', '${key}')">${key[0]}</button>`
+      ).join('');
+      container.innerHTML = miniTabsHTML;
 
-    window.updateTickerMode = (sym, mode) => {
-      tickerViewMode[sym] = mode;
-      localStorage.setItem("pfViewMode", JSON.stringify(tickerViewMode));
-      
-      const container = document.getElementById(`tog-${sym}`);
-      container.children[0].className = mode==='SUMMARY'?'active':'';
-      container.children[1].className = mode==='HISTORY'?'active':'';
-      
-      const controls = document.getElementById(`ctrl-${sym}`);
-      if(controls) controls.style.display = (mode === 'HISTORY' ? 'flex' : 'none');
+      drawTicker(sym, els.divide.checked?11:1);
+    }
 
-      drawTicker(sym, els.divide.checked?11:1);
-    };
+    window.updateTickerMode = (sym, mode) => {
+      tickerViewMode[sym] = mode;
+      localStorage.setItem("pfViewMode", JSON.stringify(tickerViewMode));
+      
+      const container = document.getElementById(`tog-${sym}`);
+      container.children[0].className = mode==='SUMMARY'?'active':'';
+      container.children[1].className = mode==='HISTORY'?'active':'';
+      
+      const controls = document.getElementById(`ctrl-${sym}`);
+      if(controls) controls.style.display = (mode === 'HISTORY' ? 'flex' : 'none');
 
-    init();
-  </script>
+      drawTicker(sym, els.divide.checked?11:1);
+    };
+
+    init();
+  </script>
 </body>
 </html>
