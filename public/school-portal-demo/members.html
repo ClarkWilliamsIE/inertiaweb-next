@@ -167,8 +167,23 @@
       if (range === 'ALL' || range === 'YEAR') return `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]} ${d.getFullYear().toString().substr(-2)}`;
       return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`; 
     };
-    
-    const consolidate = (arr) => arr; 
+
+    // --- NEW: Simplifier to remove flat lines ---
+    const simplifyData = (arr) => {
+       if(!arr || arr.length < 2) return arr;
+       // Always keep the first point
+       const clean = [arr[0]];
+       
+       for(let i=1; i<arr.length; i++) {
+         const lastVal = clean[clean.length-1][1];
+         const currVal = arr[i][1];
+         // Only add if value CHANGED, or if it is the very last point (to keep 'now' accurate)
+         if (currVal !== lastVal || i === arr.length - 1) {
+           clean.push(arr[i]);
+         }
+       }
+       return clean;
+    }
 
     const filterRange = (hist, rng) => {
       if(!hist?.length) return [];
@@ -253,7 +268,6 @@
       // D. Tickers
       (summary.positions||[]).forEach(p => {
         const sym = p.symbol;
-        // DEFAULT CHANGE: Use "HISTORY" if not set in storage
         const mode = tickerViewMode[sym] || "HISTORY";
         const currentTickerRange = tickerRangeMode[sym] || "YEAR";
         
@@ -292,7 +306,6 @@
       els.title.textContent = totalProfit >= 0 ? "WINNERLAND" : "LOOSERLAND";
       els.title.style.color = totalProfit >= 0 ? "#4ade80" : "#f87171";
 
-      // Stats Grid - Dynamic "Loss" label
       const tProf = totalProfit / div;
       const tPct = totals.pct || 0;
       const profitLabel = tProf >= 0 ? "Profit" : "Loss";
@@ -321,10 +334,8 @@
         const badge = document.getElementById(`badge-${p.symbol}`);
         if(badge) {
            const val = (p.profit||0)/div;
-           // ADDED: Logic to display money AND percentage
            const moneyText = (val>=0?'+':'') + fmtMoney(val, true);
            const pctText = `(${p.pct>=0?'+':''}${fmtPct(p.pct)}%)`;
-           
            badge.textContent = `${moneyText} ${pctText}`;
            badge.className = `badge-pnl ${val>=0?'bg-green':'bg-red'}`;
         }
@@ -357,7 +368,7 @@
     function drawSumBar(f) {
       const t = summary.totals;
       const prof = (t.profit||0)/f;
-      const lbl = prof >= 0 ? "Profit" : "Loss"; // Dynamic Label
+      const lbl = prof >= 0 ? "Profit" : "Loss";
 
       replaceChart('cvs-sum', {
         type: 'bar',
@@ -378,7 +389,8 @@
       const grad = ctx.createLinearGradient(0,0,0,300);
       grad.addColorStop(0,'rgba(59,130,246,0.5)'); grad.addColorStop(1,'rgba(59,130,246,0.0)');
       
-      const hist = filterRange(summary.history, globalRange);
+      // APPLIED FIX: Simplify Data
+      const hist = simplifyData(filterRange(summary.history, globalRange));
       
       replaceChart('cvs-line', {
         type: 'line',
@@ -401,13 +413,15 @@
       const isUp = (p.profit||0) >= 0;
       document.getElementById(`card-${sym}`).style.borderTop = `4px solid ${isUp?'#10b981':'#ef4444'}`;
 
-      // DEFAULT CHANGE: Use "HISTORY" if not set
       const mode = tickerViewMode[sym] || "HISTORY"; 
       const canvasId = `cvs-sym-${sym}`;
       
       if(mode === "HISTORY") {
         const range = tickerRangeMode[sym] || "YEAR"; 
-        const hist = filterRange(summary.symbolHistory[sym]||[], range);
+        
+        // APPLIED FIX: Simplify Data
+        const hist = simplifyData(filterRange(summary.symbolHistory[sym]||[], range));
+        
         const ctx = document.getElementById(canvasId).getContext('2d');
         const grad = ctx.createLinearGradient(0,0,0,300);
         grad.addColorStop(0,'rgba(249,115,22,0.5)'); grad.addColorStop(1,'rgba(249,115,22,0.0)');
@@ -426,7 +440,7 @@
         });
       } else {
         const prof = (p.profit||0)/f;
-        const lbl = prof >= 0 ? "Profit" : "Loss"; // Dynamic Label
+        const lbl = prof >= 0 ? "Profit" : "Loss"; 
 
         replaceChart(canvasId, {
           data: {
