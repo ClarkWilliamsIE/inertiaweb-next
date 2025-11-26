@@ -303,7 +303,7 @@
       const totals = summary.totals || {};
 
       const totalProfit = Number(totals.profit || 0);
-      els.title.textContent = totalProfit >= 0 ? "WINNERLAND" : "LOOSERLAND";
+      els.title.textContent = totalProfit >= 0 ? "WINNERLAND" : "LOSERLAND";
       els.title.style.color = totalProfit >= 0 ? "#4ade80" : "#f87171";
 
       const tProf = totalProfit / div;
