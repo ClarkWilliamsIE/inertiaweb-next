@@ -168,16 +168,14 @@
       return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`; 
     };
 
-    // --- NEW: Simplifier to remove flat lines ---
+    // --- SIMPLIFIER ---
     const simplifyData = (arr) => {
        if(!arr || arr.length < 2) return arr;
-       // Always keep the first point
        const clean = [arr[0]];
-       
        for(let i=1; i<arr.length; i++) {
          const lastVal = clean[clean.length-1][1];
          const currVal = arr[i][1];
-         // Only add if value CHANGED, or if it is the very last point (to keep 'now' accurate)
+         // Only add if value CHANGED, or if it is the very last point
          if (currVal !== lastVal || i === arr.length - 1) {
            clean.push(arr[i]);
          }
@@ -204,14 +202,24 @@
 
     async function loadData() {
       setStatus("Loading...");
+      
+      // 1. Get Summary (Latest)
       const { data: sumData } = await supabase.from("flex_summary").select("*").order("last_updated",{ascending:false}).limit(1);
       if(!sumData?.length) { setStatus("No data."); return; }
 
       summary = sumData[0].data;
       summary.lastUpdatedDate = sumData[0].last_updated;
 
-      const { data: histData } = await supabase.from("flex_summary").select("data,last_updated").order("last_updated",{ascending:true}).limit(10000);
+      // 2. Get History (FIX: Fetch DESCENDING to get newest first, then reverse)
+      const { data: histData } = await supabase
+        .from("flex_summary")
+        .select("data,last_updated")
+        .order("last_updated", { ascending: false }) // <--- CHANGED TO FALSE
+        .limit(10000);
       
+      // REVERSE ARRAY SO IT READS OLD -> NEW
+      if (histData) histData.reverse(); 
+
       const rawPf = [], rawSym = {};
       (histData||[]).forEach(r => {
         const dt = r.data.lastUpdated || r.last_updated;
@@ -389,7 +397,6 @@
       const grad = ctx.createLinearGradient(0,0,0,300);
       grad.addColorStop(0,'rgba(59,130,246,0.5)'); grad.addColorStop(1,'rgba(59,130,246,0.0)');
       
-      // APPLIED FIX: Simplify Data
       const hist = simplifyData(filterRange(summary.history, globalRange));
       
       replaceChart('cvs-line', {
@@ -419,7 +426,6 @@
       if(mode === "HISTORY") {
         const range = tickerRangeMode[sym] || "YEAR"; 
         
-        // APPLIED FIX: Simplify Data
         const hist = simplifyData(filterRange(summary.symbolHistory[sym]||[], range));
         
         const ctx = document.getElementById(canvasId).getContext('2d');
