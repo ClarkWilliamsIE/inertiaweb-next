@@ -51,10 +51,18 @@
   </div>
 
   <script>
+  (function() {
+    // 1. Configuration
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // 2. Safe Initialization (Fixes the "already declared" error)
+    if (!window.supabaseClient) {
+        window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+    const sb = window.supabaseClient;
+
+    // 3. UI Elements
     const form = document.getElementById("authForm");
     const errEl = document.getElementById("err");
     const modeText = document.getElementById("modeText");
@@ -68,71 +76,73 @@
     const altLine = document.getElementById("altLine");
     const altLine2 = document.getElementById("altLine2");
 
-    let mode = "signin"; // or signup
+    let mode = "signin";
 
     function setMode(next) {
-      mode = next;
-      if (mode === "signin") {
-        modeText.textContent = "Sign in to continue";
-        firstNameWrap.style.display = "none";
-        submitBtn.textContent = "Sign in";
-        altLine.style.display = "";
-        altLine2.style.display = "none";
-        firstNameInput.value = "";
-      } else {
-        modeText.textContent = "Create your account";
-        firstNameWrap.style.display = "";
-        submitBtn.textContent = "Sign up";
-        altLine.style.display = "none";
-        altLine2.style.display = "";
-      }
-      errEl.textContent = "";
+        mode = next;
+        if (mode === "signin") {
+            modeText.textContent = "Sign in to continue";
+            firstNameWrap.style.display = "none";
+            submitBtn.textContent = "Sign in";
+            altLine.style.display = "";
+            altLine2.style.display = "none";
+            firstNameInput.value = "";
+        } else {
+            modeText.textContent = "Create your account";
+            firstNameWrap.style.display = "";
+            submitBtn.textContent = "Sign up";
+            altLine.style.display = "none";
+            altLine2.style.display = "";
+        }
+        errEl.textContent = "";
     }
 
     toSignup.addEventListener("click", () => setMode("signup"));
     toSignin.addEventListener("click", () => setMode("signin"));
 
+    // 4. Auth Logic
     form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      errEl.textContent = "";
+        e.preventDefault();
+        errEl.textContent = "";
+        
+        // Visual feedback
+        const originalBtnText = submitBtn.textContent;
+        submitBtn.textContent = "Processing...";
+        submitBtn.disabled = true;
 
-      const email = emailInput.value.trim();
-      const password = passwordInput.value;
-      const firstName = firstNameInput.value.trim();
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        const firstName = firstNameInput.value.trim();
 
-      try {
-        if (mode === "signin") {
-          const { error } = await supabase.auth.signInWithPassword({ email, password });
-          if (error) throw error;
-        } else {
-          if (!firstName) {
-            errEl.textContent = "Please enter your first name";
-            return;
-          }
-          const { error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: { first_name: firstName } // saved in user_metadata
+        try {
+            if (mode === "signin") {
+                const { error } = await sb.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+            } else {
+                if (!firstName) throw new Error("Please enter your first name");
+                const { error } = await sb.auth.signUp({
+                    email,
+                    password,
+                    options: { data: { first_name: firstName } }
+                });
+                if (error) throw error;
             }
-          });
-          if (error) throw error;
-          // If your project requires email confirmation, the session may be null here
-          // We still redirect to members, your guard there will handle session state
+            // Redirect on success
+            window.location.href = "members.html";
+        } catch (err) {
+            errEl.textContent = err.message || "Something went wrong";
+            submitBtn.textContent = originalBtnText;
+            submitBtn.disabled = false;
         }
-        // Redirect after success
-        location.href = "members.html";
-      } catch (e2) {
-        errEl.textContent = e2.message || "Something went wrong";
-      }
     });
 
-    // If already signed in, skip
+    // 5. Session Check
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) location.href = "members.html";
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) window.location.href = "members.html";
     })();
-  </script>
+  })();
+</script>
 </body>
 </html>
 
