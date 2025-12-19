@@ -1,9 +1,9 @@
-]<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Polls</title>
+  <title>Polls - Winnerland</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
   <style>
@@ -76,23 +76,17 @@
       display: flex; flex-direction: column;
     }
     .option-item:hover { border-color: #555; }
-    
-    /* Blue border if I voted */
     .option-item.voted { border-color: #3b82f6; }
-    
-    /* Green border if 6+ votes (Overrides blue) */
     .option-item.good { border-color: #22c55e; box-shadow: 0 0 0 1px #22c55e; }
 
-    /* Progress Bar */
     .progress-bar {
       position: absolute; top: 0; bottom: 0; left: 0;
       background: rgba(255, 255, 255, 0.08);
       z-index: 0; transition: width 0.5s ease-out;
     }
-    .voted .progress-bar { background: rgba(59, 130, 246, 0.2); } /* Blue tint */
-    .good .progress-bar { background: rgba(34, 197, 94, 0.2); } /* Green tint */
+    .voted .progress-bar { background: rgba(59, 130, 246, 0.2); }
+    .good .progress-bar { background: rgba(34, 197, 94, 0.2); }
 
-    /* Content Layout */
     .option-row-main {
       position: relative; z-index: 1;
       padding: 0.75rem 1rem;
@@ -101,7 +95,6 @@
     .opt-label { font-weight: 500; font-size: 0.95rem; }
     .opt-stat { font-size: 0.85rem; color: #a1a1aa; font-weight: 700; }
 
-    /* The Chips / Leaderboard */
     .chips-row {
       position: relative; z-index: 1;
       padding: 0 1rem 0.75rem 1rem;
@@ -114,14 +107,12 @@
     }
     .chip.me { border-color: #3b82f6; color: #fff; background: rgba(59, 130, 246, 0.1); }
 
-    /* New: Add Option Row for Live Polls */
     .add-opt-row {
       margin-top: 1rem; padding-top: 0.75rem; border-top: 1px dashed #333;
       display: flex; gap: 0.5rem;
     }
     .add-opt-row input { flex: 1; font-size: 0.85rem; padding: 0.4rem 0.8rem; background: #111; }
 
-    /* Scrollable Box for Past Results */
     .scroll-box {
       max-height: 500px;
       overflow-y: auto;
@@ -193,261 +184,270 @@
   </main>
 
   <script>
-    /* --- CONFIG --- */
-if (!window.supabaseInstance) {
-    const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
-    window.supabaseInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-}
-var supabase = window.supabaseInstance;
-
-    /* --- STATE --- */
-    let currentUser = null;
-    let polls = [], options = [], votes = [];
-
-    /* --- UTILS --- */
-    const el = (id) => document.getElementById(id);
-    const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c] || c));
-    const showError = (msg) => { el('pageErr').style.display='block'; el('pageErr').textContent = msg; };
-    const setLoading = (on) => el('loading').style.display = on ? 'flex' : 'none';
-
-    async function guard() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return location.href = "login.html";
-      currentUser = session.user;
-    }
-
-    /* --- DATA --- */
-    async function fetchAll() {
-      const [p, o, v] = await Promise.all([
-        supabase.from("polls").select("*").order("created_at", { ascending:false }),
-        supabase.from("poll_options").select("*"),
-        supabase.from("poll_votes").select("*")
-      ]);
-      if (p.error) throw p.error;
-      if (o.error) throw o.error;
-      if (v.error) throw v.error;
-      polls = p.data; options = o.data; votes = v.data;
-    }
-
-    /* --- RENDER LOGIC --- */
-    function buildIndex() {
-      const optByPoll = {};
-      const votesByPoll = {};
-      const votesByOpt = {};
-      
-      options.forEach(o => {
-        if(!optByPoll[o.poll_id]) optByPoll[o.poll_id] = [];
-        optByPoll[o.poll_id].push(o);
-      });
-      
-      votes.forEach(v => {
-        if(!votesByPoll[v.poll_id]) votesByPoll[v.poll_id] = [];
-        votesByPoll[v.poll_id].push(v);
+    (function() {
+        /* --- SAFE INITIALIZATION --- */
+        const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+        const GREEN_THRESHOLD = 6; 
         
-        if(!votesByOpt[v.option_id]) votesByOpt[v.option_id] = [];
-        votesByOpt[v.option_id].push(v);
-      });
+        if (!window.supabaseInstance) {
+            window.supabaseInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+        const supabase = window.supabaseInstance;
 
-      return { optByPoll, votesByPoll, votesByOpt };
-    }
+        /* --- STATE --- */
+        let currentUser = null;
+        let polls = [], options = [], votes = [];
 
-    function render() {
-      const { optByPoll, votesByPoll, votesByOpt } = buildIndex();
-      const term = el('search').value.toLowerCase();
-      
-      const activeWrap = el('activeList');
-      const archWrap = el('archList');
-      activeWrap.innerHTML = ""; archWrap.innerHTML = "";
+        /* --- UTILS --- */
+        const el = (id) => document.getElementById(id);
+        const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c] || c));
+        const showError = (msg) => { el('pageErr').style.display='block'; el('pageErr').textContent = msg; };
+        const setLoading = (on) => el('loading').style.display = on ? 'flex' : 'none';
 
-      polls.forEach(p => {
-        const isEnded = new Date(p.end_at) <= new Date();
-        if (term && !p.title.toLowerCase().includes(term)) return;
-
-        const pollOpts = optByPoll[p.id] || [];
-        const pollVotes = votesByPoll[p.id] || [];
-        const myVote = pollVotes.find(v => v.user_id === currentUser.id);
-        const totalPollVotes = pollVotes.length;
-
-        const card = document.createElement('div');
-        card.className = `poll-card ${isEnded ? 'ended' : 'active'}`;
-        
-        let timeLabel = "Ended";
-        if (!isEnded) {
-            const diff = new Date(p.end_at) - new Date();
-            const h = Math.floor(diff/3600000);
-            timeLabel = `${h}h remaining`;
+        async function guard() {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return location.href = "login.html";
+          currentUser = session.user;
         }
 
-        let html = `
-          <div class="poll-meta">
-            <div>
-                <div class="poll-title">${escapeHtml(p.title)}</div>
-                <div class="poll-timer">${timeLabel} • ${totalPollVotes} votes</div>
-            </div>
-            ${isEnded ? '<span class="badge bg-red">Ended</span>' : '<span class="badge bg-blue">Live</span>'}
-          </div>
-          <div class="options-list">
-        `;
-
-        pollOpts.sort((a,b) => a.label.localeCompare(b.label));
-
-        pollOpts.forEach(o => {
-          const vArr = votesByOpt[o.id] || []; 
-          const count = vArr.length;
-          const pct = totalPollVotes > 0 ? Math.round((count / totalPollVotes) * 100) : 0;
-          const isMyVote = myVote && myVote.option_id === o.id;
-          const isGood = count >= GREEN_THRESHOLD;
-
-          let itemClass = "option-item";
-          if (isMyVote) itemClass += " voted";
-          if (isGood) itemClass += " good";
-
-          let chipsHtml = '';
-          if(vArr.length > 0) {
-            chipsHtml = '<div class="chips-row">';
-            vArr.forEach(vote => {
-                const isMe = vote.user_id === currentUser.id;
-                chipsHtml += `<span class="chip ${isMe?'me':''}">${escapeHtml(vote.voter_name || 'Anon')}</span>`;
-            });
-            chipsHtml += '</div>';
+        async function fetchAll() {
+          try {
+            const [p, o, v] = await Promise.all([
+              supabase.from("polls").select("*").order("created_at", { ascending:false }),
+              supabase.from("poll_options").select("*"),
+              supabase.from("poll_votes").select("*")
+            ]);
+            if (p.error) throw p.error;
+            if (o.error) throw o.error;
+            if (v.error) throw v.error;
+            polls = p.data; options = o.data; votes = v.data;
+          } catch (e) {
+            console.error("Fetch failed", e);
+            showError("Could not load polls. Check database permissions.");
           }
+        }
 
-          html += `
-            <div class="${itemClass}" onclick="castVote('${p.id}', '${o.id}', ${isEnded})">
-              <div class="progress-bar" style="width: ${pct}%"></div>
-              
-              <div class="option-row-main">
-                <span class="opt-label">${escapeHtml(o.label)}</span>
-                <span class="opt-stat">${pct}%</span>
-              </div>
-              
-              ${chipsHtml}
-            </div>
-          `;
-        });
+        function buildIndex() {
+          const optByPoll = {};
+          const votesByPoll = {};
+          const votesByOpt = {};
+          
+          options.forEach(o => {
+            if(!optByPoll[o.poll_id]) optByPoll[o.poll_id] = [];
+            optByPoll[o.poll_id].push(o);
+          });
+          
+          votes.forEach(v => {
+            if(!votesByPoll[v.poll_id]) votesByPoll[v.poll_id] = [];
+            votesByPoll[v.poll_id].push(v);
+            if(!votesByOpt[v.option_id]) votesByOpt[v.option_id] = [];
+            votesByOpt[v.option_id].push(v);
+          });
 
-        html += `</div>`; // Close options-list
+          return { optByPoll, votesByPoll, votesByOpt };
+        }
 
-        // --- ADD OPTION INPUT (ACTIVE ONLY) ---
-        if (!isEnded) {
-            html += `
-                <div class="add-opt-row">
-                  <input id="new-opt-${p.id}" placeholder="Add another option..." onkeydown="if(event.key==='Enter') addLiveOption('${p.id}')" />
-                  <button class="btn btn-ghost" onclick="addLiveOption('${p.id}')" style="padding:0 0.8rem; font-size:1.2rem; line-height:1;">+</button>
+        function render() {
+          const { optByPoll, votesByPoll, votesByOpt } = buildIndex();
+          const term = el('search').value.toLowerCase();
+          
+          const activeWrap = el('activeList');
+          const archWrap = el('archList');
+          activeWrap.innerHTML = ""; archWrap.innerHTML = "";
+
+          polls.forEach(p => {
+            const isEnded = new Date(p.end_at) <= new Date();
+            if (term && !p.title.toLowerCase().includes(term)) return;
+
+            const pollOpts = optByPoll[p.id] || [];
+            const pollVotes = votesByPoll[p.id] || [];
+            const myVote = pollVotes.find(v => v.user_id === currentUser.id);
+            const totalPollVotes = pollVotes.length;
+
+            const card = document.createElement('div');
+            card.className = `poll-card ${isEnded ? 'ended' : 'active'}`;
+            
+            let timeLabel = "Ended";
+            if (!isEnded) {
+                const diff = new Date(p.end_at) - new Date();
+                const h = Math.floor(diff/3600000);
+                timeLabel = `${h}h remaining`;
+            }
+
+            let html = `
+              <div class="poll-meta">
+                <div>
+                    <div class="poll-title">${escapeHtml(p.title)}</div>
+                    <div class="poll-timer">${timeLabel} • ${totalPollVotes} votes</div>
                 </div>
+                ${isEnded ? '<span class="badge bg-red">Ended</span>' : '<span class="badge bg-blue">Live</span>'}
+              </div>
+              <div class="options-list">
             `;
+
+            pollOpts.sort((a,b) => a.label.localeCompare(b.label));
+
+            pollOpts.forEach(o => {
+              const vArr = votesByOpt[o.id] || []; 
+              const count = vArr.length;
+              const pct = totalPollVotes > 0 ? Math.round((count / totalPollVotes) * 100) : 0;
+              const isMyVote = myVote && myVote.option_id === o.id;
+              const isGood = count >= GREEN_THRESHOLD;
+
+              let itemClass = "option-item";
+              if (isMyVote) itemClass += " voted";
+              if (isGood) itemClass += " good";
+
+              let chipsHtml = '';
+              if(vArr.length > 0) {
+                chipsHtml = '<div class="chips-row">';
+                vArr.forEach(vote => {
+                    const isMe = vote.user_id === currentUser.id;
+                    chipsHtml += `<span class="chip ${isMe?'me':''}">${escapeHtml(vote.voter_name || 'Anon')}</span>`;
+                });
+                chipsHtml += '</div>';
+              }
+
+              html += `
+                <div class="${itemClass}" id="opt-${o.id}">
+                  <div class="progress-bar" style="width: ${pct}%"></div>
+                  <div class="option-row-main">
+                    <span class="opt-label">${escapeHtml(o.label)}</span>
+                    <span class="opt-stat">${pct}%</span>
+                  </div>
+                  ${chipsHtml}
+                </div>
+              `;
+            });
+
+            html += `</div>`; 
+
+            if (!isEnded) {
+                html += `
+                    <div class="add-opt-row">
+                      <input id="new-opt-${p.id}" placeholder="Add another option..." />
+                      <button class="btn btn-ghost" id="add-btn-${p.id}" style="padding:0 0.8rem; font-size:1.2rem; line-height:1;">+</button>
+                    </div>
+                `;
+            }
+
+            card.innerHTML = html;
+
+            // Event Listeners for Dynamic Elements
+            pollOpts.forEach(o => {
+                const optEl = card.querySelector(`#opt-${o.id}`);
+                optEl.onclick = () => castVote(p.id, o.id, isEnded);
+            });
+
+            if(!isEnded) {
+                const addInp = card.querySelector(`#new-opt-${p.id}`);
+                const addBtn = card.querySelector(`#add-btn-${p.id}`);
+                addBtn.onclick = () => addLiveOption(p.id);
+                addInp.onkeydown = (e) => { if(e.key==='Enter') addLiveOption(p.id); };
+            }
+
+            if (isEnded) archWrap.appendChild(card);
+            else activeWrap.appendChild(card);
+          });
+
+          if(activeWrap.children.length === 0) activeWrap.innerHTML = `<div class="muted" style="grid-column:1/-1; text-align:center; padding:2rem;">No active polls right now.</div>`;
+          if(archWrap.children.length === 0) archWrap.innerHTML = `<div class="muted" style="text-align:center;">No past polls.</div>`;
         }
 
-        card.innerHTML = html;
+        /* --- ACTIONS --- */
+        async function createPoll() {
+          const title = el('title').value.trim();
+          const dur = Number(el('duration').value) || 48;
+          const optInputs = document.querySelectorAll('.opt-input');
+          const labels = Array.from(optInputs).map(i => i.value.trim()).filter(Boolean);
 
-        if (isEnded) archWrap.appendChild(card);
-        else activeWrap.appendChild(card);
-      });
+          if(!title || labels.length < 2) return alert("Title and at least 2 options required.");
 
-      if(activeWrap.children.length === 0) activeWrap.innerHTML = `<div class="muted" style="grid-column:1/-1; text-align:center; padding:2rem;">No active polls right now.</div>`;
-      if(archWrap.children.length === 0) archWrap.innerHTML = `<div class="muted" style="text-align:center;">No past polls.</div>`;
-    }
+          setLoading(true);
+          const endAt = new Date(Date.now() + dur * 3600000).toISOString();
+          
+          const { data: poll, error } = await supabase.from("polls").insert({ title, created_by: currentUser.id, end_at: endAt }).select().single();
+          if(error) { setLoading(false); return showError(error.message); }
 
-    /* --- ACTIONS --- */
-    async function createPoll() {
-      const title = el('title').value.trim();
-      const dur = Number(el('duration').value) || 48;
-      const optInputs = document.querySelectorAll('.opt-input');
-      const labels = Array.from(optInputs).map(i => i.value.trim()).filter(Boolean);
+          const optRows = labels.map(l => ({ poll_id: poll.id, label: l }));
+          await supabase.from("poll_options").insert(optRows);
 
-      if(!title || labels.length < 2) return alert("Title and at least 2 options required.");
-
-      setLoading(true);
-      const endAt = new Date(Date.now() + dur * 3600000).toISOString();
-      
-      const { data: poll, error } = await supabase.from("polls").insert({ title, created_by: currentUser.id, end_at: endAt }).select().single();
-      if(error) { setLoading(false); return showError(error.message); }
-
-      const optRows = labels.map(l => ({ poll_id: poll.id, label: l }));
-      await supabase.from("poll_options").insert(optRows);
-
-      el('title').value = "";
-      resetInputs();
-      await fetchAll();
-      render();
-      setLoading(false);
-    }
-
-    async function castVote(pollId, optId, isEnded) {
-      if (isEnded) return; 
-      setLoading(true);
-      const displayName = (currentUser.user_metadata?.first_name) || currentUser.email.split('@')[0];
-      
-      const { error } = await supabase.from("poll_votes").upsert(
-        { poll_id: pollId, option_id: optId, user_id: currentUser.id, voter_name: displayName },
-        { onConflict: "poll_id, user_id" }
-      );
-
-      if(error) showError(error.message);
-      else {
-        await fetchAll();
-        render();
-      }
-      setLoading(false);
-    }
-
-    // --- NEW: ADD LIVE OPTION ---
-    async function addLiveOption(pollId) {
-        const input = el(`new-opt-${pollId}`);
-        const label = input.value.trim();
-        if (!label) return;
-
-        setLoading(true);
-        const { error } = await supabase.from("poll_options").insert({
-            poll_id: pollId,
-            label: label
-        });
-
-        if (error) showError(error.message);
-        else {
-            // Input clears, subscription handles the refresh
-            input.value = "";
+          el('title').value = "";
+          resetInputs();
+          await fetchAll();
+          render();
+          setLoading(false);
         }
-        setLoading(false);
-    }
 
-    /* --- HELPERS --- */
-    function addInput() {
-      const div = document.createElement('div');
-      div.className = "row";
-      div.innerHTML = `<input class="opt-input" placeholder="Option Label" style="flex:1" /> <button class="btn btn-ghost" onclick="this.parentElement.remove()">✕</button>`;
-      el('optionsWrap').appendChild(div);
-    }
-    function resetInputs() {
-      el('optionsWrap').innerHTML = "";
-      addInput(); addInput();
-    }
+        async function castVote(pollId, optId, isEnded) {
+          if (isEnded) return; 
+          setLoading(true);
+          const displayName = (currentUser.user_metadata?.first_name) || currentUser.email.split('@')[0];
+          
+          const { error } = await supabase.from("poll_votes").upsert(
+            { poll_id: pollId, option_id: optId, user_id: currentUser.id, voter_name: displayName },
+            { onConflict: "poll_id, user_id" }
+          );
 
-    el('btnCreate').onclick = createPoll;
-    el('btnAddOpt').onclick = addInput;
-    el('search').oninput = render;
-    el('btnSignOut').onclick = async () => { await supabase.auth.signOut(); location.href="login.html"; };
+          if(error) showError(error.message);
+          else {
+            await fetchAll();
+            render();
+          }
+          setLoading(false);
+        }
 
-    /* --- REALTIME --- */
-    async function refresh() {
-        await fetchAll();
-        render();
-    }
+        async function addLiveOption(pollId) {
+            const input = el(`new-opt-${pollId}`);
+            const label = input.value.trim();
+            if (!label) return;
 
-    // Subscribe to Votes AND Options
-    supabase.channel('public:polls')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, refresh)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'poll_options' }, refresh)
-      .subscribe();
+            setLoading(true);
+            const { error } = await supabase.from("poll_options").insert({
+                poll_id: pollId,
+                label: label
+            });
 
-    (async () => {
-      setLoading(true);
-      await guard();
-      resetInputs();
-      await fetchAll();
-      render();
-      setLoading(false);
+            if (error) showError(error.message);
+            else {
+                input.value = "";
+                await fetchAll();
+                render();
+            }
+            setLoading(false);
+        }
+
+        function addInput() {
+          const div = document.createElement('div');
+          div.className = "row";
+          div.innerHTML = `<input class="opt-input" placeholder="Option Label" style="flex:1" /> <button class="btn btn-ghost" onclick="this.parentElement.remove()">✕</button>`;
+          el('optionsWrap').appendChild(div);
+        }
+        function resetInputs() {
+          el('optionsWrap').innerHTML = "";
+          addInput(); addInput();
+        }
+
+        el('btnCreate').onclick = createPoll;
+        el('btnAddOpt').onclick = addInput;
+        el('search').oninput = render;
+        el('btnSignOut').onclick = async () => { await supabase.auth.signOut(); location.href="login.html"; };
+
+        // Realtime
+        supabase.channel('public:polls')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, async () => { await fetchAll(); render(); })
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'poll_options' }, async () => { await fetchAll(); render(); })
+          .subscribe();
+
+        (async () => {
+          setLoading(true);
+          await guard();
+          resetInputs();
+          await fetchAll();
+          render();
+          setLoading(false);
+        })();
     })();
   </script>
 </body>
