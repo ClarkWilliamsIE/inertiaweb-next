@@ -173,10 +173,12 @@
 
   <script>
     // --- CONFIG ---
+if (!window.supabaseInstance) {
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
-    
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    window.supabaseInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
+var supabase = window.supabaseInstance;
 
     // --- DOM ELEMENTS ---
     const form = document.getElementById('tradeForm');
