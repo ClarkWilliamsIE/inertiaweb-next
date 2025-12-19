@@ -200,46 +200,86 @@
       await loadData();
     }
 
-    async function loadData() {
+async function loadData() {
       setStatus("Loading...");
-      
-      // 1. Get Summary (Latest)
-      const { data: sumData } = await supabase.from("flex_summary").select("*").order("last_updated",{ascending:false}).limit(1);
-      if(!sumData?.length) { setStatus("No data."); return; }
+      console.log("--- DEBUG START ---");
 
-      summary = sumData[0].data;
-      summary.lastUpdatedDate = sumData[0].last_updated;
+      try {
+        // 1. Get Summary (Latest)
+        const { data: sumData, error: sumError } = await supabase
+          .from("flex_summary")
+          .select("*")
+          .order("last_updated", { ascending: false })
+          .limit(1);
 
-      // 2. Get History (FIX: Fetch DESCENDING to get newest first, then reverse)
-      const { data: histData } = await supabase
-        .from("flex_summary")
-        .select("data,last_updated")
-        .order("last_updated", { ascending: false }) // <--- CHANGED TO FALSE
-        .limit(10000);
-      
-      // REVERSE ARRAY SO IT READS OLD -> NEW
-      if (histData) histData.reverse(); 
+        console.log("Raw Response from flex_summary:", sumData);
 
-      const rawPf = [], rawSym = {};
-      (histData||[]).forEach(r => {
-        const dt = r.data.lastUpdated || r.last_updated;
-        if(!dt) return;
-        const val = Number(r.data.totals?.value || 0);
-        if(isFinite(val)) rawPf.push([dt, val]);
-        (r.data.positions||[]).forEach(p => {
-          if(p?.symbol) {
-            if(!rawSym[p.symbol]) rawSym[p.symbol]=[];
-            rawSym[p.symbol].push([dt, Number(p.value||0)]);
+        if (sumError) {
+          console.error("Database Error:", sumError);
+          setStatus("DB Error: " + sumError.message);
+          return;
+        }
+
+        if (!sumData || sumData.length === 0) {
+          console.warn("Table is empty or RLS is blocking access.");
+          setStatus("No data found. Check RLS Policies in Supabase.");
+          return;
+        }
+
+        // Validate the internal 'data' structure
+        summary = sumData[0].data;
+        if (!summary) {
+          console.error("The 'data' column in your table is empty or null!");
+          setStatus("Error: Column 'data' is empty.");
+          return;
+        }
+        
+        summary.lastUpdatedDate = sumData[0].last_updated;
+        console.log("Extracted Summary Data:", summary);
+
+        // 2. Get History
+        const { data: histData, error: histError } = await supabase
+          .from("flex_summary")
+          .select("data,last_updated")
+          .order("last_updated", { ascending: false })
+          .limit(1000);
+
+        if (histError) console.error("History Fetch Error:", histError);
+
+        if (histData) {
+            console.log(`Successfully fetched ${histData.length} history rows.`);
+            histData.reverse(); 
+        }
+
+        const rawPf = [], rawSym = {};
+        (histData || []).forEach((r, index) => {
+          const dt = r.data?.lastUpdated || r.last_updated;
+          const val = Number(r.data?.totals?.value || 0);
+          
+          if (dt && isFinite(val)) {
+            rawPf.push([dt, val]);
           }
+
+          (r.data?.positions || []).forEach(p => {
+            if (p?.symbol) {
+              if (!rawSym[p.symbol]) rawSym[p.symbol] = [];
+              rawSym[p.symbol].push([dt, Number(p.value || 0)]);
+            }
+          });
         });
-      });
 
-      summary.history = rawPf; 
-      summary.symbolHistory = rawSym;
+        summary.history = rawPf; 
+        summary.symbolHistory = rawSym;
 
-      setStatus("");
-      buildLayout(); 
-      refreshCharts(); 
+        setStatus("");
+        buildLayout(); 
+        refreshCharts();
+        console.log("--- DEBUG SUCCESS: Dashboard Rendered ---");
+
+      } catch (err) {
+        console.error("Critical Script Crash:", err);
+        setStatus("Script Error: Check Console");
+      }
     }
 
     // 1. BUILD HTML STRUCTURE
