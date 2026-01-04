@@ -1,26 +1,36 @@
-import Header    from '../components/header';
-import Hero      from '../components/hero';
-import About     from '../components/about';
-import Makertruck from '../components/makertruck';
-import Support   from '../components/support'
-import Contact   from '../components/contact'
-import Projects   from '../components/projects'
-import People     from '../components/people'
+// Add missing React import to resolve 'Cannot find namespace React' error.
+import React from "react";
+import type { Metadata } from "next";
+import { Space_Grotesk, Inter } from "next/font/google";
+import "./globals.css";
 
-export default function Page() {
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  weight: ["300", "400", "600"],
+});
+
+export const metadata: Metadata = {
+  title: "Inertia Education | Moving Barriers",
+  description: "A mobile innovation lab creating equitable STEAM pathways for Aotearoa's youth.",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <>
-      <Header />
-      <main className="pt-16">
-        <Hero />
-        <About />
-       <Makertruck />
-       <Projects />
-       <People />
-       <Support />
-       <Contact />
-        {/* next sections go here */}
-      </main>
-    </>
+    <html lang="en" className="scroll-smooth">
+      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased`}>
+        {children}
+      </body>
+    </html>
   );
 }
