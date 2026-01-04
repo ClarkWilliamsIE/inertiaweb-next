@@ -1,71 +1,58 @@
-"use client";
+'use client';
 
-// src/components/Hero.tsx
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 
-const images = [
-  '/images/c1.jpg',
-  '/images/truck2.png',
-  '/images/c9.jpg',
-  '/images/c4.jpg',
-  '/images/c5.jpg',
-  '/images/c6.jpg'
-];
-
-export default function Hero() {
-  const [current, setCurrent] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % images.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
+const Hero: React.FC = () => {
   return (
-    <section id="hero" className="relative h-screen overflow-hidden">
-      {/* Slides */}
-      {images.map((src, idx) => (
-        <div
-          key={idx}
-          className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${
-            idx === current ? 'opacity-100' : 'opacity-0'
-          }`}
-          style={{ backgroundImage: `url(${src})` }}
+    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-slate-950">
+      {/* Background Visual */}
+      <div className="absolute inset-0 z-0">
+        <img 
+          src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1920&auto=format&fit=crop" 
+          alt="Inertia Mobile Lab" 
+          className="w-full h-full object-cover opacity-20 grayscale"
         />
-      ))}
-
-      {/* Overlay content */}
-      <div className="relative z-10 flex h-full items-center justify-center bg-black bg-opacity-50">
-        <div className="text-center text-white px-4">
-          <h1 className="text-4xl md:text-6xl font-bold">Welcome to Inertia Education</h1>
-          <p className="mt-4 text-lg md:text-2xl">
-            Redefine education and innovation for the next generation in Aotearoa
-          </p>
-          <a
-            href="#about"
-            className="inline-block mt-6 px-6 py-3 bg-inertia-accent text-inertia-dark font-semibold rounded-lg hover:opacity-90"
-          >
-            Learn more
-          </a>
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-950/40 to-slate-950"></div>
       </div>
 
-      {/* Prev/Next controls */}
-      <button
-        onClick={() => setCurrent((current - 1 + images.length) % images.length)}
-        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full"
-        aria-label="Previous slide"
-      >
-        ‹
-      </button>
-      <button
-        onClick={() => setCurrent((current + 1) % images.length)}
-        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full"
-        aria-label="Next slide"
-      >
-        ›
-      </button>
+      <div className="container mx-auto px-6 relative z-10">
+        <div className="max-w-5xl">
+          <div className="flex items-center gap-4 mb-10">
+            <span className="h-[2px] w-12 bg-accent"></span>
+            <span className="text-accent font-bold tracking-[0.5em] text-[10px] uppercase">Momentum for Change</span>
+          </div>
+          
+          <h1 className="text-7xl md:text-[9rem] font-black leading-[0.85] mb-10 tracking-tighter uppercase font-heading text-white">
+            INERTIA<br/>
+            <span className="text-accent">EDUCATION</span>
+          </h1>
+          
+          <p className="text-2xl md:text-3xl font-light text-slate-300 mb-12 max-w-3xl leading-relaxed">
+            Moving the barriers that keep brilliance stationary. A mobile innovation lab creating <span className="text-white font-medium italic underline decoration-accent underline-offset-8">equitable STEAM pathways</span> for Aotearoa's youth.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-6">
+            <a href="#partner" className="px-12 py-6 bg-accent text-slate-950 font-black uppercase tracking-widest text-xs rounded-full transition-all hover:scale-105 hover:bg-sky-400 shadow-2xl shadow-sky-500/20 text-center">
+              Partner with Us
+            </a>
+            <a href="#impact" className="px-12 py-6 bg-white/5 text-white font-bold uppercase tracking-widest text-xs rounded-full border border-white/10 hover:bg-white/10 transition-all backdrop-blur-sm text-center">
+              The Mission
+            </a>
+          </div>
+        </div>
+      </div>
+      
+      {/* Scroll indicator */}
+      <div className="absolute bottom-10 left-10 animate-bounce opacity-20 hidden md:block">
+        <div className="flex items-center gap-4 text-white">
+          <span className="text-[10px] font-black uppercase tracking-widest rotate-90 origin-left translate-y-12">Scroll</span>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7-7-7" />
+          </svg>
+        </div>
+      </div>
     </section>
   );
-}
+};
+
+export default Hero;
