@@ -26,12 +26,12 @@ const ImpactSection: React.FC = () => {
           <div className="space-y-8">
             <div className="text-7xl font-black text-white/5 tracking-tighter font-heading">02</div>
             <h4 className="text-2xl font-bold font-heading">Cultural Velocity</h4>
-            <p className="text-slate-500 leading-relaxed">Innovation is in the DNA of Aotearoa. We combine modern engineering with Māori and Pasifika heritage to ignite pride.</p>
+            <p className="text-slate-500 leading-relaxed">Innovation is in the DNA of Aotearoa. We combine modern engineering with cultural practices to create innovative learning opportunities.</p>
           </div>
           <div className="space-y-8">
             <div className="text-7xl font-black text-white/5 tracking-tighter font-heading">03</div>
             <h4 className="text-2xl font-bold font-heading">The Multiplier Effect</h4>
-            <p className="text-slate-500 leading-relaxed">Every student trained becomes a mentor. We build a self-sustaining culture of 'making' that lasts a decade after we leave.</p>
+            <p className="text-slate-500 leading-relaxed">Teachers in schools are provided the tools and skills to maintain the project. Every student trained becomes a mentor. We build a self-sustaining culture of 'making' that lasts a decade after we leave.</p>
           </div>
         </div>
 
@@ -40,7 +40,7 @@ const ImpactSection: React.FC = () => {
           <div className="absolute top-0 right-0 w-1/2 h-full bg-accent/5 -translate-y-1/2 translate-x-1/2 rounded-full blur-[120px]"></div>
           <blockquote className="relative z-10 text-center max-w-4xl mx-auto">
             <p className="text-3xl md:text-5xl font-medium text-white italic leading-snug mb-12">
-              "We aren't just teaching kids how to code. We're teaching them that they are the <span className="text-accent not-italic font-black">architects</span> of the next Aotearoa."
+              "We aren't just teaching kids how to engineer. We're teaching them that they are the <span className="text-accent not-italic font-black">architects</span> of the next Aotearoa."
             </p>
             <cite className="text-accent font-bold tracking-widest uppercase text-sm not-italic">— Theory of Change</cite>
           </blockquote>
