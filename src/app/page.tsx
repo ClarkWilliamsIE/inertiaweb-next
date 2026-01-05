@@ -73,7 +73,7 @@ export default function Home() {
             <div className="space-y-12">
               <h3 className="text-accent font-bold tracking-[0.4em] text-xs uppercase">The Movement</h3>
               <h2 className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.85] text-white font-heading">
-                MOMENTUM<br/><span className="text-slate-800">IS LIFE.</span>
+                MOMENTUM<br/><span className="text-slate-800">IN EDUCATION.</span>
               </h2>
               <div className="h-1.5 w-40 bg-accent rounded-full"></div>
               <p className="text-2xl text-slate-400 leading-relaxed font-light">
