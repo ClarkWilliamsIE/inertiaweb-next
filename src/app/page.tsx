@@ -138,7 +138,7 @@ export default function Home() {
             We are looking for strategic partners who value deep social impact over surface-level charity. Join the momentum.
           </p>
           <div className="flex flex-col md:flex-row gap-8 justify-center items-center">
-             <a href="clark@inertiaed.org" className="px-16 py-8 bg-slate-950 text-white font-black uppercase tracking-[0.3em] text-xs rounded-full hover:scale-105 active:scale-95 transition-all shadow-2xl">
+             <a href="mailto:clark@inertiaed.org" className="px-16 py-8 bg-slate-950 text-white font-black uppercase tracking-[0.3em] text-xs rounded-full hover:scale-105 active:scale-95 transition-all shadow-2xl">
                Contact Us
              </a>
              <a 
