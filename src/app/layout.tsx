@@ -2,7 +2,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter } from "next/font/google";
-import "./globals.css";
+import "./global.css";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
