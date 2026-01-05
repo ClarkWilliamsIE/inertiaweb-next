@@ -40,28 +40,28 @@ export const TEAM: TeamMember[] = [
   {
     name: "Clark Williams",
     role: "Founder & Project Lead",
-    bio: "Visionary educator with 10 years in STEAM, focused on disrupting educational inequity through mobile innovation.",
+    bio: "Visionary educator with 10 years in STEAM, focused on disrupting educational inequity through mobile innovation and community-led design.",
     // UPDATED:
     image: "/images/Clark.png"
   },
   {
     name: "Irihāpeti Mahuika",
     role: "Governance Advisor",
-    bio: "Advocate for Kaupapa Māori and equity, ensuring our projects remain grounded in local community needs.",
+    bio: "Advocate for Kaupapa Māori and equity, ensuring our projects remain grounded in local community needs and cultural integrity.",
     // UPDATED:
     image: "/images/irihapeti-mahuika.jpg"
   },
   {
     name: "Pania Watson",
     role: "Education Specialist",
-    bio: "Leadership expert dedicated to empowering youth through hands-on, curriculum-aligned project work.",
+    bio: "Leadership expert dedicated to empowering youth through hands-on, curriculum-aligned project work and deep community engagement.",
     // UPDATED:
     image: "/images/pania.png"
   },
   {
     name: "Lex Davis",
     role: "Strategic Operations",
-    bio: "Senior educator specializing in complex project management and scaling social impact across Aotearoa.",
+    bio: "Senior educator specializing in complex project management and scaling social impact across Aotearoa's educational landscape.",
     // UPDATED:
     image: "/images/lex.jpeg"
   }
