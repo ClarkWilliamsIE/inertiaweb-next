@@ -59,7 +59,7 @@ export default function Home() {
             <div className="relative">
               <div className="aspect-[4/5] bg-slate-900 rounded-[5rem] overflow-hidden border border-white/10 group shadow-2xl relative">
                 <img 
-                  src="https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=1200&auto=format&fit=crop" 
+                  src="/images/expandinside.jpg"
                   alt="Inertia in Action" 
                   className="w-full h-full object-cover grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-1000"
                 />
