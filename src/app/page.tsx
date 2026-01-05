@@ -138,7 +138,7 @@ export default function Home() {
             We are looking for strategic partners who value deep social impact over surface-level charity. Join the momentum.
           </p>
           <div className="flex flex-col md:flex-row gap-8 justify-center items-center">
-             <a href="mailto:info@inertia.edu.nz" className="px-16 py-8 bg-slate-950 text-white font-black uppercase tracking-[0.3em] text-xs rounded-full hover:scale-105 active:scale-95 transition-all shadow-2xl">
+             <a href="clark@inertiaed.org" className="px-16 py-8 bg-slate-950 text-white font-black uppercase tracking-[0.3em] text-xs rounded-full hover:scale-105 active:scale-95 transition-all shadow-2xl">
                Become a Sponsor
              </a>
              <button className="px-16 py-8 border-2 border-slate-950/10 text-slate-950 font-black uppercase tracking-widest text-xs rounded-full hover:bg-slate-950/5 transition-all">
