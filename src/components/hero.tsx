@@ -8,7 +8,7 @@ const Hero: React.FC = () => {
       {/* Background Visual */}
       <div className="absolute inset-0 z-0">
         <img 
-          src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1920&auto=format&fit=crop" 
+          src="/images/outsideview.jpg" 
           alt="Inertia Mobile Lab" 
           className="w-full h-full object-cover opacity-20 grayscale"
         />
