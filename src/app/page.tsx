@@ -141,9 +141,14 @@ export default function Home() {
              <a href="clark@inertiaed.org" className="px-16 py-8 bg-slate-950 text-white font-black uppercase tracking-[0.3em] text-xs rounded-full hover:scale-105 active:scale-95 transition-all shadow-2xl">
                Contact Us
              </a>
-             <button className="px-16 py-8 border-2 border-slate-950/10 text-slate-950 font-black uppercase tracking-widest text-xs rounded-full hover:bg-slate-950/5 transition-all">
-               Our Impact Vision
-             </button>
+             <a 
+                href="/Makertruck%20Proposal.pdf" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="px-16 py-8 border-2 border-slate-950/10 text-slate-950 font-black uppercase tracking-widest text-xs rounded-full hover:bg-slate-950/5 transition-all"
+              >
+             Our Impact Vision
+          </a>
           </div>
         </div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[25rem] font-black opacity-[0.03] select-none pointer-events-none italic tracking-tighter font-heading">
