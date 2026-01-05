@@ -139,7 +139,7 @@ export default function Home() {
           </p>
           <div className="flex flex-col md:flex-row gap-8 justify-center items-center">
              <a href="clark@inertiaed.org" className="px-16 py-8 bg-slate-950 text-white font-black uppercase tracking-[0.3em] text-xs rounded-full hover:scale-105 active:scale-95 transition-all shadow-2xl">
-               Become a Sponsor
+               Contact Us
              </a>
              <button className="px-16 py-8 border-2 border-slate-950/10 text-slate-950 font-black uppercase tracking-widest text-xs rounded-full hover:bg-slate-950/5 transition-all">
                Our Impact Vision
@@ -161,8 +161,8 @@ export default function Home() {
                 <span className="font-heading font-black text-2xl tracking-tighter text-white uppercase">INERTIA</span>
               </div>
               <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest leading-loose">
-                © {new Date().getFullYear()} INERTIA EDUCATION INITIATIVE.<br/>
-                HAWKE'S BAY, AOTEAROA.
+                © {new Date().getFullYear()} INERTIA EDUCATION.<br/>
+                AOTEAROA.
               </p>
             </div>
             
