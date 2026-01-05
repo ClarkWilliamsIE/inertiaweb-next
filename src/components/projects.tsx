@@ -1,5 +1,5 @@
 import React from 'react';
-import { PROJECTS } from '../constants.tsx'; // Adjust this import path if needed! 
+import { PROJECTS } from '../constants'; // Adjust this import path if needed! 
 // Note: If your PROJECTS are in src/constants.tsx, change line above to: import { PROJECTS } from '../constants';
 
 const Projects: React.FC = () => {
