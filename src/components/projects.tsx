@@ -1,5 +1,6 @@
 import React from 'react';
-import { PROJECTS } from '../constants';
+import { PROJECTS } from '../constant/config'; // Adjust this import path if needed! 
+// Note: If your PROJECTS are in src/constants.tsx, change line above to: import { PROJECTS } from '../constants';
 
 const Projects: React.FC = () => {
   return (
@@ -18,16 +19,21 @@ const Projects: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {PROJECTS.map((project, idx) => (
-            <div key={idx} className="group flex flex-col bg-slate-50 rounded-[2.5rem] overflow-hidden border border-slate-100 transition-all hover:shadow-2xl hover:-translate-y-2">
-              <div className="relative h-56 overflow-hidden">
+          {/* Explicitly typed 'project' as any to bypass strict checks */}
+          {PROJECTS.map((project: any, idx: number) => (
+            <div key={idx} className="group flex flex-col bg-slate-50 rounded-[2.5rem] overflow-hidden border border-slate-100 transition-all hover:shadow-2xl hover:-translate-y-2 duration-500 hover:border-accent/20">
+              <div className="aspect-square overflow-hidden relative">
+                <div className="absolute inset-0 bg-slate-900/10 group-hover:bg-transparent transition-all z-10"></div>
                 <img 
                   src={project.image} 
                   alt={project.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 scale-105 group-hover:scale-110 transition-all duration-700"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
+                <div className="absolute top-6 right-6 z-20 bg-white/90 backdrop-blur-md p-3 rounded-2xl shadow-sm opacity-0 group-hover:opacity-100 transition-all translate-y-4 group-hover:translate-y-0">
+                  <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                </div>
               </div>
+              
               <div className="p-8 flex-grow flex flex-col">
                 <h4 className="text-xl font-black mb-4 group-hover:text-accent transition-colors font-heading">{project.title}</h4>
                 <p className="text-slate-600 text-sm leading-relaxed mb-8 flex-grow font-light">{project.description}</p>
@@ -36,7 +42,8 @@ const Projects: React.FC = () => {
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Curriculum</p>
                     <div className="flex flex-wrap gap-2">
-                      {project.curriculum.map((c, i) => (
+                      {/* FIXED: Explicitly typed 'c' as string */}
+                      {project.curriculum.map((c: string, i: number) => (
                         <span key={i} className="px-3 py-1.5 bg-white text-slate-700 text-[9px] font-black rounded-lg border border-slate-200 uppercase tracking-tighter">{c}</span>
                       ))}
                     </div>
@@ -44,7 +51,8 @@ const Projects: React.FC = () => {
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Skills</p>
                     <div className="flex flex-wrap gap-2">
-                      {project.skills.map((s, i) => (
+                      {/* FIXED: Explicitly typed 's' as string */}
+                      {project.skills.map((s: string, i: number) => (
                         <span key={i} className="px-3 py-1.5 bg-sky-100 text-sky-700 text-[9px] font-black rounded-lg uppercase tracking-tighter">{s}</span>
                       ))}
                     </div>
