@@ -19,7 +19,7 @@ export async function chatWithAssistant(message: string, history: { role: 'user'
     }
 
     const chat = aiClient.chats.create({
-      model: 'gemini-1.5-flash', 
+      model: 'gemini-1.5-flash-001', // <--- CHANGED THIS LINE (Added -001)
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
       },
