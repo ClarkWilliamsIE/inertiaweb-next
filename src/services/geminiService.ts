@@ -18,8 +18,8 @@ export async function chatWithAssistant(message: string, history: { role: 'user'
       aiClient = new GoogleGenAI({ apiKey });
     }
 
-    const chat = aiClient.chats.create({
-      model: 'gemini-1.5-flash-001', // <--- CHANGED THIS LINE (Added -001)
+    const chat = ai.chats.create({
+      model: 'gemini-3-flash-preview',
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
       },
