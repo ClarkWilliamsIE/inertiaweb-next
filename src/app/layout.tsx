@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Hero from '../components/Hero';
-import Projects from '../components/Projects';
+import Hero from '../components/hero';
+import Projects from '../components/projects';
 import ImpactSection from '../components/ImpactSection';
 import Assistant from '../components/Assistant';
 import { TEAM } from '../constants';
