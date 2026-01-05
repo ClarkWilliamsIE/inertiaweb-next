@@ -18,7 +18,7 @@ export async function chatWithAssistant(message: string, history: { role: 'user'
       aiClient = new GoogleGenAI({ apiKey });
     }
 
-    const chat = ai.chats.create({
+    const chat = aiClient.chats.create({
       model: 'gemini-3-flash-preview',
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
