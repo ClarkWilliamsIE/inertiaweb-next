@@ -1,179 +1,351 @@
-<script>
-  // --- CONFIG ---
-  if (!window.supabaseInstance) {
-    const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
-    window.supabaseInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  }
-  var supabase = window.supabaseInstance;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin - Ledger Entry</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  // --- DOM ELEMENTS ---
-  const form = document.getElementById('tradeForm');
-  const tableBody = document.getElementById('historyTable');
-  const msgBox = document.getElementById('message');
-
-  // --- INIT ---
-  init();
-
-  async function init() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) window.location.href = "login.html";
-    loadHistory();
-  }
-
-  // --- LOAD HISTORY ---
-  async function loadHistory() {
-    const { data, error } = await supabase
-      .from('trades')
-      .select('*')
-      .order('date', { ascending: false })
-      .limit(15);
-
-    if (error) { showMsg("Error loading history", "error"); return; }
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0; padding: 1rem;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f0f0f; color: #e0e0e0;
+    }
     
-    tableBody.innerHTML = "";
-    if(!data || data.length === 0) {
-      tableBody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:2rem; color:#52525b'>No trades recorded yet.</td></tr>";
-      return;
+    /* --- HEADER --- */
+    header { 
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between; 
+      margin-bottom: 1.5rem; 
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    h1 { margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; text-transform: uppercase; color: #a1a1aa; }
+    
+    .btn {
+      padding: .5rem .85rem; border-radius: 8px; border: 1px solid #333;
+      background: #1f1f1f; color: #fff; cursor: pointer; transition: 0.2s; text-decoration: none; font-size: 0.9rem;
+      white-space: nowrap;
+    }
+    .btn:hover { background: #2a2a2a; }
+    .btn-primary { background: #3b82f6; border-color: #2563eb; }
+    .btn-primary:hover { background: #2563eb; }
+
+    /* --- LAYOUT --- */
+    .container { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
+    
+    /* --- CARDS --- */
+    .card {
+      background: #18181b; border: 1px solid #27272a; border-radius: 16px;
+      padding: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .card h2 { margin: 0 0 1rem 0; font-size: 1.1rem; font-weight: 600; color: #fff; }
+
+    /* --- FORM --- */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .full-width { grid-column: span 2; }
+    
+    .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    label { font-size: 0.8rem; text-transform: uppercase; color: #71717a; font-weight: 600; }
+    
+    input, select {
+      background: #27272a; border: 1px solid #3f3f46; color: #fff;
+      padding: 0.75rem; border-radius: 8px; font-size: 1rem; outline: none;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    input:focus, select:focus { border-color: #3b82f6; }
+
+    /* --- TABLE --- */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
-    data.forEach(trade => {
-      const date = new Date(trade.date).toLocaleDateString();
-      const badgeClass = trade.type === 'BUY' ? 'badge-buy' : 'badge-sell';
-      const row = `
-        <tr>
-          <td style="white-space:nowrap;">${date}</td>
-          <td style="font-weight:bold; color:#fff;">${trade.symbol}</td>
-          <td><span class="badge ${badgeClass}">${trade.type}</span></td>
-          <td class="text-right">${Number(trade.quantity).toLocaleString()}</td>
-          <td class="text-right">$${Number(trade.price).toLocaleString()}</td>
-          <td class="action-col">
-            <button class="delete-btn" onclick="deleteTrade('${trade.id}')" title="Delete Trade">&times;</button>
-          </td>
-        </tr>`;
-      tableBody.innerHTML += row;
-    });
-  }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 500px; }
+    th { text-align: left; color: #71717a; font-size: 0.75rem; text-transform: uppercase; padding-bottom: 0.5rem; border-bottom: 1px solid #27272a; }
+    td { padding: 0.75rem 0; border-bottom: 1px solid #27272a; color: #d4d4d8; }
+    tr:last-child td { border-bottom: none; }
+    
+    .badge { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .badge-buy { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .badge-sell { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    
+    .text-right { text-align: right; }
+    .action-col { width: 40px; text-align: center; }
+    .delete-btn { background: none; border: none; color: #52525b; cursor: pointer; font-size: 1.2rem; transition: color 0.2s; padding: 0 10px; }
+    .delete-btn:hover { color: #ef4444; }
 
-  // --- SUBMIT TRADE ---
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    showMsg("Processing...", "success"); // Show temp status
+    #message { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; display: none; text-align: center; }
+    .success { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+    .error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
 
-    const symbol = document.getElementById('symbol').value.toUpperCase().trim();
-    const type = document.getElementById('type').value;
-    const qty = parseFloat(document.getElementById('quantity').value);
-    const price = parseFloat(document.getElementById('price').value);
+    @media (max-width: 600px) {
+      body { padding: 0.5rem; }
+      h1 { font-size: 1.4rem; }
+      .card { padding: 1rem; }
+      .form-grid { grid-template-columns: 1fr; }
+      .full-width { grid-column: span 1; }
+      table { font-size: 0.85rem; }
+      th, td { padding: 0.5rem 0.25rem; }
+    }
+  </style>
+</head>
+<body>
 
-    // 1. Insert into Ledger (Trades)
-    const { error } = await supabase.from('trades').insert({
-      symbol: symbol, type: type, quantity: qty, price: price, date: new Date().toISOString()
-    });
+  <header class="container">
+    <h1>Ledger Admin</h1>
+    <a href="index.html" class="btn">Back to Dashboard</a>
+  </header>
 
-    if (error) {
-      showMsg("Error saving trade: " + error.message, "error");
-      return;
+  <div class="container">
+    
+    <div id="message"></div>
+
+    <div class="card">
+      <h2>Record New Trade</h2>
+      <form id="tradeForm">
+        <div class="form-grid">
+          
+          <div class="form-group">
+            <label>Symbol</label>
+            <input type="text" id="symbol" placeholder="e.g. GHY" required style="text-transform: uppercase;">
+          </div>
+
+          <div class="form-group">
+            <label>Type</label>
+            <select id="type">
+              <option value="BUY">BUY</option>
+              <option value="SELL">SELL</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Quantity</label>
+            <input type="number" id="quantity" placeholder="0" step="any" required>
+          </div>
+
+          <div class="form-group">
+            <label>Price per Share</label>
+            <input type="number" id="price" placeholder="0.00" step="any" required>
+          </div>
+
+          <div class="full-width" style="margin-top: 0.5rem;">
+            <button type="submit" class="btn btn-primary" style="width:100%; font-weight:600; padding: 0.75rem;">Record Trade</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Recent Transactions</h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Symbol</th>
+              <th>Type</th>
+              <th class="text-right">Qty</th>
+              <th class="text-right">Price</th>
+              <th class="action-col"></th>
+            </tr>
+          </thead>
+          <tbody id="historyTable">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- CONFIG ---
+    // We check if window.supabase exists to prevent the error you saw.
+    if (typeof window.supabase === 'undefined') {
+        document.body.innerHTML = "<h2 style='color:red; text-align:center; margin-top:2rem;'>Error: Supabase Library not loaded. Check internet connection or script tags.</h2>";
+        throw new Error("Supabase library not found");
     }
 
-    // 2. TRIGGER DASHBOARD UPDATE
-    await updateDashboardData();
+    if (!window.supabaseInstance) {
+      const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
+      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+      window.supabaseInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
+    var supabase = window.supabaseInstance;
 
-    showMsg("Trade recorded & Dashboard updated!", "success");
-    form.reset();
-    document.getElementById('symbol').focus();
-    loadHistory();
-  };
+    // --- DOM ELEMENTS ---
+    const form = document.getElementById('tradeForm');
+    const tableBody = document.getElementById('historyTable');
+    const msgBox = document.getElementById('message');
 
-  // --- DELETE TRADE ---
-  window.deleteTrade = async (id) => {
-    const pwd = prompt("Enter password to confirm deletion:");
-    if (pwd !== "admin") return showMsg("Incorrect password.", "error");
+    // --- INIT ---
+    init();
 
-    const { error } = await supabase.from('trades').delete().eq('id', id);
-    if(error) {
-      showMsg("Failed to delete: " + error.message, "error");
-    } else {
-      await updateDashboardData(); // Recalculate after delete
-      showMsg("Trade deleted & Dashboard recalculated.", "success");
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) window.location.href = "login.html";
       loadHistory();
     }
-  };
 
-  // --- THE MAGIC FUNCTION: CALCULATE & UPDATE DASHBOARD ---
-  async function updateDashboardData() {
-    // 1. Fetch ALL trades
-    const { data: trades } = await supabase.from('trades').select('*').order('date', {ascending: true});
-    if(!trades) return;
+    // --- LOAD HISTORY ---
+    async function loadHistory() {
+      const { data, error } = await supabase
+        .from('trades')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(15);
 
-    // 2. Replay history to calculate holdings
-    let portfolio = {}; // Key: Symbol -> { qty, cost, lastPrice }
-
-    trades.forEach(t => {
-      if(!portfolio[t.symbol]) portfolio[t.symbol] = { qty: 0, cost: 0, lastPrice: 0 };
-      const p = portfolio[t.symbol];
-      const q = Number(t.quantity);
-      const val = Number(t.price);
-
-      p.lastPrice = val; // Always update market price to latest trade price
-
-      if(t.type === 'BUY') {
-        p.cost += (q * val);
-        p.qty += q;
-      } else {
-        // When selling, we reduce cost basis proportionally (Average Cost method)
-        if(p.qty > 0) {
-          const avgCost = p.cost / p.qty;
-          p.cost -= (q * avgCost);
-          p.qty -= q;
-        }
+      if (error) { showMsg("Error loading history", "error"); return; }
+      
+      tableBody.innerHTML = "";
+      if(!data || data.length === 0) {
+        tableBody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:2rem; color:#52525b'>No trades recorded yet.</td></tr>";
+        return;
       }
-    });
 
-    // 3. Build Summary Object
-    let positions = [];
-    let totalValue = 0;
-    let totalCost = 0;
-
-    for (const [sym, data] of Object.entries(portfolio)) {
-      if(data.qty < 0.0001) continue; // Skip sold out positions
-
-      const mktValue = data.qty * data.lastPrice;
-      const profit = mktValue - data.cost;
-      const pct = data.cost > 0 ? (profit / data.cost) * 100 : 0;
-
-      totalValue += mktValue;
-      totalCost += data.cost;
-
-      positions.push({
-        symbol: sym,
-        quantity: data.qty,
-        cost: data.cost,
-        value: mktValue,
-        profit: profit,
-        pct: pct
+      data.forEach(trade => {
+        const date = new Date(trade.date).toLocaleDateString();
+        const badgeClass = trade.type === 'BUY' ? 'badge-buy' : 'badge-sell';
+        const row = `
+          <tr>
+            <td style="white-space:nowrap;">${date}</td>
+            <td style="font-weight:bold; color:#fff;">${trade.symbol}</td>
+            <td><span class="badge ${badgeClass}">${trade.type}</span></td>
+            <td class="text-right">${Number(trade.quantity).toLocaleString()}</td>
+            <td class="text-right">$${Number(trade.price).toLocaleString()}</td>
+            <td class="action-col">
+              <button class="delete-btn" onclick="deleteTrade('${trade.id}')" title="Delete Trade">&times;</button>
+            </td>
+          </tr>`;
+        tableBody.innerHTML += row;
       });
     }
 
-    const totalProfit = totalValue - totalCost;
-    const totalPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
+    // --- SUBMIT TRADE ---
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      showMsg("Processing...", "success"); 
 
-    const summaryPayload = {
-      totals: { value: totalValue, cost: totalCost, profit: totalProfit, pct: totalPct },
-      positions: positions.sort((a,b) => b.value - a.value) // Sort by biggest holdings
+      const symbol = document.getElementById('symbol').value.toUpperCase().trim();
+      const type = document.getElementById('type').value;
+      const qty = parseFloat(document.getElementById('quantity').value);
+      const price = parseFloat(document.getElementById('price').value);
+
+      // 1. Insert into Ledger
+      const { error } = await supabase.from('trades').insert({
+        symbol: symbol, type: type, quantity: qty, price: price, date: new Date().toISOString()
+      });
+
+      if (error) {
+        showMsg("Error saving trade: " + error.message, "error");
+        return;
+      }
+
+      // 2. TRIGGER DASHBOARD UPDATE
+      await updateDashboardData();
+
+      showMsg("Trade recorded & Dashboard updated!", "success");
+      form.reset();
+      document.getElementById('symbol').focus();
+      loadHistory();
     };
 
-    // 4. Push to 'flex_summary' table
-    await supabase.from('flex_summary').insert({
-      last_updated: new Date().toISOString(),
-      data: summaryPayload
-    });
-  }
+    // --- DELETE TRADE ---
+    window.deleteTrade = async (id) => {
+      const pwd = prompt("Enter password to confirm deletion:");
+      if (pwd !== "admin") return showMsg("Incorrect password.", "error");
 
-  // --- UTILS ---
-  function showMsg(text, type) {
-    msgBox.textContent = text;
-    msgBox.className = type;
-    msgBox.style.display = 'block';
-    setTimeout(() => { msgBox.style.display = 'none'; }, 3000);
-  }
-</script>
+      const { error } = await supabase.from('trades').delete().eq('id', id);
+      if(error) {
+        showMsg("Failed to delete: " + error.message, "error");
+      } else {
+        await updateDashboardData(); 
+        showMsg("Trade deleted & Dashboard recalculated.", "success");
+        loadHistory();
+      }
+    };
+
+    // --- THE MAGIC FUNCTION: CALCULATE & UPDATE DASHBOARD ---
+    async function updateDashboardData() {
+      // 1. Fetch ALL trades
+      const { data: trades } = await supabase.from('trades').select('*').order('date', {ascending: true});
+      if(!trades) return;
+
+      // 2. Replay history to calculate holdings
+      let portfolio = {}; 
+
+      trades.forEach(t => {
+        if(!portfolio[t.symbol]) portfolio[t.symbol] = { qty: 0, cost: 0, lastPrice: 0 };
+        const p = portfolio[t.symbol];
+        const q = Number(t.quantity);
+        const val = Number(t.price);
+
+        p.lastPrice = val; 
+
+        if(t.type === 'BUY') {
+          p.cost += (q * val);
+          p.qty += q;
+        } else {
+          if(p.qty > 0) {
+            const avgCost = p.cost / p.qty;
+            p.cost -= (q * avgCost);
+            p.qty -= q;
+          }
+        }
+      });
+
+      // 3. Build Summary Object
+      let positions = [];
+      let totalValue = 0;
+      let totalCost = 0;
+
+      for (const [sym, data] of Object.entries(portfolio)) {
+        if(data.qty < 0.0001) continue; 
+
+        const mktValue = data.qty * data.lastPrice;
+        const profit = mktValue - data.cost;
+        const pct = data.cost > 0 ? (profit / data.cost) * 100 : 0;
+
+        totalValue += mktValue;
+        totalCost += data.cost;
+
+        positions.push({
+          symbol: sym,
+          quantity: data.qty,
+          cost: data.cost,
+          value: mktValue,
+          profit: profit,
+          pct: pct
+        });
+      }
+
+      const totalProfit = totalValue - totalCost;
+      const totalPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
+
+      const summaryPayload = {
+        totals: { value: totalValue, cost: totalCost, profit: totalProfit, pct: totalPct },
+        positions: positions.sort((a,b) => b.value - a.value)
+      };
+
+      // 4. Push to 'flex_summary' table
+      await supabase.from('flex_summary').insert({
+        last_updated: new Date().toISOString(),
+        data: summaryPayload
+      });
+    }
+
+    function showMsg(text, type) {
+      msgBox.textContent = text;
+      msgBox.className = type;
+      msgBox.style.display = 'block';
+      setTimeout(() => { msgBox.style.display = 'none'; }, 3000);
+    }
+  </script>
+</body>
+</html>
