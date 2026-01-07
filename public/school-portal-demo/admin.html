@@ -112,32 +112,40 @@
   </div>
 
   <script>
-    // --- INIT SUPABASE ---
-    if (typeof window.supabase === 'undefined') { throw new Error("Supabase library not found. Check internet connection."); }
+    // --- 1. SETUP SUPABASE ---
+    if (typeof window.supabase === 'undefined') { throw new Error("Supabase library not found."); }
     
-    // REPLACE THESE IF NEEDED (Though they look correct from your previous messages)
+    // We use a unique variable name 'db' to prevent conflicts
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
-    
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    // --- 2. DOM ELEMENTS ---
     const form = document.getElementById('tradeForm');
     const tableBody = document.getElementById('historyTable');
     const msgBox = document.getElementById('message');
 
-    // Load history on startup
+    // --- 3. STARTUP ---
     init();
 
     async function init() {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Check Login
+      const { data: { session } } = await db.auth.getSession();
       if (!session) window.location.href = "login.html";
+      
+      // Load Data
       loadHistory();
     }
 
-    // --- 1. LOAD HISTORY ---
+    // --- 4. LOAD HISTORY ---
     async function loadHistory() {
-      const { data, error } = await supabase.from('trades').select('*').order('date', { ascending: false }).limit(20);
-      if (error) { showMsg("Error loading history", "error"); return; }
+      const { data, error } = await db.from('trades').select('*').order('date', { ascending: false }).limit(20);
+      
+      if (error) { 
+        console.error(error);
+        showMsg("Error loading history", "error"); 
+        return; 
+      }
       
       tableBody.innerHTML = "";
       if(!data || data.length === 0) {
@@ -160,7 +168,7 @@
       });
     }
 
-    // --- 2. SUBMIT TRADE ---
+    // --- 5. SUBMIT TRADE ---
     form.onsubmit = async (e) => {
       e.preventDefault();
       showMsg("Saving trade...", "success"); 
@@ -170,13 +178,12 @@
       const qty = parseFloat(document.getElementById('quantity').value);
       const price = parseFloat(document.getElementById('price').value);
 
-      const { error } = await supabase.from('trades').insert({
+      const { error } = await db.from('trades').insert({
         symbol, type, quantity: qty, price, date: new Date().toISOString()
       });
 
       if (error) return showMsg("Error saving trade: " + error.message, "error");
 
-      // SUCCESS - NOW UPDATE DASHBOARD
       await updateDashboardData();
       
       form.reset();
@@ -184,29 +191,29 @@
       loadHistory();
     };
 
-    // --- 3. DELETE TRADE ---
+    // --- 6. DELETE TRADE ---
     window.deleteTrade = async (id) => {
       const pwd = prompt("Password:");
       if (pwd !== "admin") return alert("Wrong password");
       
-      const { error } = await supabase.from('trades').delete().eq('id', id);
+      const { error } = await db.from('trades').delete().eq('id', id);
       if(error) return alert("Error: " + error.message);
       
       await updateDashboardData();
       loadHistory();
     };
 
-    // --- 4. MANUAL TRIGGER BUTTON ---
+    // --- 7. MANUAL UPDATE ---
     window.manualUpdate = async () => {
         await updateDashboardData();
     }
 
-    // --- 5. THE CORE CALCULATION ENGINE ---
+    // --- 8. CALCULATION ENGINE ---
     async function updateDashboardData() {
       showMsg("Calculating Dashboard...", "success");
       
       // A. Fetch ALL history
-      const { data: trades, error: errFetch } = await supabase.from('trades').select('*').order('date', {ascending: true});
+      const { data: trades, error: errFetch } = await db.from('trades').select('*').order('date', {ascending: true});
       if(errFetch) { alert("Error reading trades: " + errFetch.message); return; }
 
       // B. Calculate Portfolio
@@ -218,7 +225,7 @@
         const p = portfolio[sym];
         const q = Number(t.quantity);
         const val = Number(t.price);
-        p.lastPrice = val; // Last trade price acts as current price
+        p.lastPrice = val; 
 
         if(t.type === 'BUY') {
           p.cost += (q * val);
@@ -239,7 +246,7 @@
       let totalCost = 0;
 
       for (const [sym, data] of Object.entries(portfolio)) {
-        if(data.qty < 0.001) continue; // Skip sold/empty positions
+        if(data.qty < 0.001) continue; 
 
         const mktValue = data.qty * data.lastPrice;
         const profit = mktValue - data.cost;
@@ -258,13 +265,13 @@
       
       const payload = {
         totals: { value: totalValue, cost: totalCost, profit: totalProfit, pct: totalPct },
-        positions: positions.sort((a,b) => b.value - a.value) // Sort largest first
+        positions: positions.sort((a,b) => b.value - a.value) 
       };
 
       console.log("New Payload:", payload);
 
-      // D. UPLOAD TO SUPABASE (This is where it likely failed before)
-      const { error: errInsert } = await supabase.from('flex_summary').insert({
+      // D. UPLOAD TO SUPABASE
+      const { error: errInsert } = await db.from('flex_summary').insert({
         last_updated: new Date().toISOString(),
         data: payload
       });
