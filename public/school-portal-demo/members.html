@@ -128,12 +128,12 @@
 
   <script>
     // CONFIG
-if (!window.supabaseInstance) {
-    const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
-    window.supabaseInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-}
-var supabase = window.supabaseInstance;
+    if (!window.supabaseInstance) {
+      const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
+      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+      window.supabaseInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
+    var supabase = window.supabaseInstance;
 
     // STATE
     let summary = null;
@@ -171,15 +171,23 @@ var supabase = window.supabaseInstance;
       return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`; 
     };
 
-    // --- SIMPLIFIER ---
+    // --- NEW "NOISE CANCELING" SIMPLIFIER ---
+    // Ignores changes smaller than 0.1% to flatten "wobbly" lines
     const simplifyData = (arr) => {
        if(!arr || arr.length < 2) return arr;
        const clean = [arr[0]];
+       
        for(let i=1; i<arr.length; i++) {
          const lastVal = clean[clean.length-1][1];
          const currVal = arr[i][1];
-         // Only add if value CHANGED, or if it is the very last point
-         if (currVal !== lastVal || i === arr.length - 1) {
+
+         // Calculate percentage difference
+         const pctChange = lastVal === 0 ? 1 : Math.abs((currVal - lastVal) / lastVal);
+
+         // Logic:
+         // 1. Always keep the very last point (so current value is accurate)
+         // 2. OR keep if the change is BIGGER than 0.1% (filters out currency noise)
+         if (i === arr.length - 1 || pctChange > 0.001) {
            clean.push(arr[i]);
          }
        }
@@ -213,11 +221,11 @@ var supabase = window.supabaseInstance;
       summary = sumData[0].data;
       summary.lastUpdatedDate = sumData[0].last_updated;
 
-      // 2. Get History (FIX: Fetch DESCENDING to get newest first, then reverse)
+      // 2. Get History (Fetch DESCENDING to get newest first, then reverse)
       const { data: histData } = await supabase
         .from("flex_summary")
         .select("data,last_updated")
-        .order("last_updated", { ascending: false }) // <--- CHANGED TO FALSE
+        .order("last_updated", { ascending: false })
         .limit(10000);
       
       // REVERSE ARRAY SO IT READS OLD -> NEW
