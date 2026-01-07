@@ -28,8 +28,6 @@
     .btn:hover { background: #2a2a2a; }
     .btn-primary { background: #3b82f6; border-color: #2563eb; }
     .btn-primary:hover { background: #2563eb; }
-    .btn-warning { background: #f59e0b; border-color: #d97706; color: #000; }
-    .btn-warning:hover { background: #d97706; }
 
     .container { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
     
@@ -78,10 +76,7 @@
 
   <header class="container">
     <h1>Ledger Admin</h1>
-    <div style="display:flex; gap:10px;">
-        <button id="btnRecalc" class="btn btn-warning" onclick="manualUpdate()">Recalculate Dashboard Now</button>
-        <a href="index.html" class="btn">Back to Dashboard</a>
-    </div>
+    <a href="index.html" class="btn">Back to Dashboard</a>
   </header>
 
   <div class="container">
@@ -129,11 +124,8 @@
     init();
 
     async function init() {
-      // Check Login
       const { data: { session } } = await db.auth.getSession();
       if (!session) window.location.href = "login.html";
-      
-      // Load Data
       loadHistory();
     }
 
@@ -141,11 +133,7 @@
     async function loadHistory() {
       const { data, error } = await db.from('trades').select('*').order('date', { ascending: false }).limit(20);
       
-      if (error) { 
-        console.error(error);
-        showMsg("Error loading history", "error"); 
-        return; 
-      }
+      if (error) { showMsg("Error loading history", "error"); return; }
       
       tableBody.innerHTML = "";
       if(!data || data.length === 0) {
@@ -178,12 +166,14 @@
       const qty = parseFloat(document.getElementById('quantity').value);
       const price = parseFloat(document.getElementById('price').value);
 
+      // Save to Ledger
       const { error } = await db.from('trades').insert({
         symbol, type, quantity: qty, price, date: new Date().toISOString()
       });
 
       if (error) return showMsg("Error saving trade: " + error.message, "error");
 
+      // Update Dashboard intelligently
       await updateDashboardData();
       
       form.reset();
@@ -203,29 +193,39 @@
       loadHistory();
     };
 
-    // --- 7. MANUAL UPDATE ---
-    window.manualUpdate = async () => {
-        await updateDashboardData();
-    }
-
-    // --- 8. CALCULATION ENGINE ---
+    // --- 7. INTELLIGENT CALCULATION ENGINE ---
     async function updateDashboardData() {
-      showMsg("Calculating Dashboard...", "success");
+      showMsg("Updating Dashboard...", "success");
       
-      // A. Fetch ALL history
+      // STEP A: Fetch the LAST KNOWN GOOD PRICES from the dashboard history
+      // This stops the graphs from crashing
+      const { data: summaryHistory } = await db.from('flex_summary').select('data').order('last_updated', {ascending: false}).limit(1);
+      
+      let lastKnownPrices = {};
+      if (summaryHistory && summaryHistory.length > 0 && summaryHistory[0].data.positions) {
+        summaryHistory[0].data.positions.forEach(pos => {
+          // Calculate implied price: Value / Quantity
+          if (pos.quantity > 0) {
+            lastKnownPrices[pos.symbol] = pos.value / pos.quantity;
+          }
+        });
+      }
+
+      // STEP B: Fetch ALL trades to calculate quantities
       const { data: trades, error: errFetch } = await db.from('trades').select('*').order('date', {ascending: true});
       if(errFetch) { alert("Error reading trades: " + errFetch.message); return; }
 
-      // B. Calculate Portfolio
+      // STEP C: Rebuild Portfolio
       let portfolio = {}; 
+
       trades.forEach(t => {
         const sym = t.symbol.toUpperCase();
-        if(!portfolio[sym]) portfolio[sym] = { qty: 0, cost: 0, lastPrice: 0 };
+        if(!portfolio[sym]) portfolio[sym] = { qty: 0, cost: 0, lastTradePrice: 0 };
         
         const p = portfolio[sym];
         const q = Number(t.quantity);
         const val = Number(t.price);
-        p.lastPrice = val; 
+        p.lastTradePrice = val; 
 
         if(t.type === 'BUY') {
           p.cost += (q * val);
@@ -240,7 +240,7 @@
         }
       });
 
-      // C. Format for Dashboard
+      // STEP D: Format for Dashboard
       let positions = [];
       let totalValue = 0;
       let totalCost = 0;
@@ -248,7 +248,12 @@
       for (const [sym, data] of Object.entries(portfolio)) {
         if(data.qty < 0.001) continue; 
 
-        const mktValue = data.qty * data.lastPrice;
+        // CRITICAL FIX: 
+        // Use the Last Known Price from the dashboard (if exists). 
+        // Otherwise (for new stocks), use the Last Trade Price.
+        let currentPrice = lastKnownPrices[sym] || data.lastTradePrice;
+        
+        const mktValue = data.qty * currentPrice;
         const profit = mktValue - data.cost;
         const pct = data.cost > 0 ? (profit / data.cost) * 100 : 0;
 
@@ -268,9 +273,9 @@
         positions: positions.sort((a,b) => b.value - a.value) 
       };
 
-      console.log("New Payload:", payload);
+      console.log("Preserved Prices Payload:", payload);
 
-      // D. UPLOAD TO SUPABASE
+      // STEP E: UPLOAD TO SUPABASE
       const { error: errInsert } = await db.from('flex_summary').insert({
         last_updated: new Date().toISOString(),
         data: payload
@@ -278,8 +283,8 @@
 
       if (errInsert) {
         console.error(errInsert);
-        alert("CRITICAL ERROR: Supabase rejected the dashboard update.\n\nMessage: " + errInsert.message + "\n\nHint: You probably need to fix Permissions/RLS in Supabase.");
-        showMsg("Update Failed - See Alert", "error");
+        alert("CRITICAL ERROR: " + errInsert.message);
+        showMsg("Update Failed", "error");
       } else {
         showMsg("Dashboard Updated Successfully!", "success");
       }
