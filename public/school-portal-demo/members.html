@@ -7,7 +7,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
   <style>
     :root { color-scheme: dark; }
     body {
@@ -137,10 +136,11 @@
 
     // STATE
     let summary = null;
+    let tradesHistory = []; // <--- Stores your Buys/Sells
     let chartRegistry = {}; 
     let globalRange = localStorage.getItem("pfGlobalRange") || "DAY"; 
     
-    // VIEW MODE: Load from storage or default to empty
+    // VIEW MODE: Default to HISTORY now
     let tickerViewMode = {};
     try { tickerViewMode = JSON.parse(localStorage.getItem("pfViewMode") || "{}"); } catch(_){}
 
@@ -171,22 +171,15 @@
       return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`; 
     };
 
-    // --- NEW "NOISE CANCELING" SIMPLIFIER ---
-    // Ignores changes smaller than 0.1% to flatten "wobbly" lines
+    // NOISE CANCELING
     const simplifyData = (arr) => {
        if(!arr || arr.length < 2) return arr;
        const clean = [arr[0]];
-       
        for(let i=1; i<arr.length; i++) {
          const lastVal = clean[clean.length-1][1];
          const currVal = arr[i][1];
-
-         // Calculate percentage difference
          const pctChange = lastVal === 0 ? 1 : Math.abs((currVal - lastVal) / lastVal);
-
-         // Logic:
-         // 1. Always keep the very last point (so current value is accurate)
-         // 2. OR keep if the change is BIGGER than 0.1% (filters out currency noise)
+         // Keep if change > 0.1% or last point
          if (i === arr.length - 1 || pctChange > 0.001) {
            clean.push(arr[i]);
          }
@@ -202,6 +195,41 @@
       return hist.filter(p => new Date(p[0]).getTime() >= cut);
     };
 
+    // --- NEW: MATCH TRADES TO GRAPH POINTS ---
+    // Finds the graph point closest to the trade date so we can plot the marker at the right height
+    const getTradeMarkers = (hist, symbol = null) => {
+       if(!tradesHistory.length || !hist.length) return [];
+       
+       // Filter trades for this specific chart
+       const relevantTrades = symbol 
+         ? tradesHistory.filter(t => t.symbol === symbol)
+         : tradesHistory; // For portfolio chart, show all trades? Or maybe major ones? Let's show all.
+
+       const markers = [];
+       
+       relevantTrades.forEach(tr => {
+         const tTime = new Date(tr.date).getTime();
+         // Find closest history point
+         const closest = hist.reduce((prev, curr) => {
+            const pTime = new Date(curr[0]).getTime();
+            const cTime = new Date(prev[0]).getTime();
+            return (Math.abs(pTime - tTime) < Math.abs(cTime - tTime)) ? curr : prev;
+         });
+         
+         // Only add marker if trade is within the chart's time range
+         const firstPoint = new Date(hist[0][0]).getTime();
+         if (tTime >= firstPoint) {
+            markers.push({
+               x: smartDate(closest[0], globalRange), // Match the label format of the chart
+               y: closest[1], // The value at that time
+               type: tr.type,
+               detail: `${tr.type} ${tr.quantity} @ ${tr.price}`
+            });
+         }
+       });
+       return markers;
+    }
+
     // MAIN LOGIC
     async function init() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -214,21 +242,24 @@
     async function loadData() {
       setStatus("Loading...");
       
-      // 1. Get Summary (Latest)
+      // 1. Get Trades (For markers)
+      const { data: trData } = await supabase.from("trades").select("*").order("date", {ascending:true});
+      if(trData) tradesHistory = trData;
+
+      // 2. Get Summary (Latest)
       const { data: sumData } = await supabase.from("flex_summary").select("*").order("last_updated",{ascending:false}).limit(1);
       if(!sumData?.length) { setStatus("No data."); return; }
 
       summary = sumData[0].data;
       summary.lastUpdatedDate = sumData[0].last_updated;
 
-      // 2. Get History (Fetch DESCENDING to get newest first, then reverse)
+      // 3. Get History
       const { data: histData } = await supabase
         .from("flex_summary")
         .select("data,last_updated")
         .order("last_updated", { ascending: false })
         .limit(10000);
       
-      // REVERSE ARRAY SO IT READS OLD -> NEW
       if (histData) histData.reverse(); 
 
       const rawPf = [], rawSym = {};
@@ -287,7 +318,8 @@
       // D. Tickers
       (summary.positions||[]).forEach(p => {
         const sym = p.symbol;
-        const mode = tickerViewMode[sym] || "HISTORY";
+        // DEFAULT IS NOW HISTORY
+        const mode = tickerViewMode[sym] || "HISTORY"; 
         const currentTickerRange = tickerRangeMode[sym] || "YEAR";
         
         const miniTabs = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(k => 
@@ -408,17 +440,37 @@
       const grad = ctx.createLinearGradient(0,0,0,300);
       grad.addColorStop(0,'rgba(59,130,246,0.5)'); grad.addColorStop(1,'rgba(59,130,246,0.0)');
       
-      const hist = simplifyData(filterRange(summary.history, globalRange));
+      const rawHist = filterRange(summary.history, globalRange);
+      const hist = simplifyData(rawHist);
       
+      // -- PREPARE MARKERS --
+      const markers = getTradeMarkers(rawHist); // Pass raw hist to find dates
+
       replaceChart('cvs-line', {
         type: 'line',
         data: {
           labels: hist.map(p=>smartDate(p[0], globalRange)),
-          datasets: [{
-            label: 'Value', data: hist.map(p=>(p[1]||0)/f),
-            borderColor: '#3b82f6', backgroundColor: grad,
-            fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 6
-          }]
+          datasets: [
+            {
+              label: 'Value', 
+              data: hist.map(p=>(p[1]||0)/f),
+              borderColor: '#3b82f6', backgroundColor: grad,
+              fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 6,
+              order: 2
+            },
+            // MARKERS OVERLAY
+            {
+              label: 'Trades',
+              data: markers.map(m => ({x: m.x, y: (m.y/f)})),
+              type: 'scatter',
+              backgroundColor: markers.map(m => m.type==='SELL' ? '#ef4444' : '#22c55e'),
+              pointStyle: markers.map(m => m.type==='SELL' ? 'triangle' : 'triangle'),
+              pointRadius: 6,
+              pointHoverRadius: 8,
+              rotation: markers.map(m => m.type==='SELL' ? 180 : 0), // Sell points down
+              order: 1
+            }
+          ]
         },
         options: stdOpts({intersect:false})
       });
@@ -437,8 +489,12 @@
       if(mode === "HISTORY") {
         const range = tickerRangeMode[sym] || "YEAR"; 
         
-        const hist = simplifyData(filterRange(summary.symbolHistory[sym]||[], range));
+        const rawHist = filterRange(summary.symbolHistory[sym]||[], range);
+        const hist = simplifyData(rawHist);
         
+        // -- MARKERS --
+        const markers = getTradeMarkers(rawHist, sym);
+
         const ctx = document.getElementById(canvasId).getContext('2d');
         const grad = ctx.createLinearGradient(0,0,0,300);
         grad.addColorStop(0,'rgba(249,115,22,0.5)'); grad.addColorStop(1,'rgba(249,115,22,0.0)');
@@ -447,15 +503,29 @@
           type: 'line',
           data: {
             labels: hist.map(x=>smartDate(x[0], range)),
-            datasets: [{
-              label: 'Value', data: hist.map(x=>(x[1]||0)/f),
-              borderColor: '#f97316', backgroundColor: grad,
-              fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 5
-            }]
+            datasets: [
+              {
+                label: 'Value', data: hist.map(x=>(x[1]||0)/f),
+                borderColor: '#f97316', backgroundColor: grad,
+                fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 5,
+                order: 2
+              },
+              {
+                label: 'Trades',
+                data: markers.map(m => ({x: m.x, y: (m.y/f)})),
+                type: 'scatter',
+                backgroundColor: markers.map(m => m.type==='SELL' ? '#ef4444' : '#22c55e'),
+                pointStyle: markers.map(m => m.type==='SELL' ? 'triangle' : 'triangle'),
+                pointRadius: 6,
+                rotation: markers.map(m => m.type==='SELL' ? 180 : 0),
+                order: 1
+              }
+            ]
           },
           options: stdOpts({intersect:false})
         });
       } else {
+        // SUMMARY BAR VIEW
         const prof = (p.profit||0)/f;
         const lbl = prof >= 0 ? "Profit" : "Loss"; 
 
@@ -494,7 +564,12 @@
           legend: { display: extra.legend||false, labels:{color:'#fff'} },
           tooltip: {
             backgroundColor: 'rgba(24,24,27,0.9)', titleColor:'#fff', bodyColor:'#e4e4e7', borderColor:'#3f3f46', borderWidth:1,
-            callbacks: { label: ctx => (ctx.dataset.type==='line'&&ctx.chart.config.type!=='line') ? fmtPct(ctx.raw)+'%' : fmtMoney(ctx.raw) }
+            callbacks: { 
+               label: ctx => {
+                  if(ctx.dataset.type === 'scatter') return ctx.raw.y ? "Trade Event" : "";
+                  return (ctx.dataset.type==='line'&&ctx.chart.config.type!=='line') ? fmtPct(ctx.raw)+'%' : fmtMoney(ctx.raw) 
+               } 
+            }
           }
         },
         scales: {
