@@ -7,6 +7,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     :root { color-scheme: dark; }
     body {
@@ -136,11 +137,11 @@
 
     // STATE
     let summary = null;
-    let tradesHistory = []; // <--- Stores your Buys/Sells
+    let tradesHistory = [];
     let chartRegistry = {}; 
     let globalRange = localStorage.getItem("pfGlobalRange") || "DAY"; 
     
-    // VIEW MODE: Default to HISTORY now
+    // VIEW MODE: Default to HISTORY
     let tickerViewMode = {};
     try { tickerViewMode = JSON.parse(localStorage.getItem("pfViewMode") || "{}"); } catch(_){}
 
@@ -195,35 +196,35 @@
       return hist.filter(p => new Date(p[0]).getTime() >= cut);
     };
 
-    // --- NEW: MATCH TRADES TO GRAPH POINTS ---
-    // Finds the graph point closest to the trade date so we can plot the marker at the right height
+    // --- MATCH TRADES TO GRAPH POINTS ---
     const getTradeMarkers = (hist, symbol = null) => {
        if(!tradesHistory.length || !hist.length) return [];
        
        // Filter trades for this specific chart
        const relevantTrades = symbol 
          ? tradesHistory.filter(t => t.symbol === symbol)
-         : tradesHistory; // For portfolio chart, show all trades? Or maybe major ones? Let's show all.
+         : tradesHistory; 
 
        const markers = [];
        
        relevantTrades.forEach(tr => {
          const tTime = new Date(tr.date).getTime();
-         // Find closest history point
+         
+         // Find closest history point to snap marker to
          const closest = hist.reduce((prev, curr) => {
             const pTime = new Date(curr[0]).getTime();
             const cTime = new Date(prev[0]).getTime();
             return (Math.abs(pTime - tTime) < Math.abs(cTime - tTime)) ? curr : prev;
          });
          
-         // Only add marker if trade is within the chart's time range
+         // Only add marker if trade is within range
          const firstPoint = new Date(hist[0][0]).getTime();
          if (tTime >= firstPoint) {
             markers.push({
-               x: smartDate(closest[0], globalRange), // Match the label format of the chart
-               y: closest[1], // The value at that time
+               x: smartDate(closest[0], globalRange),
+               y: closest[1], 
                type: tr.type,
-               detail: `${tr.type} ${tr.quantity} @ ${tr.price}`
+               detail: `${tr.type} ${Number(tr.quantity).toFixed(2).replace(/\.?0+$/,'')} ${tr.symbol} @ $${Number(tr.price).toFixed(2)}`
             });
          }
        });
@@ -318,7 +319,6 @@
       // D. Tickers
       (summary.positions||[]).forEach(p => {
         const sym = p.symbol;
-        // DEFAULT IS NOW HISTORY
         const mode = tickerViewMode[sym] || "HISTORY"; 
         const currentTickerRange = tickerRangeMode[sym] || "YEAR";
         
@@ -442,9 +442,7 @@
       
       const rawHist = filterRange(summary.history, globalRange);
       const hist = simplifyData(rawHist);
-      
-      // -- PREPARE MARKERS --
-      const markers = getTradeMarkers(rawHist); // Pass raw hist to find dates
+      const markers = getTradeMarkers(rawHist);
 
       replaceChart('cvs-line', {
         type: 'line',
@@ -455,19 +453,18 @@
               label: 'Value', 
               data: hist.map(p=>(p[1]||0)/f),
               borderColor: '#3b82f6', backgroundColor: grad,
-              fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 6,
+              fill: true, tension: 0.1, pointRadius: 0, pointHoverRadius: 6,
               order: 2
             },
-            // MARKERS OVERLAY
             {
               label: 'Trades',
-              data: markers.map(m => ({x: m.x, y: (m.y/f)})),
+              data: markers.map(m => ({x: m.x, y: (m.y/f), detail: m.detail})),
               type: 'scatter',
               backgroundColor: markers.map(m => m.type==='SELL' ? '#ef4444' : '#22c55e'),
               pointStyle: markers.map(m => m.type==='SELL' ? 'triangle' : 'triangle'),
               pointRadius: 6,
               pointHoverRadius: 8,
-              rotation: markers.map(m => m.type==='SELL' ? 180 : 0), // Sell points down
+              rotation: markers.map(m => m.type==='SELL' ? 180 : 0), 
               order: 1
             }
           ]
@@ -491,8 +488,6 @@
         
         const rawHist = filterRange(summary.symbolHistory[sym]||[], range);
         const hist = simplifyData(rawHist);
-        
-        // -- MARKERS --
         const markers = getTradeMarkers(rawHist, sym);
 
         const ctx = document.getElementById(canvasId).getContext('2d');
@@ -507,12 +502,12 @@
               {
                 label: 'Value', data: hist.map(x=>(x[1]||0)/f),
                 borderColor: '#f97316', backgroundColor: grad,
-                fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 5,
+                fill: true, tension: 0.1, pointRadius: 0, pointHoverRadius: 5,
                 order: 2
               },
               {
                 label: 'Trades',
-                data: markers.map(m => ({x: m.x, y: (m.y/f)})),
+                data: markers.map(m => ({x: m.x, y: (m.y/f), detail: m.detail})),
                 type: 'scatter',
                 backgroundColor: markers.map(m => m.type==='SELL' ? '#ef4444' : '#22c55e'),
                 pointStyle: markers.map(m => m.type==='SELL' ? 'triangle' : 'triangle'),
@@ -525,7 +520,6 @@
           options: stdOpts({intersect:false})
         });
       } else {
-        // SUMMARY BAR VIEW
         const prof = (p.profit||0)/f;
         const lbl = prof >= 0 ? "Profit" : "Loss"; 
 
@@ -559,15 +553,19 @@
     function stdOpts(extra={}) {
       return {
         responsive: true, maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: extra.intersect===false?false:true },
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
         plugins: {
           legend: { display: extra.legend||false, labels:{color:'#fff'} },
           tooltip: {
-            backgroundColor: 'rgba(24,24,27,0.9)', titleColor:'#fff', bodyColor:'#e4e4e7', borderColor:'#3f3f46', borderWidth:1,
+            backgroundColor: 'rgba(24,24,27,0.9)', titleColor:'#fff', bodyColor:'#e4e4e7', borderColor:'#3f3f46', borderWidth:1, padding: 10,
             callbacks: { 
                label: ctx => {
-                  if(ctx.dataset.type === 'scatter') return ctx.raw.y ? "Trade Event" : "";
-                  return (ctx.dataset.type==='line'&&ctx.chart.config.type!=='line') ? fmtPct(ctx.raw)+'%' : fmtMoney(ctx.raw) 
+                  if(ctx.dataset.type === 'scatter') {
+                      return ctx.raw.detail || "Trade Event";
+                  }
+                  return (ctx.dataset.type==='line' && ctx.chart.config.type!=='line') 
+                    ? fmtPct(ctx.raw)+'%' 
+                    : fmtMoney(ctx.raw);
                } 
             }
           }
