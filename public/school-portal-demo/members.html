@@ -141,13 +141,11 @@
     let chartRegistry = {}; 
     let globalRange = localStorage.getItem("pfGlobalRange") || "DAY"; 
     
-    // VIEW MODE: Default to HISTORY
+    // VIEW MODE
     let tickerViewMode = {};
     try { tickerViewMode = JSON.parse(localStorage.getItem("pfViewMode") || "{}"); } catch(_){}
-
     let tickerRangeMode = {};
     try { tickerRangeMode = JSON.parse(localStorage.getItem("pfTickerRanges") || "{}"); } catch(_){}
-
 
     // DOM ELEMENTS
     const els = {
@@ -172,7 +170,6 @@
       return `${d.getDate()} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}`; 
     };
 
-    // NOISE CANCELING
     const simplifyData = (arr) => {
        if(!arr || arr.length < 2) return arr;
        const clean = [arr[0]];
@@ -180,10 +177,7 @@
          const lastVal = clean[clean.length-1][1];
          const currVal = arr[i][1];
          const pctChange = lastVal === 0 ? 1 : Math.abs((currVal - lastVal) / lastVal);
-         // Keep if change > 0.1% or last point
-         if (i === arr.length - 1 || pctChange > 0.001) {
-           clean.push(arr[i]);
-         }
+         if (i === arr.length - 1 || pctChange > 0.001) clean.push(arr[i]);
        }
        return clean;
     }
@@ -196,40 +190,74 @@
       return hist.filter(p => new Date(p[0]).getTime() >= cut);
     };
 
-    // --- MATCH TRADES TO GRAPH POINTS ---
-    const getTradeMarkers = (hist, symbol = null) => {
-       if(!tradesHistory.length || !hist.length) return [];
-       
-       // Filter trades for this specific chart
+    // --- LOCKED MARKERS ENGINE ---
+    // Takes history and merges trade details directly into the point's styling
+    const prepareChartData = (hist, symbol = null, f = 1) => {
+       const labels = [];
+       const data = [];
+       const pointStyles = [];
+       const pointRadii = [];
+       const pointColors = [];
+       const pointRotations = [];
+       const details = [];
+
        const relevantTrades = symbol 
          ? tradesHistory.filter(t => t.symbol === symbol)
-         : tradesHistory; 
+         : tradesHistory;
 
-       const markers = [];
-       
-       relevantTrades.forEach(tr => {
-         const tTime = new Date(tr.date).getTime();
-         
-         // Find closest history point to snap marker to
-         const closest = hist.reduce((prev, curr) => {
-            const pTime = new Date(curr[0]).getTime();
-            const cTime = new Date(prev[0]).getTime();
-            return (Math.abs(pTime - tTime) < Math.abs(cTime - tTime)) ? curr : prev;
-         });
-         
-         // Only add marker if trade is within range
-         const firstPoint = new Date(hist[0][0]).getTime();
-         if (tTime >= firstPoint) {
-            markers.push({
-               x: smartDate(closest[0], globalRange),
-               y: closest[1], 
-               type: tr.type,
-               detail: `${tr.type} ${Number(tr.quantity).toFixed(2).replace(/\.?0+$/,'')} ${tr.symbol} @ $${Number(tr.price).toFixed(2)}`
+       hist.forEach(pt => {
+          const ptTime = new Date(pt[0]).getTime();
+          labels.push(smartDate(pt[0], globalRange));
+          data.push((pt[1]||0)/f);
+
+          // Find if a trade happened near this point (within 4 hours window? or closest)
+          // Since history can be sparse, let's find trades that occurred *since the last point* up to this point
+          // Or simpler: Find any trade that maps to this specific date label?
+          // Simplest visual fix: Find the closest trade in time.
+          
+          let matchedTrade = null;
+          // Look for any trade within 12 hours of this snapshot? 
+          // Adjust this tolerance based on how frequent your snapshots are.
+          const TOLERANCE = 1000 * 60 * 60 * 12; // 12 hours
+          
+          // Find closest trade
+          if(relevantTrades.length > 0) {
+            let closestTr = null;
+            let minDist = Infinity;
+            
+            relevantTrades.forEach(tr => {
+               const trTime = new Date(tr.date).getTime();
+               const dist = Math.abs(trTime - ptTime);
+               if(dist < minDist && dist < TOLERANCE) {
+                  minDist = dist;
+                  closestTr = tr;
+               }
             });
-         }
+            matchedTrade = closestTr;
+          }
+
+          if(matchedTrade) {
+             const isSell = matchedTrade.type === 'SELL';
+             pointStyles.push('triangle');
+             pointRadii.push(6); // Make trade points visible
+             pointColors.push(isSell ? '#ef4444' : '#22c55e');
+             pointRotations.push(isSell ? 180 : 0); // Sell points down
+             details.push(`${matchedTrade.type} ${Number(matchedTrade.quantity).toFixed(0)} ${matchedTrade.symbol} @ $${Number(matchedTrade.price).toFixed(2)}`);
+             
+             // Remove used trade so we don't plot it twice? 
+             // Ideally yes, but multiple trades per day might overlap. Keeping it simple.
+          } else {
+             pointStyles.push('circle');
+             pointRadii.push(0); // Invisible normal points
+             pointColors.push('#3b82f6');
+             pointRotations.push(0);
+             details.push(null);
+          }
        });
-       return markers;
+
+       return { labels, data, pointStyles, pointRadii, pointColors, pointRotations, details };
     }
+
 
     // MAIN LOGIC
     async function init() {
@@ -243,18 +271,15 @@
     async function loadData() {
       setStatus("Loading...");
       
-      // 1. Get Trades (For markers)
       const { data: trData } = await supabase.from("trades").select("*").order("date", {ascending:true});
       if(trData) tradesHistory = trData;
 
-      // 2. Get Summary (Latest)
       const { data: sumData } = await supabase.from("flex_summary").select("*").order("last_updated",{ascending:false}).limit(1);
       if(!sumData?.length) { setStatus("No data."); return; }
 
       summary = sumData[0].data;
       summary.lastUpdatedDate = sumData[0].last_updated;
 
-      // 3. Get History
       const { data: histData } = await supabase
         .from("flex_summary")
         .select("data,last_updated")
@@ -290,21 +315,18 @@
       els.dash.innerHTML = "";
       els.stats.innerHTML = ""; 
       
-      // A. Allocation
       els.dash.innerHTML += `
         <div class="chart-card">
           <div class="chart-card-header"><h2 id="lbl-alloc">Allocation</h2></div>
           <div class="chart-container"><canvas id="cvs-alloc"></canvas></div>
         </div>`;
 
-      // B. Summary Bar
       els.dash.innerHTML += `
         <div class="chart-card">
           <div class="chart-card-header"><h2 id="lbl-sum">Summary</h2></div>
           <div class="chart-container"><canvas id="cvs-sum"></canvas></div>
         </div>`;
 
-      // C. Portfolio Line
       const tabs = ['DAY', 'WEEK','MONTH','YEAR', 'ALL'].map(k => 
         `<button class="range-tab ${globalRange===k?'active':''}" onclick="updateGlobalRange('${k}')">${k.replace('_',' ').toLowerCase()}</button>`
       ).join('');
@@ -316,7 +338,6 @@
           <div class="chart-container"><canvas id="cvs-line"></canvas></div>
         </div>`;
 
-      // D. Tickers
       (summary.positions||[]).forEach(p => {
         const sym = p.symbol;
         const mode = tickerViewMode[sym] || "HISTORY"; 
@@ -329,20 +350,15 @@
         els.dash.innerHTML += `
           <div class="chart-card" id="card-${sym}">
             <div class="chart-card-header">
-              <h2>
-                ${sym} 
-                <span id="badge-${sym}" class="badge-pnl"></span>
-              </h2>
+              <h2>${sym} <span id="badge-${sym}" class="badge-pnl"></span></h2>
               <div class="view-toggle" id="tog-${sym}">
                 <button onclick="updateTickerMode('${sym}','SUMMARY')" class="${mode==='SUMMARY'?'active':''}">Sum</button>
                 <button onclick="updateTickerMode('${sym}','HISTORY')" class="${mode==='HISTORY'?'active':''}">Hist</button>
               </div>
             </div>
-            
             <div id="ctrl-${sym}" class="mini-tabs" style="display:${mode==='HISTORY'?'flex':'none'}">
               ${miniTabs}
             </div>
-
             <div class="chart-container"><canvas id="cvs-sym-${sym}"></canvas></div>
           </div>`;
       });
@@ -442,32 +458,27 @@
       
       const rawHist = filterRange(summary.history, globalRange);
       const hist = simplifyData(rawHist);
-      const markers = getTradeMarkers(rawHist);
+      
+      // --- LOCKED DATA PREP ---
+      const cd = prepareChartData(hist, null, f);
 
       replaceChart('cvs-line', {
         type: 'line',
         data: {
-          labels: hist.map(p=>smartDate(p[0], globalRange)),
-          datasets: [
-            {
-              label: 'Value', 
-              data: hist.map(p=>(p[1]||0)/f),
-              borderColor: '#3b82f6', backgroundColor: grad,
-              fill: true, tension: 0.1, pointRadius: 0, pointHoverRadius: 6,
-              order: 2
-            },
-            {
-              label: 'Trades',
-              data: markers.map(m => ({x: m.x, y: (m.y/f), detail: m.detail})),
-              type: 'scatter',
-              backgroundColor: markers.map(m => m.type==='SELL' ? '#ef4444' : '#22c55e'),
-              pointStyle: markers.map(m => m.type==='SELL' ? 'triangle' : 'triangle'),
-              pointRadius: 6,
-              pointHoverRadius: 8,
-              rotation: markers.map(m => m.type==='SELL' ? 180 : 0), 
-              order: 1
-            }
-          ]
+          labels: cd.labels,
+          datasets: [{
+            label: 'Value', 
+            data: cd.data,
+            borderColor: '#3b82f6', backgroundColor: grad,
+            fill: true, tension: 0.1, 
+            // HERE IS THE LOCK LOGIC:
+            pointStyle: cd.pointStyles,
+            pointRadius: cd.pointRadii,
+            pointBackgroundColor: cd.pointColors,
+            pointRotation: cd.pointRotations,
+            pointHoverRadius: 8,
+            details: cd.details // Custom property for tooltip
+          }]
         },
         options: stdOpts({intersect:false})
       });
@@ -488,7 +499,9 @@
         
         const rawHist = filterRange(summary.symbolHistory[sym]||[], range);
         const hist = simplifyData(rawHist);
-        const markers = getTradeMarkers(rawHist, sym);
+        
+        // --- LOCKED DATA PREP ---
+        const cd = prepareChartData(hist, sym, f);
 
         const ctx = document.getElementById(canvasId).getContext('2d');
         const grad = ctx.createLinearGradient(0,0,0,300);
@@ -497,25 +510,19 @@
         replaceChart(canvasId, {
           type: 'line',
           data: {
-            labels: hist.map(x=>smartDate(x[0], range)),
-            datasets: [
-              {
-                label: 'Value', data: hist.map(x=>(x[1]||0)/f),
-                borderColor: '#f97316', backgroundColor: grad,
-                fill: true, tension: 0.1, pointRadius: 0, pointHoverRadius: 5,
-                order: 2
-              },
-              {
-                label: 'Trades',
-                data: markers.map(m => ({x: m.x, y: (m.y/f), detail: m.detail})),
-                type: 'scatter',
-                backgroundColor: markers.map(m => m.type==='SELL' ? '#ef4444' : '#22c55e'),
-                pointStyle: markers.map(m => m.type==='SELL' ? 'triangle' : 'triangle'),
-                pointRadius: 6,
-                rotation: markers.map(m => m.type==='SELL' ? 180 : 0),
-                order: 1
-              }
-            ]
+            labels: cd.labels,
+            datasets: [{
+              label: 'Value', data: cd.data,
+              borderColor: '#f97316', backgroundColor: grad,
+              fill: true, tension: 0.1,
+              // LOCKED LOGIC
+              pointStyle: cd.pointStyles,
+              pointRadius: cd.pointRadii,
+              pointBackgroundColor: cd.pointColors,
+              pointRotation: cd.pointRotations,
+              pointHoverRadius: 8,
+              details: cd.details
+            }]
           },
           options: stdOpts({intersect:false})
         });
@@ -560,8 +567,10 @@
             backgroundColor: 'rgba(24,24,27,0.9)', titleColor:'#fff', bodyColor:'#e4e4e7', borderColor:'#3f3f46', borderWidth:1, padding: 10,
             callbacks: { 
                label: ctx => {
-                  if(ctx.dataset.type === 'scatter') {
-                      return ctx.raw.detail || "Trade Event";
+                  // NEW TOOLTIP LOGIC: Check custom array 'details'
+                  const rawDetails = ctx.dataset.details;
+                  if(rawDetails && rawDetails[ctx.dataIndex]) {
+                      return rawDetails[ctx.dataIndex];
                   }
                   return (ctx.dataset.type==='line' && ctx.chart.config.type!=='line') 
                     ? fmtPct(ctx.raw)+'%' 
@@ -578,8 +587,6 @@
       };
     }
 
-    // --- PUBLIC ACTIONS ---
-
     window.updateGlobalRange = (k) => {
       globalRange = k;
       localStorage.setItem("pfGlobalRange", k);
@@ -591,27 +598,21 @@
     window.updateTickerRange = (sym, k) => {
       tickerRangeMode[sym] = k;
       localStorage.setItem("pfTickerRanges", JSON.stringify(tickerRangeMode));
-      
       const container = document.getElementById(`ctrl-${sym}`);
-      const miniTabsHTML = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(key => 
+      container.innerHTML = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(key => 
           `<button class="mini-btn ${k===key?'active':''}" onclick="updateTickerRange('${sym}', '${key}')">${key[0]}</button>`
       ).join('');
-      container.innerHTML = miniTabsHTML;
-
       drawTicker(sym, els.divide.checked?11:1);
     }
 
     window.updateTickerMode = (sym, mode) => {
       tickerViewMode[sym] = mode;
       localStorage.setItem("pfViewMode", JSON.stringify(tickerViewMode));
-      
       const container = document.getElementById(`tog-${sym}`);
       container.children[0].className = mode==='SUMMARY'?'active':'';
       container.children[1].className = mode==='HISTORY'?'active':'';
-      
       const controls = document.getElementById(`ctrl-${sym}`);
       if(controls) controls.style.display = (mode === 'HISTORY' ? 'flex' : 'none');
-
       drawTicker(sym, els.divide.checked?11:1);
     };
 
