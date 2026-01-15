@@ -193,102 +193,120 @@
       loadHistory();
     };
 
-    // --- 7. INTELLIGENT CALCULATION ENGINE ---
-    async function updateDashboardData() {
-      showMsg("Updating Dashboard...", "success");
-      
-      // STEP A: Fetch the LAST KNOWN GOOD PRICES from the dashboard history
-      // This stops the graphs from crashing
-      const { data: summaryHistory } = await db.from('flex_summary').select('data').order('last_updated', {ascending: false}).limit(1);
-      
-      let lastKnownPrices = {};
-      if (summaryHistory && summaryHistory.length > 0 && summaryHistory[0].data.positions) {
-        summaryHistory[0].data.positions.forEach(pos => {
-          // Calculate implied price: Value / Quantity
-          if (pos.quantity > 0) {
-            lastKnownPrices[pos.symbol] = pos.value / pos.quantity;
-          }
-        });
-      }
+// --- 7. INTELLIGENT CALCULATION ENGINE ---
+async function updateDashboardData() {
+  showMsg("Updating Dashboard...", "success");
+  
+  // STEP A: Fetch Last Known Prices (Prevent graph crashes for new stocks)
+  const { data: summaryHistory } = await db.from('flex_summary').select('data').order('last_updated', {ascending: false}).limit(1);
+  
+  let lastKnownPrices = {};
+  if (summaryHistory && summaryHistory.length > 0 && summaryHistory[0].data.positions) {
+    summaryHistory[0].data.positions.forEach(pos => {
+      if (pos.quantity > 0) lastKnownPrices[pos.symbol] = pos.value / pos.quantity;
+    });
+  }
 
-      // STEP B: Fetch ALL trades to calculate quantities
-      const { data: trades, error: errFetch } = await db.from('trades').select('*').order('date', {ascending: true});
-      if(errFetch) { alert("Error reading trades: " + errFetch.message); return; }
+  // STEP B: Fetch ALL trades
+  const { data: trades, error: errFetch } = await db.from('trades').select('*').order('date', {ascending: true});
+  if(errFetch) { alert("Error reading trades: " + errFetch.message); return; }
 
-      // STEP C: Rebuild Portfolio
-      let portfolio = {}; 
+  // STEP C: Rebuild Portfolio
+  let portfolio = {}; 
+  let realizedPl = 0; // <--- NEW: Track cash profit from sales
 
-      trades.forEach(t => {
-        const sym = t.symbol.toUpperCase();
-        if(!portfolio[sym]) portfolio[sym] = { qty: 0, cost: 0, lastTradePrice: 0 };
-        
-        const p = portfolio[sym];
-        const q = Number(t.quantity);
-        const val = Number(t.price);
-        p.lastTradePrice = val; 
+  trades.forEach(t => {
+    const sym = t.symbol.toUpperCase();
+    if(!portfolio[sym]) portfolio[sym] = { qty: 0, cost: 0, lastTradePrice: 0 };
+    
+    const p = portfolio[sym];
+    const q = Number(t.quantity);
+    const val = Number(t.price);
+    p.lastTradePrice = val; 
 
-        if(t.type === 'BUY') {
-          p.cost += (q * val);
-          p.qty += q;
-        } else {
-          // Sell logic (reduce cost basis proportionally)
-          if(p.qty > 0) {
-            const avgCost = p.cost / p.qty;
-            p.cost -= (q * avgCost);
-            p.qty -= q;
-          }
+    if(t.type === 'BUY') {
+      p.cost += (q * val);
+      p.qty += q;
+    } else {
+      // SELL LOGIC
+      if(p.qty > 0) {
+        const avgCost = p.cost / p.qty;
+        const costBasisOfSale = q * avgCost;
+        const saleProceeds = q * val;
+
+        // Capture Realized Profit (Proceeds - Cost Basis)
+        realizedPl += (saleProceeds - costBasisOfSale);
+
+        p.cost -= costBasisOfSale;
+        p.qty -= q;
+
+        // Snap to zero if dust remains (floating point fix)
+        if (p.qty <= 0.000001) {
+             p.qty = 0;
+             p.cost = 0;
         }
-      });
-
-      // STEP D: Format for Dashboard
-      let positions = [];
-      let totalValue = 0;
-      let totalCost = 0;
-
-      for (const [sym, data] of Object.entries(portfolio)) {
-        if(data.qty < 0.001) continue; 
-
-        // CRITICAL FIX: 
-        // Use the Last Known Price from the dashboard (if exists). 
-        // Otherwise (for new stocks), use the Last Trade Price.
-        let currentPrice = lastKnownPrices[sym] || data.lastTradePrice;
-        
-        const mktValue = data.qty * currentPrice;
-        const profit = mktValue - data.cost;
-        const pct = data.cost > 0 ? (profit / data.cost) * 100 : 0;
-
-        totalValue += mktValue;
-        totalCost += data.cost;
-
-        positions.push({
-          symbol: sym, quantity: data.qty, cost: data.cost, value: mktValue, profit: profit, pct: pct
-        });
-      }
-
-      const totalProfit = totalValue - totalCost;
-      const totalPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
-      
-      const payload = {
-        totals: { value: totalValue, cost: totalCost, profit: totalProfit, pct: totalPct },
-        positions: positions.sort((a,b) => b.value - a.value) 
-      };
-
-      console.log("Preserved Prices Payload:", payload);
-
-      // STEP E: UPLOAD TO SUPABASE
-      const { error: errInsert } = await db.from('flex_summary').insert({
-        last_updated: new Date().toISOString(),
-        data: payload
-      });
-
-      if (errInsert) {
-        console.error(errInsert);
-        alert("CRITICAL ERROR: " + errInsert.message);
-        showMsg("Update Failed", "error");
-      } else {
-        showMsg("Dashboard Updated Successfully!", "success");
       }
     }
+  });
+
+  // STEP D: Format for Dashboard
+  let positions = [];
+  let totalHoldingsValue = 0;
+  let totalHoldingsCost = 0;
+
+  for (const [sym, data] of Object.entries(portfolio)) {
+    if(data.qty < 0.001) continue; 
+
+    let currentPrice = lastKnownPrices[sym] || data.lastTradePrice;
+    
+    const mktValue = data.qty * currentPrice;
+    const profit = mktValue - data.cost;
+    // Protect against divide by zero
+    const pct = data.cost > 0.01 ? (profit / data.cost) * 100 : 0;
+
+    totalHoldingsValue += mktValue;
+    totalHoldingsCost += data.cost;
+
+    positions.push({
+      symbol: sym, quantity: data.qty, cost: data.cost, value: mktValue, profit: profit, pct: pct
+    });
+  }
+
+  // TOTALS CALCULATION
+  // Unrealized (Paper) Profit + Realized (Cash) Profit
+  const totalUnrealized = totalHoldingsValue - totalHoldingsCost;
+  const totalProfit = totalUnrealized + realizedPl;
+  
+  // For return %, we use current cost. 
+  // Note: If you sell everything, Cost is 0, so % is technically infinite/undefined.
+  // We default to 0 to keep the UI clean if you are 100% cash.
+  const totalPct = totalHoldingsCost > 0.01 ? (totalProfit / totalHoldingsCost) * 100 : 0;
+  
+  const payload = {
+    totals: { 
+        value: totalHoldingsValue, 
+        cost: totalHoldingsCost, 
+        profit: totalProfit, // Contains both paper and cash profit
+        pct: totalPct,
+        realized: realizedPl // Optional: Save this if you want to display it separately later
+    },
+    positions: positions.sort((a,b) => b.value - a.value) 
+  };
+
+  // STEP E: UPLOAD
+  const { error: errInsert } = await db.from('flex_summary').insert({
+    last_updated: new Date().toISOString(),
+    data: payload
+  });
+
+  if (errInsert) {
+    console.error(errInsert);
+    alert("CRITICAL ERROR: " + errInsert.message);
+    showMsg("Update Failed", "error");
+  } else {
+    showMsg("Dashboard Updated Successfully!", "success");
+  }
+}
 
     function showMsg(text, type) {
       msgBox.textContent = text;
