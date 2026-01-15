@@ -262,32 +262,60 @@
       await loadData();
     }
 
-    async function loadData() {
+   async function loadData() {
       setStatus("Loading...");
       
+      // 1. Get Trades
       const { data: trData } = await supabase.from("trades").select("*").order("date", {ascending:true});
       if(trData) tradesHistory = trData;
 
+      // 2. Get Summary (Latest)
       const { data: sumData } = await supabase.from("flex_summary").select("*").order("last_updated",{ascending:false}).limit(1);
       if(!sumData?.length) { setStatus("No data."); return; }
 
       summary = sumData[0].data;
       summary.lastUpdatedDate = sumData[0].last_updated;
 
-      const { data: histData } = await supabase
+      // 3. HYBRID FETCH (The "Math" Logic)
+      
+      // A. High Resolution: Get every single row for the last ~5 days (approx 500 rows)
+      // This ensures the "DAY" and "WEEK" tabs are super smooth.
+      const { data: highRes } = await supabase
         .from("flex_summary")
         .select("data,last_updated")
         .order("last_updated", { ascending: false })
-        .limit(10000);
-      
-      if (histData) histData.reverse(); 
+        .limit(500); 
 
+      // B. Low Resolution: Get 1 row/day for ALL time (using our SQL function)
+      // This ensures "YEAR" and "ALL" work without downloading 50,000 rows.
+      const { data: lowRes, error } = await supabase.rpc('get_daily_history');
+      
+      if(error) console.error("RPC Error:", error);
+
+      // C. Merge Them
+      // We combine the high-res recent data with the low-res historical data
+      const combinedData = [...(highRes||[]), ...(lowRes||[])];
+
+      // Remove duplicates (in case highRes and lowRes overlap on today)
+      const seenDates = new Set();
+      const finalHist = [];
       const rawPf = [], rawSym = {};
-      (histData||[]).forEach(r => {
+
+      // Process and de-duplicate
+      combinedData.forEach(r => {
         const dt = r.data.lastUpdated || r.last_updated;
         if(!dt) return;
+        
+        // Use time as unique key. 
+        // For LowRes, this will be distinct days. For HighRes, distinct 15-min intervals.
+        const timeKey = new Date(dt).getTime();
+        if(seenDates.has(timeKey)) return;
+        seenDates.add(timeKey);
+        
+        // Push to arrays
         const val = Number(r.data.totals?.value || 0);
         if(isFinite(val)) rawPf.push([dt, val]);
+        
         (r.data.positions||[]).forEach(p => {
           if(p?.symbol) {
             if(!rawSym[p.symbol]) rawSym[p.symbol]=[];
@@ -295,6 +323,10 @@
           }
         });
       });
+
+      // Sort by date (Old -> New) for the graph
+      rawPf.sort((a,b) => new Date(a[0]) - new Date(b[0]));
+      Object.keys(rawSym).forEach(k => rawSym[k].sort((a,b) => new Date(a[0]) - new Date(b[0])));
 
       summary.history = rawPf; 
       summary.symbolHistory = rawSym;
