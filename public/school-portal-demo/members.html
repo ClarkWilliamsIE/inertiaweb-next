@@ -190,68 +190,62 @@
       return hist.filter(p => new Date(p[0]).getTime() >= cut);
     };
 
-    // --- LOCKED MARKERS ENGINE ---
-    // Takes history and merges trade details directly into the point's styling
+    // --- LOCKED MARKERS ENGINE (FIXED: One Marker Per Trade) ---
     const prepareChartData = (hist, symbol = null, f = 1) => {
        const labels = [];
        const data = [];
-       const pointStyles = [];
-       const pointRadii = [];
-       const pointColors = [];
-       const pointRotations = [];
-       const details = [];
+       
+       // 1. Initialize Default Arrays (All points invisible circle)
+       hist.forEach(pt => {
+          labels.push(smartDate(pt[0], globalRange));
+          data.push((pt[1]||0)/f);
+       });
 
+       const count = hist.length;
+       const pointStyles = new Array(count).fill('circle');
+       const pointRadii = new Array(count).fill(0); // Invisible by default
+       const pointColors = new Array(count).fill('#3b82f6');
+       const pointRotations = new Array(count).fill(0);
+       const details = new Array(count).fill(null);
+
+       // 2. Identify Relevant Trades
        const relevantTrades = symbol 
          ? tradesHistory.filter(t => t.symbol === symbol)
          : tradesHistory;
 
-       hist.forEach(pt => {
-          const ptTime = new Date(pt[0]).getTime();
-          labels.push(smartDate(pt[0], globalRange));
-          data.push((pt[1]||0)/f);
-
-          // Find if a trade happened near this point (within 4 hours window? or closest)
-          // Since history can be sparse, let's find trades that occurred *since the last point* up to this point
-          // Or simpler: Find any trade that maps to this specific date label?
-          // Simplest visual fix: Find the closest trade in time.
+       // 3. Loop through TRADES (not history points) to map them to the graph
+       relevantTrades.forEach(tr => {
+          const trTime = new Date(tr.date).getTime();
           
-          let matchedTrade = null;
-          // Look for any trade within 12 hours of this snapshot? 
-          // Adjust this tolerance based on how frequent your snapshots are.
-          const TOLERANCE = 1000 * 60 * 60 * 12; // 12 hours
+          // Only map trade if it is within the bounds of this chart
+          const start = new Date(hist[0][0]).getTime();
+          const end = new Date(hist[hist.length-1][0]).getTime();
           
-          // Find closest trade
-          if(relevantTrades.length > 0) {
-            let closestTr = null;
-            let minDist = Infinity;
-            
-            relevantTrades.forEach(tr => {
-               const trTime = new Date(tr.date).getTime();
-               const dist = Math.abs(trTime - ptTime);
-               if(dist < minDist && dist < TOLERANCE) {
-                  minDist = dist;
-                  closestTr = tr;
-               }
-            });
-            matchedTrade = closestTr;
-          }
+          if(trTime >= start && trTime <= end + (1000*60*60*24)) { // 24hr buffer for very recent
+              
+              // Find the single closest point index in the history array
+              let closestIdx = -1;
+              let minDiff = Infinity;
+              
+              for(let i=0; i<count; i++) {
+                 const ptTime = new Date(hist[i][0]).getTime();
+                 const diff = Math.abs(ptTime - trTime);
+                 if(diff < minDiff) {
+                    minDiff = diff;
+                    closestIdx = i;
+                 }
+              }
 
-          if(matchedTrade) {
-             const isSell = matchedTrade.type === 'SELL';
-             pointStyles.push('triangle');
-             pointRadii.push(6); // Make trade points visible
-             pointColors.push(isSell ? '#ef4444' : '#22c55e');
-             pointRotations.push(isSell ? 180 : 0); // Sell points down
-             details.push(`${matchedTrade.type} ${Number(matchedTrade.quantity).toFixed(0)} ${matchedTrade.symbol} @ $${Number(matchedTrade.price).toFixed(2)}`);
-             
-             // Remove used trade so we don't plot it twice? 
-             // Ideally yes, but multiple trades per day might overlap. Keeping it simple.
-          } else {
-             pointStyles.push('circle');
-             pointRadii.push(0); // Invisible normal points
-             pointColors.push('#3b82f6');
-             pointRotations.push(0);
-             details.push(null);
+              // Update that ONE index
+              if(closestIdx !== -1) {
+                  const isSell = tr.type === 'SELL';
+                  pointStyles[closestIdx] = 'triangle';
+                  pointRadii[closestIdx] = 6;
+                  pointColors[closestIdx] = isSell ? '#ef4444' : '#22c55e';
+                  pointRotations[closestIdx] = isSell ? 180 : 0;
+                  // Overwrite or append detail? Overwrite is cleaner for now.
+                  details[closestIdx] = `${tr.type} ${Number(tr.quantity).toFixed(0)} ${tr.symbol} @ $${Number(tr.price).toFixed(2)}`;
+              }
           }
        });
 
@@ -459,7 +453,6 @@
       const rawHist = filterRange(summary.history, globalRange);
       const hist = simplifyData(rawHist);
       
-      // --- LOCKED DATA PREP ---
       const cd = prepareChartData(hist, null, f);
 
       replaceChart('cvs-line', {
@@ -471,13 +464,12 @@
             data: cd.data,
             borderColor: '#3b82f6', backgroundColor: grad,
             fill: true, tension: 0.1, 
-            // HERE IS THE LOCK LOGIC:
             pointStyle: cd.pointStyles,
             pointRadius: cd.pointRadii,
             pointBackgroundColor: cd.pointColors,
             pointRotation: cd.pointRotations,
             pointHoverRadius: 8,
-            details: cd.details // Custom property for tooltip
+            details: cd.details 
           }]
         },
         options: stdOpts({intersect:false})
@@ -500,7 +492,6 @@
         const rawHist = filterRange(summary.symbolHistory[sym]||[], range);
         const hist = simplifyData(rawHist);
         
-        // --- LOCKED DATA PREP ---
         const cd = prepareChartData(hist, sym, f);
 
         const ctx = document.getElementById(canvasId).getContext('2d');
@@ -515,7 +506,6 @@
               label: 'Value', data: cd.data,
               borderColor: '#f97316', backgroundColor: grad,
               fill: true, tension: 0.1,
-              // LOCKED LOGIC
               pointStyle: cd.pointStyles,
               pointRadius: cd.pointRadii,
               pointBackgroundColor: cd.pointColors,
@@ -567,7 +557,6 @@
             backgroundColor: 'rgba(24,24,27,0.9)', titleColor:'#fff', bodyColor:'#e4e4e7', borderColor:'#3f3f46', borderWidth:1, padding: 10,
             callbacks: { 
                label: ctx => {
-                  // NEW TOOLTIP LOGIC: Check custom array 'details'
                   const rawDetails = ctx.dataset.details;
                   if(rawDetails && rawDetails[ctx.dataIndex]) {
                       return rawDetails[ctx.dataIndex];
