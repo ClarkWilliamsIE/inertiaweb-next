@@ -184,10 +184,33 @@
 
     const filterRange = (hist, rng) => {
       if(!hist?.length) return [];
-      if(rng === 'ALL') return hist;
-      const ms = { DAY: 86400000, WEEK: 604800000, MONTH: 2592000000, SIX_MONTHS: 15552000000, YEAR: 31536000000 }[rng] || 31536000000;
-      const cut = new Date().getTime() - ms;
-      return hist.filter(p => new Date(p[0]).getTime() >= cut);
+
+      // 1. Time Cutoff (Existing Logic)
+      const ms = { DAY: 86400000, WEEK: 604800000, MONTH: 2592000000, SIX_MONTHS: 15552000000, YEAR: 31536000000 }[rng];
+      
+      // If 'ALL', keep everything. Otherwise filter by time.
+      let data = ms ? hist.filter(p => new Date(p[0]).getTime() >= (Date.now() - ms)) : hist;
+
+      // 2. Density Control (The New Fix)
+      // If we are looking at broad ranges (MONTH, YEAR, ALL), 
+      // we force the data to be 1 point per day (The 'Closing' price of that day).
+      if (['MONTH', 'YEAR', 'ALL'].includes(rng)) {
+          const dailyMap = new Map();
+          
+          data.forEach(pt => {
+             // Create a key for the Day (e.g. "Fri Jan 16 2026")
+             const dateKey = new Date(pt[0]).toDateString();
+             
+             // .set() overwrites previous entries for this key.
+             // Since your array is sorted Old -> New, this naturally keeps the LAST entry (Closing Price) of the day.
+             dailyMap.set(dateKey, pt);
+          });
+
+          // Convert back to array
+          data = Array.from(dailyMap.values());
+      }
+
+      return data;
     };
 
     // --- LOCKED MARKERS ENGINE (FIXED: One Marker Per Trade) ---
