@@ -38,7 +38,7 @@
 </head>
 <body class="p-6 md:p-10 max-w-[1600px] mx-auto min-h-screen flex flex-col">
 
-    <header class="flex flex-col md:flex-row items-center justify-between mb-12 gap-6">
+    <header class="flex flex-col md:flex-row items-center justify-between mb-8 gap-6">
         <div class="flex items-center gap-4">
             <div class="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 shadow-xl">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-amber-500"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
@@ -70,29 +70,34 @@
         </div>
     </header>
 
-    <section id="statsGrid" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="glass-card h-36 shimmer"></div>
-        <div class="glass-card h-36 shimmer"></div>
-        <div class="glass-card h-36 shimmer"></div>
-        <div class="glass-card h-36 shimmer"></div>
-    </section>
-
     <section class="glass-card p-4 md:p-8 mb-8 relative">
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-            <div>
-                <h2 class="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-1">Performance vs. Cost</h2>
-                <div class="flex items-baseline gap-4">
+            <div class="flex flex-wrap gap-x-8 gap-y-4">
+                
+                <div>
+                    <h2 class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Total Equity</h2>
                     <div class="flex items-baseline gap-2">
                         <p class="text-3xl md:text-4xl font-black text-white tracking-tighter" id="totalValueDisplay">---</p>
                         <p class="text-sm font-bold" id="totalChangeDisplay">---</p>
                     </div>
-                    <div class="hidden md:block w-px h-8 bg-white/10"></div>
-                    <div class="flex flex-col">
-                        <span class="text-[10px] text-neutral-500 font-bold uppercase">Unrealized P/L</span>
-                        <span class="text-lg font-bold text-neutral-300" id="unrealizedDisplay">---</span>
-                    </div>
                 </div>
+
+                <div class="hidden md:block w-px h-10 bg-white/10"></div>
+
+                <div>
+                    <h2 class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Cost Basis</h2>
+                    <p class="text-2xl font-bold text-neutral-300 tracking-tight" id="costDisplay">---</p>
+                </div>
+
+                <div class="hidden md:block w-px h-10 bg-white/10"></div>
+
+                <div>
+                    <h2 class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Unrealized P/L</h2>
+                    <p class="text-2xl font-bold tracking-tight" id="unrealizedDisplay">---</p>
+                </div>
+
             </div>
+
             <div class="flex bg-neutral-900/80 p-1 rounded-xl border border-neutral-800 overflow-x-auto max-w-full" id="mainRangeSelector">
                 <button data-range="DAY" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">1D</button>
                 <button data-range="WEEK" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">1W</button>
@@ -101,6 +106,7 @@
                 <button data-range="ALL" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">ALL</button>
             </div>
         </div>
+        
         <div class="h-[350px] md:h-[450px] w-full"><canvas id="mainChart"></canvas></div>
     </section>
 
