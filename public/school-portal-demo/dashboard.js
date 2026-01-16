@@ -19,13 +19,6 @@ const fmtMoney = (v, sign = false) => {
 
 const fmtPct = (v) => (v == null) ? "0.00" : Number(v).toFixed(2);
 
-// Force NZ/Local friendly Date Strings
-const getLocalYMD = (iso) => {
-    const d = new Date(iso);
-    // Returns "2024-01-15" based on the user's local browser time
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-};
-
 const smartDate = (iso, range) => {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;
@@ -51,107 +44,52 @@ const filterRange = (hist, rng) => {
     if (!hist?.length) return [];
     const ms = { DAY: 86400000, WEEK: 604800000, MONTH: 2592000000, SIX_MONTHS: 15552000000, YEAR: 31536000000 };
     let data = ms[rng] ? hist.filter(p => new Date(p[0]).getTime() >= (Date.now() - ms[rng])) : hist;
-    
-    // Aggregation Logic: Snaps to Local Date to fix NZDT issues
     if (['MONTH', 'YEAR', 'ALL'].includes(rng)) {
         const dailyMap = new Map();
-        data.forEach(pt => { 
-            // We use the Local Date String as the Key. 
-            // This groups everything that happened on "Jan 15 NZ Time" into one bucket.
-            const dateKey = getLocalYMD(pt[0]);
-            dailyMap.set(dateKey, pt); 
-        });
+        data.forEach(pt => { dailyMap.set(new Date(pt[0]).toDateString(), pt); });
         data = Array.from(dailyMap.values());
     }
     return data;
 };
 
-// --- CHART DATA PREP (With NZ Date Snapping) ---
-const prepareChartData = (hist, costHist = null, factor = 1, currentRange = 'MONTH') => {
+// --- DATA PREP (Synchronized Cost Basis) ---
+const prepareChartData = (hist, costHist = [], factor = 1, currentRange = 'MONTH') => {
     const labels = [];
     const data = [];
     const costData = [];
     
-    // 1. Map for fast lookup of chart points by date
-    // We store the index so we can inject trade markers later
-    const dateToIndex = {}; 
+    // Sort cost history to be safe
+    const sortedCost = [...costHist].sort((a,b) => new Date(a[0]) - new Date(b[0]));
+    
+    let lastKnownCost = 0;
+    let costIdx = 0;
 
-    hist.forEach((pt, index) => { 
+    // Loop through VALUE history (The master timeline)
+    hist.forEach((pt) => { 
+        const timestamp = new Date(pt[0]).getTime();
+        
         labels.push(smartDate(pt[0], currentRange)); 
         data.push((pt[1] || 0) / factor);
         
-        // Map "2024-01-15" -> Index 45
-        const dateKey = getLocalYMD(pt[0]);
-        // We only save the *first* occurrence of a date index to catch the line start
-        if(dateToIndex[dateKey] === undefined) dateToIndex[dateKey] = index;
-
-        // Match cost data
-        if (costHist) {
-            if(costHist[index]) {
-                costData.push((costHist[index][1] || 0) / factor);
-            } else {
-                costData.push(costData.length > 0 ? costData[costData.length-1] : 0);
-            }
+        // Advance the Cost Index until we catch up to this timestamp
+        // This ensures "lastKnownCost" is exactly what the cost was at this moment in time.
+        while(costIdx < sortedCost.length && new Date(sortedCost[costIdx][0]).getTime() <= timestamp) {
+            lastKnownCost = sortedCost[costIdx][1];
+            costIdx++;
         }
-    });
-
-    // 2. Prepare Details Array
-    const count = hist.length;
-    const pointRadii = new Array(count).fill(0); 
-    const pointHoverRadii = new Array(count).fill(6);
-    const details = new Array(count).fill(null);
-
-    // 3. Match Trades using Calendar Days (Not Milliseconds)
-    const relevantTrades = chartRegistry.symbol ? tradesHistory.filter(t => t.symbol === chartRegistry.symbol) : tradesHistory;
-    
-    relevantTrades.forEach(tr => {
-        // Get the "YYYY-MM-DD" string of the trade (Local Time)
-        const tradeDateKey = getLocalYMD(tr.date);
         
-        // Look up which index on the chart matches this day
-        const matchedIndex = dateToIndex[tradeDateKey];
-
-        // If we found a matching day on the chart...
-        if (matchedIndex !== undefined) {
-            // Check if we already have a detail there, if so append, otherwise set
-            const txt = `${tr.type} ${Number(tr.quantity).toFixed(0)} ${tr.symbol} @ $${Number(tr.price).toFixed(2)}`;
-            details[matchedIndex] = details[matchedIndex] ? details[matchedIndex] + `\n` + txt : txt;
+        // If we haven't found a cost yet (start of chart), assume 0 or first cost
+        if (lastKnownCost === 0 && sortedCost.length > 0 && costIdx === 0) {
+             // Look ahead slightly? Or just stay 0.
+             // If we are looking at a week view, cost might have been established years ago.
+             // In that case, the 'filterRange' logic handles it, but if cost starts later, 0 is correct.
+             if(sortedCost[0]) lastKnownCost = sortedCost[0][1]; 
         }
+
+        costData.push(lastKnownCost / factor);
     });
 
-    return { labels, data, costData, pointRadii, pointHoverRadii, details };
-};
-
-// --- PLUGIN: VERTICAL TRADE LINES ---
-const tradeLinePlugin = {
-    id: 'tradeLines',
-    afterDatasetsDraw: (chart) => {
-        const ctx = chart.ctx;
-        const chartArea = chart.chartArea;
-        const meta = chart.getDatasetMeta(0);
-        const dataPoints = meta.data;
-        const details = chart.data.datasets[0].details;
-        if(!details) return;
-
-        ctx.save();
-        details.forEach((det, index) => {
-            if(det) {
-                const pt = dataPoints[index];
-                if(!pt) return;
-                const isSell = det.includes('SELL');
-                const x = pt.x;
-
-                ctx.beginPath();
-                ctx.strokeStyle = isSell ? 'rgba(239, 68, 68, 0.6)' : 'rgba(16, 185, 129, 0.6)';
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([4, 4]);
-                ctx.moveTo(x, chartArea.top);
-                ctx.lineTo(x, chartArea.bottom);
-                ctx.stroke();
-            }
-        });
-        ctx.restore();
-    }
+    return { labels, data, costData };
 };
 
 // --- 4. DATA ENGINE ---
@@ -185,6 +123,7 @@ async function loadData() {
             const cost = Number(r.data.totals?.cost || 0);
             
             if (isFinite(val)) rawPf.push([dt, val]);
+            // Always push cost if valid, even if 0
             if (isFinite(cost)) rawCost.push([dt, cost]);
 
             (r.data.positions || []).forEach(p => {
@@ -275,17 +214,14 @@ function renderMainChart(factor) {
     grad.addColorStop(0, 'rgba(245, 158, 11, 0.2)');
     grad.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
     
-    // Store current symbol context so prepareChartData can access it if needed (null for main)
-    chartRegistry.symbol = null;
-
+    // Filter Cost History separately
     const hist = simplifyData(filterRange(summary.history, globalRange));
     const costHist = simplifyData(filterRange(summary.costHistory || [], globalRange));
+    
     const cd = prepareChartData(hist, costHist, factor, globalRange);
     
     if (chartRegistry['main']) chartRegistry['main'].destroy();
     
-    Chart.register(tradeLinePlugin);
-
     chartRegistry['main'] = new Chart(ctx, {
         type: 'line',
         data: {
@@ -299,21 +235,20 @@ function renderMainChart(factor) {
                     backgroundColor: grad, 
                     fill: true, 
                     tension: 0.15,
-                    pointRadius: cd.pointRadii, 
-                    pointHoverRadius: cd.pointHoverRadius, 
-                    pointBackgroundColor: '#f59e0b',
-                    details: cd.details,
+                    pointRadius: 0, 
+                    pointHoverRadius: 6,
                     order: 1
                 },
                 {
                     label: 'Cost Basis',
                     data: cd.costData, 
-                    borderColor: 'rgba(255, 255, 255, 0.4)', 
+                    borderColor: 'rgba(255, 255, 255, 0.3)', // Grey/White Dotted
                     borderWidth: 2, 
-                    borderDash: [5, 5],
+                    borderDash: [4, 4], // Dotted Effect
                     backgroundColor: 'transparent',
                     fill: false, 
-                    tension: 0.1, 
+                    tension: 0, // Zero tension = Sharp steps
+                    stepped: 'before', // This forces the square "Step" look for buy/sells
                     pointRadius: 0,
                     pointHoverRadius: 0,
                     order: 2
@@ -377,10 +312,6 @@ function closeDrawer() {
 function renderDrawerChart(sym, factor) {
     const ctx = document.getElementById('drawerChart').getContext('2d');
     const range = tickerRangeMode[sym] || "YEAR";
-    
-    // Set context for helper
-    chartRegistry.symbol = sym;
-
     const rawHist = filterRange(summary.symbolHistory[sym] || [], range);
     const hist = simplifyData(rawHist);
     const cd = prepareChartData(hist, null, factor, range); 
@@ -392,7 +323,7 @@ function renderDrawerChart(sym, factor) {
             labels: cd.labels,
             datasets: [{
                 data: cd.data, borderColor: '#f59e0b', borderWidth: 2.5, backgroundColor: 'rgba(245, 158, 11, 0.05)', fill: true, tension: 0.1,
-                pointRadius: cd.pointRadii, pointHoverRadius: cd.pointHoverRadius, pointBackgroundColor: '#f59e0b', details: cd.details
+                pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: '#f59e0b'
             }]
         },
         options: getChartOptions(false)
@@ -425,10 +356,7 @@ function getChartOptions(showScales = true) {
                 titleFont: { size: 10, weight: 'bold' }, bodyFont: { size: 12, weight: '900' }, displayColors: false,
                 callbacks: { 
                     label: (ctx) => { 
-                        // Tooltip shows Trade details if available, otherwise just value
-                        const details = ctx.dataset.details;
-                        if(details && details[ctx.dataIndex]) return details[ctx.dataIndex];
-                        return ctx.dataset.label ? ctx.dataset.label + ': ' + fmtMoney(ctx.raw, true) : fmtMoney(ctx.raw, true);
+                        return ctx.dataset.label + ': ' + fmtMoney(ctx.raw, true);
                     } 
                 }
             }
