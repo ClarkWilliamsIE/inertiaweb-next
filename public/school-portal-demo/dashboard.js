@@ -52,19 +52,21 @@ const filterRange = (hist, rng) => {
     return data;
 };
 
+// --- CHART DATA PREP (Updated: No Triangles, just metadata) ---
 const prepareChartData = (hist, symbol = null, factor = 1, currentRange = 'MONTH') => {
     const labels = [];
     const data = [];
     hist.forEach(pt => { labels.push(smartDate(pt[0], currentRange)); data.push((pt[1] || 0) / factor); });
 
     const count = hist.length;
-    const pointStyles = new Array(count).fill('circle');
-    const pointRadii = new Array(count).fill(0);
-    const pointColors = new Array(count).fill('#3b82f6');
-    const pointRotations = new Array(count).fill(0);
+    // We set all points to invisible by default. 
+    // The PLUGIN will draw lines based on the 'details' array.
+    const pointRadii = new Array(count).fill(0); 
+    const pointHoverRadii = new Array(count).fill(6); // Shows up when hovering
     const details = new Array(count).fill(null);
 
     const relevantTrades = symbol ? tradesHistory.filter(t => t.symbol === symbol) : tradesHistory;
+    
     relevantTrades.forEach(tr => {
         const trTime = new Date(tr.date).getTime();
         const start = new Date(hist[0][0]).getTime();
@@ -78,16 +80,56 @@ const prepareChartData = (hist, symbol = null, factor = 1, currentRange = 'MONTH
                 if (diff < minDiff) { minDiff = diff; closestIdx = i; }
             }
             if (closestIdx !== -1) {
-                const isSell = tr.type === 'SELL';
-                pointStyles[closestIdx] = isSell ? 'triangle' : 'rectRot';
-                pointRadii[closestIdx] = 6;
-                pointColors[closestIdx] = isSell ? '#ef4444' : '#10b981';
-                pointRotations[closestIdx] = isSell ? 180 : 45;
+                // We just store the detail. The custom plugin below will read this 
+                // and draw the vertical line.
                 details[closestIdx] = `${tr.type} ${Number(tr.quantity).toFixed(0)} ${tr.symbol} @ $${Number(tr.price).toFixed(2)}`;
             }
         }
     });
-    return { labels, data, pointStyles, pointRadii, pointColors, pointRotations, details };
+    return { labels, data, pointRadii, pointHoverRadii, details };
+};
+
+// --- CUSTOM PLUGIN: VERTICAL TRADE LINES ---
+const tradeLinePlugin = {
+    id: 'tradeLines',
+    afterDatasetsDraw: (chart) => {
+        const ctx = chart.ctx;
+        const chartArea = chart.chartArea;
+        const meta = chart.getDatasetMeta(0);
+        const dataPoints = meta.data;
+        
+        // Access our custom details array from the dataset
+        const details = chart.data.datasets[0].details;
+        
+        if(!details) return;
+
+        ctx.save();
+        details.forEach((det, index) => {
+            if(det) {
+                const pt = dataPoints[index];
+                if(!pt) return;
+
+                const isSell = det.includes('SELL');
+                const x = pt.x;
+
+                // Draw Vertical Line
+                ctx.beginPath();
+                ctx.strokeStyle = isSell ? 'rgba(239, 68, 68, 0.6)' : 'rgba(16, 185, 129, 0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 4]); // Dashed Line
+                ctx.moveTo(x, chartArea.top);
+                ctx.lineTo(x, chartArea.bottom);
+                ctx.stroke();
+
+                // Optional: Draw a small pill at the top indicating type
+                /* ctx.fillStyle = isSell ? '#ef4444' : '#10b981';
+                ctx.font = 'bold 9px Inter';
+                ctx.fillText(isSell ? 'S' : 'B', x - 3, chartArea.top + 10);
+                */
+            }
+        });
+        ctx.restore();
+    }
 };
 
 // --- 4. DATA ENGINE ---
@@ -143,6 +185,7 @@ function renderUI() {
     const v = (t.value || 0) / factor;
     const p = (t.profit || 0) / factor;
     const c = (t.cost || 0) / factor;
+    const unrealized = v - c; // CALC UNREALIZED
 
     const statsHTML = `
         <div class="glass-card p-6 border-b-4 ${p >= 0 ? 'border-accent-green' : 'border-accent-red'}">
@@ -169,9 +212,17 @@ function renderUI() {
     document.getElementById("statsGrid").innerHTML = statsHTML;
 
     document.getElementById("totalValueDisplay").textContent = fmtMoney(v, true);
+    
+    // Total Change Display
     const disp = document.getElementById("totalChangeDisplay");
     disp.className = `text-sm font-bold ${p >= 0 ? 'text-accent-green' : 'text-accent-red'}`;
     disp.textContent = `${p >= 0 ? '+' : ''}${fmtPct(t.pct)}%`;
+
+    // Unrealized Display
+    const unEl = document.getElementById("unrealizedDisplay");
+    unEl.textContent = `${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}`;
+    unEl.className = `text-lg font-bold ${unrealized >= 0 ? 'text-neutral-300' : 'text-neutral-400'}`;
+
     document.getElementById("lastUpdated").textContent = `Sync: ${new Date(summary.lastUpdatedDate).toLocaleTimeString()}`;
 
     renderMainChart(factor);
@@ -187,13 +238,26 @@ function renderMainChart(factor) {
     const cd = prepareChartData(hist, null, factor, globalRange);
     
     if (chartRegistry['main']) chartRegistry['main'].destroy();
+    
+    // REGISTER PLUGIN
+    Chart.register(tradeLinePlugin);
+
     chartRegistry['main'] = new Chart(ctx, {
         type: 'line',
         data: {
             labels: cd.labels,
             datasets: [{
-                data: cd.data, borderColor: '#f59e0b', borderWidth: 3, backgroundColor: grad, fill: true, tension: 0.15,
-                pointStyle: cd.pointStyles, pointRadius: cd.pointRadii, pointBackgroundColor: cd.pointColors, pointRotation: cd.pointRotations, details: cd.details
+                data: cd.data, 
+                borderColor: '#f59e0b', 
+                borderWidth: 3, 
+                backgroundColor: grad, 
+                fill: true, 
+                tension: 0.15,
+                // Points are invisible unless hovered
+                pointRadius: cd.pointRadii, 
+                pointHoverRadius: cd.pointHoverRadius, 
+                pointBackgroundColor: '#f59e0b',
+                details: cd.details
             }]
         },
         options: getChartOptions()
@@ -248,13 +312,15 @@ function renderDrawerChart(sym, factor) {
     const hist = simplifyData(rawHist);
     const cd = prepareChartData(hist, sym, factor, range);
     if (chartRegistry['drawer']) chartRegistry['drawer'].destroy();
+    
+    // Draw lines in drawer too? Yes.
     chartRegistry['drawer'] = new Chart(ctx, {
         type: 'line',
         data: {
             labels: cd.labels,
             datasets: [{
                 data: cd.data, borderColor: '#f59e0b', borderWidth: 2.5, backgroundColor: 'rgba(245, 158, 11, 0.05)', fill: true, tension: 0.1,
-                pointStyle: cd.pointStyles, pointRadius: cd.pointRadii, pointBackgroundColor: cd.pointColors, pointRotation: cd.pointRotations, details: cd.details
+                pointRadius: cd.pointRadii, pointHoverRadius: cd.pointHoverRadius, pointBackgroundColor: '#f59e0b', details: cd.details
             }]
         },
         options: getChartOptions(false)
@@ -279,7 +345,7 @@ window.updateTickerRange = (sym, k) => {
 
 function getChartOptions(showScales = true) {
     return {
-        responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', axis: 'x', intersect: false },
         plugins: {
             legend: { display: false },
             tooltip: {
@@ -313,7 +379,6 @@ document.querySelectorAll("#mainRangeSelector button").forEach(b => b.classList.
 
 // INIT
 (async () => {
-    // We define the client globally in init to ensure library loaded
     if(!window.supabase) return console.error("Supabase lib not loaded");
     window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
