@@ -52,17 +52,15 @@ const filterRange = (hist, rng) => {
     return data;
 };
 
-// --- CHART DATA PREP (Updated: No Triangles, just metadata) ---
+// --- CHART DATA PREP (Vertical Lines) ---
 const prepareChartData = (hist, symbol = null, factor = 1, currentRange = 'MONTH') => {
     const labels = [];
     const data = [];
     hist.forEach(pt => { labels.push(smartDate(pt[0], currentRange)); data.push((pt[1] || 0) / factor); });
 
     const count = hist.length;
-    // We set all points to invisible by default. 
-    // The PLUGIN will draw lines based on the 'details' array.
     const pointRadii = new Array(count).fill(0); 
-    const pointHoverRadii = new Array(count).fill(6); // Shows up when hovering
+    const pointHoverRadii = new Array(count).fill(6);
     const details = new Array(count).fill(null);
 
     const relevantTrades = symbol ? tradesHistory.filter(t => t.symbol === symbol) : tradesHistory;
@@ -80,8 +78,6 @@ const prepareChartData = (hist, symbol = null, factor = 1, currentRange = 'MONTH
                 if (diff < minDiff) { minDiff = diff; closestIdx = i; }
             }
             if (closestIdx !== -1) {
-                // We just store the detail. The custom plugin below will read this 
-                // and draw the vertical line.
                 details[closestIdx] = `${tr.type} ${Number(tr.quantity).toFixed(0)} ${tr.symbol} @ $${Number(tr.price).toFixed(2)}`;
             }
         }
@@ -97,10 +93,7 @@ const tradeLinePlugin = {
         const chartArea = chart.chartArea;
         const meta = chart.getDatasetMeta(0);
         const dataPoints = meta.data;
-        
-        // Access our custom details array from the dataset
         const details = chart.data.datasets[0].details;
-        
         if(!details) return;
 
         ctx.save();
@@ -108,24 +101,16 @@ const tradeLinePlugin = {
             if(det) {
                 const pt = dataPoints[index];
                 if(!pt) return;
-
                 const isSell = det.includes('SELL');
                 const x = pt.x;
 
-                // Draw Vertical Line
                 ctx.beginPath();
                 ctx.strokeStyle = isSell ? 'rgba(239, 68, 68, 0.6)' : 'rgba(16, 185, 129, 0.6)';
                 ctx.lineWidth = 1.5;
-                ctx.setLineDash([4, 4]); // Dashed Line
+                ctx.setLineDash([4, 4]);
                 ctx.moveTo(x, chartArea.top);
                 ctx.lineTo(x, chartArea.bottom);
                 ctx.stroke();
-
-                // Optional: Draw a small pill at the top indicating type
-                /* ctx.fillStyle = isSell ? '#ef4444' : '#10b981';
-                ctx.font = 'bold 9px Inter';
-                ctx.fillText(isSell ? 'S' : 'B', x - 3, chartArea.top + 10);
-                */
             }
         });
         ctx.restore();
@@ -185,7 +170,15 @@ function renderUI() {
     const v = (t.value || 0) / factor;
     const p = (t.profit || 0) / factor;
     const c = (t.cost || 0) / factor;
-    const unrealized = v - c; // CALC UNREALIZED
+    const unrealized = v - c; 
+
+    // --- WINNERLAND / LOSERLAND LOGIC ---
+    const titleEl = document.querySelector("h1");
+    if(titleEl) {
+        titleEl.textContent = p >= 0 ? "WINNERLAND" : "LOSERLAND";
+        // Reset and apply color
+        titleEl.className = `text-2xl font-black tracking-tighter uppercase ${p >= 0 ? 'text-emerald-500' : 'text-red-500'}`;
+    }
 
     const statsHTML = `
         <div class="glass-card p-6 border-b-4 ${p >= 0 ? 'border-accent-green' : 'border-accent-red'}">
@@ -220,8 +213,10 @@ function renderUI() {
 
     // Unrealized Display
     const unEl = document.getElementById("unrealizedDisplay");
-    unEl.textContent = `${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}`;
-    unEl.className = `text-lg font-bold ${unrealized >= 0 ? 'text-neutral-300' : 'text-neutral-400'}`;
+    if(unEl) {
+        unEl.textContent = `${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}`;
+        unEl.className = `text-lg font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+    }
 
     document.getElementById("lastUpdated").textContent = `Sync: ${new Date(summary.lastUpdatedDate).toLocaleTimeString()}`;
 
@@ -253,7 +248,6 @@ function renderMainChart(factor) {
                 backgroundColor: grad, 
                 fill: true, 
                 tension: 0.15,
-                // Points are invisible unless hovered
                 pointRadius: cd.pointRadii, 
                 pointHoverRadius: cd.pointHoverRadius, 
                 pointBackgroundColor: '#f59e0b',
@@ -265,19 +259,43 @@ function renderMainChart(factor) {
 }
 
 function renderTable(factor) {
+    // 1. UPDATE HEADER TO MATCH COLUMNS
+    const tableHead = document.querySelector("thead tr");
+    if(tableHead) {
+        tableHead.innerHTML = `
+            <th class="px-6 py-4">Asset</th>
+            <th class="px-6 py-4">Value</th>
+            <th class="px-6 py-4">Cost</th>
+            <th class="px-6 py-4">Unrealized P/L</th>
+            <th class="px-6 py-4">Return</th>
+            <th class="px-6 py-4">Port %</th>
+        `;
+    }
+
     const body = document.getElementById("holdingsBody");
     body.innerHTML = "";
     summary.positions.forEach(p => {
         const row = document.createElement("tr");
         row.className = "hover:bg-white/[0.04] cursor-pointer transition-all group border-b border-white/5";
         row.onclick = () => openDrawer(p.symbol);
+        
         const weight = ((p.value / summary.totals.value) * 100);
+        const unrealized = (p.value - p.cost) / factor;
+        const prof = (p.profit || 0) / factor; // This might include realized, but for the table lets show specific row logic
+
         row.innerHTML = `
             <td class="px-6 py-5"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center font-black text-xs text-amber-500 group-hover:bg-amber-500 group-hover:text-black transition-all">${p.symbol}</div><span class="font-black text-white text-sm">${p.symbol}</span></div></td>
-            <td class="px-6 py-5 font-bold text-neutral-200"><div class="flex flex-col"><span>${fmtMoney(p.value / factor, true)}</span><span class="text-[10px] text-neutral-500">Value</span></div></td>
-            <td class="px-6 py-5 text-neutral-400 text-sm"><div class="flex flex-col"><span>${fmtMoney(p.cost / factor, true)}</span><span class="text-[10px] text-neutral-600 italic">Cost</span></div></td>
-            <td class="px-6 py-5 text-neutral-500 font-mono text-xs">${p.quantity.toFixed(2)}</td>
-            <td class="px-6 py-5"><span class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-sm ${p.profit >= 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}">${p.profit >= 0 ? '▲' : '▼'} ${fmtPct(Math.abs(p.pct))}%</span></td>
+            
+            <td class="px-6 py-5 font-bold text-neutral-200"><span>${fmtMoney(p.value / factor, true)}</span></td>
+            
+            <td class="px-6 py-5 text-neutral-400 text-sm"><span>${fmtMoney(p.cost / factor, true)}</span></td>
+            
+            <td class="px-6 py-5 font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}">
+                ${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}
+            </td>
+
+            <td class="px-6 py-5"><span class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-sm ${p.pct >= 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}">${p.pct >= 0 ? '▲' : '▼'} ${fmtPct(Math.abs(p.pct))}%</span></td>
+            
             <td class="px-6 py-5"><div class="flex items-center gap-3"><span class="text-xs font-bold text-neutral-500 w-[30px]">${weight.toFixed(0)}%</span><div class="flex-1 max-w-[80px] h-1.5 bg-neutral-800 rounded-full overflow-hidden"><div class="h-full bg-neutral-600 group-hover:bg-amber-500 transition-all" style="width: ${weight}%"></div></div></div></td>
         `;
         body.appendChild(row);
@@ -313,7 +331,6 @@ function renderDrawerChart(sym, factor) {
     const cd = prepareChartData(hist, sym, factor, range);
     if (chartRegistry['drawer']) chartRegistry['drawer'].destroy();
     
-    // Draw lines in drawer too? Yes.
     chartRegistry['drawer'] = new Chart(ctx, {
         type: 'line',
         data: {
