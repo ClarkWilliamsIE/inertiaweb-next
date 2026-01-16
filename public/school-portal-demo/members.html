@@ -17,11 +17,9 @@
         :root { --bg-deep: #0a0a0a; --accent-green: #10b981; --accent-red: #ef4444; --accent-winner: #f59e0b; }
         body { background-color: var(--bg-deep); color: #e5e5e5; font-family: 'Inter', sans-serif; overflow-x: hidden; }
         
-        /* Glassmorphism Cards */
         .glass-card { background: rgba(18, 18, 18, 0.7); backdrop-filter: blur(16px); border: 1px solid #262626; border-radius: 20px; transition: all 0.2s; }
         .glass-card:hover { border-color: #404040; background: rgba(22, 22, 22, 0.8); }
         
-        /* Animations */
         .live-pulse { width: 8px; height: 8px; background-color: var(--accent-green); border-radius: 50%; position: relative; }
         .live-pulse::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent-green); animation: pulse 2s infinite; opacity: 0; }
         @keyframes pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
@@ -30,15 +28,12 @@
         #drawer.open { transform: translateX(0); }
         
         .range-btn.active { background: #262626; color: #fff; border-color: var(--accent-winner); }
-        
         .shimmer { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent); background-size: 200% 100%; animation: shimmer 2s infinite; }
         @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
         
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #0a0a0a; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #444; }
     </style>
 </head>
 <body class="p-6 md:p-10 max-w-[1600px] mx-auto min-h-screen flex flex-col">
@@ -52,8 +47,7 @@
                 <h1 class="text-2xl font-black tracking-tighter text-white uppercase">Winnerland</h1>
                 <div class="flex items-center gap-2 mt-0.5">
                     <div class="live-pulse"></div>
-                    <span class="text-[10px] uppercase font-bold text-neutral-500 tracking-[0.2em]">Alpha OS</span>
-                </div>
+                    </div>
             </div>
         </div>
 
@@ -63,9 +57,7 @@
                 <a href="polls.html" class="px-3 py-1.5 text-xs font-bold text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-all">Polls</a>
                 <a href="admin.html" class="px-3 py-1.5 text-xs font-bold text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-all">Admin</a>
             </nav>
-
             <div class="w-px h-6 bg-white/10 hidden md:block"></div>
-
             <div class="flex items-center gap-3 px-2">
                 <span class="text-[10px] font-bold text-neutral-500 uppercase tracking-wider hidden sm:inline">1/11th Scale</span>
                 <label class="relative inline-flex items-center cursor-pointer">
@@ -88,9 +80,16 @@
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
             <div>
                 <h2 class="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-1">Portfolio Trajectory</h2>
-                <div class="flex items-baseline gap-3">
-                    <p class="text-3xl md:text-4xl font-black text-white tracking-tighter" id="totalValueDisplay">---</p>
-                    <p class="text-sm font-bold" id="totalChangeDisplay">---</p>
+                <div class="flex items-baseline gap-4">
+                    <div class="flex items-baseline gap-2">
+                        <p class="text-3xl md:text-4xl font-black text-white tracking-tighter" id="totalValueDisplay">---</p>
+                        <p class="text-sm font-bold" id="totalChangeDisplay">---</p>
+                    </div>
+                    <div class="hidden md:block w-px h-8 bg-white/10"></div>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-neutral-500 font-bold uppercase">Unrealized P/L</span>
+                        <span class="text-lg font-bold text-neutral-300" id="unrealizedDisplay">---</span>
+                    </div>
                 </div>
             </div>
             <div class="flex bg-neutral-900/80 p-1 rounded-xl border border-neutral-800 overflow-x-auto max-w-full" id="mainRangeSelector">
