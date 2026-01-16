@@ -52,7 +52,7 @@ const filterRange = (hist, rng) => {
     return data;
 };
 
-// --- CHART DATA PREP (Vertical Lines) ---
+// --- CHART DATA PREP ---
 const prepareChartData = (hist, symbol = null, factor = 1, currentRange = 'MONTH') => {
     const labels = [];
     const data = [];
@@ -163,7 +163,7 @@ async function loadData() {
     }
 }
 
-// --- 5. RENDER ---
+// --- 5. RENDER UI ---
 function renderUI() {
     const factor = document.getElementById("divideToggle").checked ? 11 : 1;
     const t = summary.totals;
@@ -176,7 +176,6 @@ function renderUI() {
     const titleEl = document.querySelector("h1");
     if(titleEl) {
         titleEl.textContent = p >= 0 ? "WINNERLAND" : "LOSERLAND";
-        // Reset and apply color
         titleEl.className = `text-2xl font-black tracking-tighter uppercase ${p >= 0 ? 'text-emerald-500' : 'text-red-500'}`;
     }
 
@@ -234,7 +233,6 @@ function renderMainChart(factor) {
     
     if (chartRegistry['main']) chartRegistry['main'].destroy();
     
-    // REGISTER PLUGIN
     Chart.register(tradeLinePlugin);
 
     chartRegistry['main'] = new Chart(ctx, {
@@ -258,45 +256,64 @@ function renderMainChart(factor) {
     });
 }
 
+// --- RESPONSIVE CARD TABLE RENDERER ---
 function renderTable(factor) {
-    // 1. UPDATE HEADER TO MATCH COLUMNS
-    const tableHead = document.querySelector("thead tr");
-    if(tableHead) {
-        tableHead.innerHTML = `
-            <th class="px-6 py-4">Asset</th>
-            <th class="px-6 py-4">Value</th>
-            <th class="px-6 py-4">Cost</th>
-            <th class="px-6 py-4">Unrealized P/L</th>
-            <th class="px-6 py-4">Return</th>
-            <th class="px-6 py-4">Port %</th>
-        `;
-    }
-
     const body = document.getElementById("holdingsBody");
     body.innerHTML = "";
+    
     summary.positions.forEach(p => {
         const row = document.createElement("tr");
-        row.className = "hover:bg-white/[0.04] cursor-pointer transition-all group border-b border-white/5";
+        
+        // CSS: On mobile (default), display as BLOCK with margins. On desktop (md), behave like a table row.
+        row.className = "block md:table-row hover:bg-white/[0.04] cursor-pointer transition-all group border-b border-white/5 p-4 mb-4 md:mb-0 bg-white/[0.03] md:bg-transparent rounded-2xl md:rounded-none";
+        
         row.onclick = () => openDrawer(p.symbol);
         
         const weight = ((p.value / summary.totals.value) * 100);
         const unrealized = (p.value - p.cost) / factor;
-        const prof = (p.profit || 0) / factor; // This might include realized, but for the table lets show specific row logic
 
+        // NOTE: We added "md:hidden" spans to act as labels on mobile cards
         row.innerHTML = `
-            <td class="px-6 py-5"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center font-black text-xs text-amber-500 group-hover:bg-amber-500 group-hover:text-black transition-all">${p.symbol}</div><span class="font-black text-white text-sm">${p.symbol}</span></div></td>
+            <td class="block md:table-cell px-4 py-3 md:px-6 md:py-5">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center font-black text-xs text-amber-500 group-hover:bg-amber-500 group-hover:text-black transition-all">${p.symbol}</div>
+                    <span class="font-black text-white text-sm">${p.symbol}</span>
+                </div>
+            </td>
             
-            <td class="px-6 py-5 font-bold text-neutral-200"><span>${fmtMoney(p.value / factor, true)}</span></td>
+            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center">
+                <span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Value</span>
+                <span class="font-bold text-neutral-200">${fmtMoney(p.value / factor, true)}</span>
+            </td>
             
-            <td class="px-6 py-5 text-neutral-400 text-sm"><span>${fmtMoney(p.cost / factor, true)}</span></td>
+            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center">
+                <span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Cost</span>
+                <span class="text-neutral-400 text-sm">${fmtMoney(p.cost / factor, true)}</span>
+            </td>
             
-            <td class="px-6 py-5 font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}">
-                ${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}
+            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center">
+                <span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">P/L</span>
+                <span class="font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}">
+                    ${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}
+                </span>
             </td>
 
-            <td class="px-6 py-5"><span class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-sm ${p.pct >= 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}">${p.pct >= 0 ? '▲' : '▼'} ${fmtPct(Math.abs(p.pct))}%</span></td>
+            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center">
+                <span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Return</span>
+                <span class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-sm ${p.pct >= 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}">
+                    ${p.pct >= 0 ? '▲' : '▼'} ${fmtPct(Math.abs(p.pct))}%
+                </span>
+            </td>
             
-            <td class="px-6 py-5"><div class="flex items-center gap-3"><span class="text-xs font-bold text-neutral-500 w-[30px]">${weight.toFixed(0)}%</span><div class="flex-1 max-w-[80px] h-1.5 bg-neutral-800 rounded-full overflow-hidden"><div class="h-full bg-neutral-600 group-hover:bg-amber-500 transition-all" style="width: ${weight}%"></div></div></div></td>
+            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center">
+                <span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Weight</span>
+                <div class="flex items-center gap-3 justify-end md:justify-start w-1/2 md:w-auto">
+                    <span class="text-xs font-bold text-neutral-500 w-[30px]">${weight.toFixed(0)}%</span>
+                    <div class="flex-1 max-w-[80px] h-1.5 bg-neutral-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-neutral-600 group-hover:bg-amber-500 transition-all" style="width: ${weight}%"></div>
+                    </div>
+                </div>
+            </td>
         `;
         body.appendChild(row);
     });
