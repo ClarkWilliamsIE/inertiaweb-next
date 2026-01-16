@@ -52,7 +52,9 @@ const simplifyCostData = (arr) => {
         const lastVal = clean[clean.length - 1][1];
         const currVal = arr[i][1];
         const pctChange = lastVal === 0 ? 1 : Math.abs((currVal - lastVal) / lastVal);
-        if (i === arr.length - 1 || pctChange > 0.05) clean.push(arr[i]);
+        if (i === arr.length - 1 || pctChange > 0.05) {
+            clean.push(arr[i]);
+        }
     }
     return clean;
 };
@@ -72,58 +74,13 @@ const filterRange = (hist, rng) => {
     return data;
 };
 
-// --- NEW: REPLAY LEDGER TO GENERATE COST LINE FOR TICKERS ---
-const generateSymbolCost = (symbol, timestamps) => {
-    // Filter trades for this symbol and sort by date
-    const trades = tradesHistory
-        .filter(t => t.symbol === symbol)
-        .sort((a,b) => new Date(a.date) - new Date(b.date));
-    
-    const costCurve = [];
-    let currentQty = 0;
-    let currentCost = 0;
-    let tradeIdx = 0;
-
-    timestamps.forEach(pt => {
-        const ts = new Date(pt[0]).getTime();
-
-        // Process all trades that happened up to this point in the chart
-        while(tradeIdx < trades.length && new Date(trades[tradeIdx].date).getTime() <= ts) {
-            const t = trades[tradeIdx];
-            const q = Number(t.quantity);
-            const p = Number(t.price);
-
-            if (t.type === 'BUY') {
-                currentCost += (q * p);
-                currentQty += q;
-            } else {
-                // Sell logic: Reduce cost proportional to avg price
-                if (currentQty > 0) {
-                    const avgPrice = currentCost / currentQty;
-                    currentCost -= (q * avgPrice);
-                    currentQty -= q;
-                }
-            }
-            tradeIdx++;
-        }
-        
-        // Floating point cleanup
-        if (currentQty < 0.001) currentCost = 0;
-        
-        // Push format [isoDate, costValue]
-        costCurve.push([pt[0], currentCost]);
-    });
-
-    return costCurve;
-};
-
 // --- CHART DATA PREP ---
 const prepareChartData = (hist, costHist = [], factor = 1, currentRange = 'MONTH') => {
     const labels = [];
     const data = [];
     const costData = [];
     
-    // Safety check: ensure costHist is an array (fixes the crash)
+    // FIX: Ensure costHist is an array before spreading
     const safeCostHist = Array.isArray(costHist) ? costHist : [];
     const sortedCost = [...safeCostHist].sort((a,b) => new Date(a[0]) - new Date(b[0]));
     
@@ -135,7 +92,6 @@ const prepareChartData = (hist, costHist = [], factor = 1, currentRange = 'MONTH
         labels.push(smartDate(pt[0], currentRange)); 
         data.push((pt[1] || 0) / factor);
         
-        // Sync Cost
         while(costIdx < sortedCost.length && new Date(sortedCost[costIdx][0]).getTime() <= timestamp) {
             lastKnownCost = sortedCost[costIdx][1];
             costIdx++;
@@ -215,14 +171,12 @@ function renderUI() {
     const c = (t.cost || 0) / factor;
     const unrealized = v - c; 
 
-    // WINNERLAND / LOSERLAND
     const titleEl = document.querySelector("h1");
     if(titleEl) {
         titleEl.textContent = p >= 0 ? "WINNERLAND" : "LOSERLAND";
         titleEl.className = `text-2xl font-black tracking-tighter uppercase ${p >= 0 ? 'text-emerald-500' : 'text-red-500'}`;
     }
 
-    // UPDATE HEADER STATS
     document.getElementById("totalValueDisplay").textContent = fmtMoney(v, true);
     
     const disp = document.getElementById("totalChangeDisplay");
@@ -236,7 +190,9 @@ function renderUI() {
     }
 
     const costEl = document.getElementById("costDisplay");
-    if(costEl) costEl.textContent = fmtMoney(c, true);
+    if(costEl) {
+        costEl.textContent = fmtMoney(c, true);
+    }
 
     document.getElementById("lastUpdated").textContent = `Sync: ${new Date(summary.lastUpdatedDate).toLocaleTimeString()}`;
 
@@ -252,6 +208,7 @@ function renderMainChart(factor) {
     
     const hist = simplifyData(filterRange(summary.history, globalRange));
     const costHist = simplifyCostData(filterRange(summary.costHistory || [], globalRange));
+    
     const cd = prepareChartData(hist, costHist, factor, globalRange);
     
     if (chartRegistry['main']) chartRegistry['main'].destroy();
@@ -263,13 +220,29 @@ function renderMainChart(factor) {
             datasets: [
                 {
                     label: 'Portfolio Value',
-                    data: cd.data, borderColor: '#f59e0b', borderWidth: 3, backgroundColor: grad, fill: true, tension: 0.15,
-                    pointRadius: 0, pointHoverRadius: 6, order: 1
+                    data: cd.data, 
+                    borderColor: '#f59e0b', 
+                    borderWidth: 3, 
+                    backgroundColor: grad, 
+                    fill: true, 
+                    tension: 0.15,
+                    pointRadius: 0, 
+                    pointHoverRadius: 6,
+                    order: 1
                 },
                 {
                     label: 'Cost Basis',
-                    data: cd.costData, borderColor: 'rgba(255, 255, 255, 0.3)', borderWidth: 2, borderDash: [4, 4], 
-                    backgroundColor: 'transparent', fill: false, tension: 0, stepped: 'before', pointRadius: 0, pointHoverRadius: 0, order: 2
+                    data: cd.costData, 
+                    borderColor: 'rgba(255, 255, 255, 0.3)', 
+                    borderWidth: 2, 
+                    borderDash: [4, 4], 
+                    backgroundColor: 'transparent',
+                    fill: false, 
+                    tension: 0, 
+                    stepped: 'before',
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    order: 2
                 }
             ]
         },
@@ -331,14 +304,14 @@ function renderDrawerChart(sym, factor) {
     const ctx = document.getElementById('drawerChart').getContext('2d');
     const range = tickerRangeMode[sym] || "YEAR";
     
-    // 1. Get raw history
+    // Set context for helper
+    chartRegistry.symbol = sym;
+
     const rawHist = filterRange(summary.symbolHistory[sym] || [], range);
-    // 2. Simplify value line
     const hist = simplifyData(rawHist);
-    // 3. GENERATE COST HISTORY FOR SYMBOL
-    const costCurve = generateSymbolCost(sym, hist);
     
-    const cd = prepareChartData(hist, costCurve, factor, range); 
+    // FIX: Pass empty array for costHist to avoid crash
+    const cd = prepareChartData(hist, [], factor, range); 
     
     if (chartRegistry['drawer']) chartRegistry['drawer'].destroy();
     
@@ -346,16 +319,10 @@ function renderDrawerChart(sym, factor) {
         type: 'line',
         data: {
             labels: cd.labels,
-            datasets: [
-                {
-                    label: 'Value', data: cd.data, borderColor: '#f59e0b', borderWidth: 2.5, backgroundColor: 'rgba(245, 158, 11, 0.05)', fill: true, tension: 0.1,
-                    pointRadius: 0, pointHoverRadius: 6, order: 1
-                },
-                {
-                    label: 'Cost', data: cd.costData, borderColor: 'rgba(255, 255, 255, 0.3)', borderWidth: 2, borderDash: [4,4], fill: false, tension: 0, stepped: 'before',
-                    pointRadius: 0, pointHoverRadius: 0, order: 2
-                }
-            ]
+            datasets: [{
+                data: cd.data, borderColor: '#f59e0b', borderWidth: 2.5, backgroundColor: 'rgba(245, 158, 11, 0.05)', fill: true, tension: 0.1,
+                pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: '#f59e0b', details: cd.details
+            }]
         },
         options: getChartOptions(false)
     });
@@ -387,7 +354,7 @@ function getChartOptions(showScales = true) {
                 titleFont: { size: 10, weight: 'bold' }, bodyFont: { size: 12, weight: '900' }, displayColors: false,
                 callbacks: { 
                     label: (ctx) => { 
-                        return ctx.dataset.label + ': ' + fmtMoney(ctx.raw, true);
+                        return ctx.dataset.label ? ctx.dataset.label + ': ' + fmtMoney(ctx.raw, true) : fmtMoney(ctx.raw, true);
                     } 
                 }
             }
