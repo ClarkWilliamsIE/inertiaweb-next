@@ -19,7 +19,6 @@ const fmtMoney = (v, sign = false) => {
 
 const fmtPct = (v) => (v == null) ? "0.00" : Number(v).toFixed(2);
 
-// Force NZ/Local friendly Date Strings
 const getLocalYMD = (iso) => {
     const d = new Date(iso);
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -34,7 +33,6 @@ const smartDate = (iso, range) => {
     return `${d.getDate()} ${months[d.getMonth()]}`;
 };
 
-// Standard simplifier for VALUE line (keep detail)
 const simplifyData = (arr) => {
     if (!arr || arr.length < 2) return arr;
     const clean = [arr[0]];
@@ -47,28 +45,17 @@ const simplifyData = (arr) => {
     return clean;
 };
 
-// --- NEW: AGGRESSIVE SIMPLIFIER FOR COST LINE ---
-// This ignores changes smaller than 0.5% to hide Currency Fluctuation noise
+// --- STRICT SIMPLIFIER FOR COST LINE (Flattens Currency Noise) ---
 const simplifyCostData = (arr) => {
     if (!arr || arr.length < 2) return arr;
     const clean = [arr[0]];
-    
-    // We iterate through and only accept a new point if it changed significantly
     for (let i = 1; i < arr.length; i++) {
         const lastVal = clean[clean.length - 1][1];
         const currVal = arr[i][1];
-        
-        // Calculate % change
         const pctChange = lastVal === 0 ? 1 : Math.abs((currVal - lastVal) / lastVal);
-        
-        // Threshold: 0.005 (0.5%). If change is smaller than this, it's just FX noise.
-        // We also always keep the very last point to ensure current state is accurate.
-        if (i === arr.length - 1 || pctChange > 0.005) {
+        // THRESHOLD INCREASED: Ignore anything less than 5% change as "FX Noise"
+        if (i === arr.length - 1 || pctChange > 0.02) {
             clean.push(arr[i]);
-        } else {
-            // OPTIONAL: If we skip a point, we could push a duplicate of the LAST value 
-            // to maintain the "Stepped" look perfectly, but Chart.js handles gaps well.
-            // For a perfect step, we actually want to ignore the wobble completely.
         }
     }
     return clean;
@@ -78,7 +65,6 @@ const filterRange = (hist, rng) => {
     if (!hist?.length) return [];
     const ms = { DAY: 86400000, WEEK: 604800000, MONTH: 2592000000, SIX_MONTHS: 15552000000, YEAR: 31536000000 };
     let data = ms[rng] ? hist.filter(p => new Date(p[0]).getTime() >= (Date.now() - ms[rng])) : hist;
-    
     if (['MONTH', 'YEAR', 'ALL'].includes(rng)) {
         const dailyMap = new Map();
         data.forEach(pt => { 
@@ -97,26 +83,21 @@ const prepareChartData = (hist, costHist = [], factor = 1, currentRange = 'MONTH
     const costData = [];
     
     const sortedCost = [...costHist].sort((a,b) => new Date(a[0]) - new Date(b[0]));
-    
     let lastKnownCost = 0;
     let costIdx = 0;
 
     hist.forEach((pt) => { 
         const timestamp = new Date(pt[0]).getTime();
-        
         labels.push(smartDate(pt[0], currentRange)); 
         data.push((pt[1] || 0) / factor);
         
-        // Sync Cost
         while(costIdx < sortedCost.length && new Date(sortedCost[costIdx][0]).getTime() <= timestamp) {
             lastKnownCost = sortedCost[costIdx][1];
             costIdx++;
         }
-        
         if (lastKnownCost === 0 && sortedCost.length > 0 && costIdx === 0) {
              if(sortedCost[0]) lastKnownCost = sortedCost[0][1]; 
         }
-
         costData.push(lastKnownCost / factor);
     });
 
@@ -189,47 +170,31 @@ function renderUI() {
     const c = (t.cost || 0) / factor;
     const unrealized = v - c; 
 
-    // --- WINNERLAND / LOSERLAND LOGIC ---
     const titleEl = document.querySelector("h1");
     if(titleEl) {
         titleEl.textContent = p >= 0 ? "WINNERLAND" : "LOSERLAND";
         titleEl.className = `text-2xl font-black tracking-tighter uppercase ${p >= 0 ? 'text-emerald-500' : 'text-red-500'}`;
     }
 
-    const statsHTML = `
-        <div class="glass-card p-6 border-b-4 ${p >= 0 ? 'border-accent-green' : 'border-accent-red'}">
-            <p class="text-[10px] uppercase font-black text-neutral-500 tracking-[0.2em] mb-2">Total Equity</p>
-            <p class="text-3xl font-black text-white tracking-tighter">${fmtMoney(v, true)}</p>
-            <p class="text-xs font-bold ${p >= 0 ? 'text-accent-green' : 'text-accent-red'} mt-2">${p >= 0 ? '▲' : '▼'} ${fmtMoney(Math.abs(p), true)}</p>
-        </div>
-        <div class="glass-card p-6">
-            <p class="text-[10px] uppercase font-black text-neutral-500 tracking-[0.2em] mb-2">Total Return</p>
-            <p class="text-3xl font-black text-white tracking-tighter">${fmtPct(t.pct)}%</p>
-            <p class="text-xs font-bold text-neutral-500 mt-2 uppercase tracking-widest">Inception to Date</p>
-        </div>
-        <div class="glass-card p-6">
-            <p class="text-[10px] uppercase font-black text-neutral-500 tracking-[0.2em] mb-2">Cost Basis</p>
-            <p class="text-3xl font-black text-white tracking-tighter">${fmtMoney(c, true)}</p>
-            <p class="text-xs font-bold text-neutral-500 mt-2 uppercase tracking-widest">Net Invested</p>
-        </div>
-        <div class="glass-card p-6 bg-amber-600/5 border-amber-500/20">
-            <p class="text-[10px] uppercase font-black text-amber-500 tracking-[0.2em] mb-2">Performance Meter</p>
-            <p class="text-3xl font-black text-white tracking-tighter">${p >= 0 ? 'High' : 'Low'}</p>
-            <div class="w-full bg-neutral-800 h-1 rounded-full mt-4 overflow-hidden"><div class="bg-amber-500 h-full transition-all duration-1000" style="width: ${Math.min(100, Math.max(0, 50 + t.pct))}%"></div></div>
-        </div>
-    `;
-    document.getElementById("statsGrid").innerHTML = statsHTML;
-
+    // UPDATE HEADER STATS (Removed StatsGrid rendering)
     document.getElementById("totalValueDisplay").textContent = fmtMoney(v, true);
     
+    // Total Change Display
     const disp = document.getElementById("totalChangeDisplay");
     disp.className = `text-sm font-bold ${p >= 0 ? 'text-accent-green' : 'text-accent-red'}`;
     disp.textContent = `${p >= 0 ? '+' : ''}${fmtPct(t.pct)}%`;
 
+    // Unrealized Display
     const unEl = document.getElementById("unrealizedDisplay");
     if(unEl) {
         unEl.textContent = `${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}`;
         unEl.className = `text-lg font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+    }
+
+    // Cost Display (New)
+    const costEl = document.getElementById("costDisplay");
+    if(costEl) {
+        costEl.textContent = fmtMoney(c, true);
     }
 
     document.getElementById("lastUpdated").textContent = `Sync: ${new Date(summary.lastUpdatedDate).toLocaleTimeString()}`;
@@ -244,13 +209,10 @@ function renderMainChart(factor) {
     grad.addColorStop(0, 'rgba(245, 158, 11, 0.2)');
     grad.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
     
-    // 1. FILTER VALUE HISTORY (Standard)
     const hist = simplifyData(filterRange(summary.history, globalRange));
-    
-    // 2. FILTER COST HISTORY (Aggressive - Removes FX noise)
+    // Apply STRICT filter to Cost
     const costHist = simplifyCostData(filterRange(summary.costHistory || [], globalRange));
     
-    // 3. PREPARE
     const cd = prepareChartData(hist, costHist, factor, globalRange);
     
     if (chartRegistry['main']) chartRegistry['main'].destroy();
@@ -281,7 +243,7 @@ function renderMainChart(factor) {
                     backgroundColor: 'transparent',
                     fill: false, 
                     tension: 0, 
-                    stepped: 'before', // Ensures nice square steps
+                    stepped: 'before',
                     pointRadius: 0,
                     pointHoverRadius: 0,
                     order: 2
