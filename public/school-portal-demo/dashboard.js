@@ -52,69 +52,32 @@ const filterRange = (hist, rng) => {
     return data;
 };
 
-// --- CHART DATA PREP ---
-const prepareChartData = (hist, symbol = null, factor = 1, currentRange = 'MONTH') => {
+// --- DATA PREP (Takes Value History AND Cost History) ---
+const prepareChartData = (hist, costHist = null, factor = 1, currentRange = 'MONTH') => {
     const labels = [];
     const data = [];
-    hist.forEach(pt => { labels.push(smartDate(pt[0], currentRange)); data.push((pt[1] || 0) / factor); });
+    const costData = []; // Secondary line
 
-    const count = hist.length;
-    const pointRadii = new Array(count).fill(0); 
-    const pointHoverRadii = new Array(count).fill(6);
-    const details = new Array(count).fill(null);
-
-    const relevantTrades = symbol ? tradesHistory.filter(t => t.symbol === symbol) : tradesHistory;
-    
-    relevantTrades.forEach(tr => {
-        const trTime = new Date(tr.date).getTime();
-        const start = new Date(hist[0][0]).getTime();
-        const end = new Date(hist[hist.length - 1][0]).getTime();
-
-        if (trTime >= start && trTime <= end + (86400000)) {
-            let closestIdx = -1;
-            let minDiff = Infinity;
-            for (let i = 0; i < count; i++) {
-                const diff = Math.abs(new Date(hist[i][0]).getTime() - trTime);
-                if (diff < minDiff) { minDiff = diff; closestIdx = i; }
-            }
-            if (closestIdx !== -1) {
-                details[closestIdx] = `${tr.type} ${Number(tr.quantity).toFixed(0)} ${tr.symbol} @ $${Number(tr.price).toFixed(2)}`;
+    hist.forEach((pt, index) => { 
+        labels.push(smartDate(pt[0], currentRange)); 
+        data.push((pt[1] || 0) / factor);
+        
+        // Match cost data to value data timestamps
+        if (costHist) {
+            // Find closest cost point
+            // Since cost hist might have slightly diff timestamps or frequency
+            // We assume costHist corresponds roughly 1:1 if sorted
+            // Or strictly: we check timestamp match
+            if(costHist[index]) {
+                costData.push((costHist[index][1] || 0) / factor);
+            } else {
+                // fallback to last known
+                costData.push(costData.length > 0 ? costData[costData.length-1] : 0);
             }
         }
     });
-    return { labels, data, pointRadii, pointHoverRadii, details };
-};
 
-// --- CUSTOM PLUGIN: VERTICAL TRADE LINES ---
-const tradeLinePlugin = {
-    id: 'tradeLines',
-    afterDatasetsDraw: (chart) => {
-        const ctx = chart.ctx;
-        const chartArea = chart.chartArea;
-        const meta = chart.getDatasetMeta(0);
-        const dataPoints = meta.data;
-        const details = chart.data.datasets[0].details;
-        if(!details) return;
-
-        ctx.save();
-        details.forEach((det, index) => {
-            if(det) {
-                const pt = dataPoints[index];
-                if(!pt) return;
-                const isSell = det.includes('SELL');
-                const x = pt.x;
-
-                ctx.beginPath();
-                ctx.strokeStyle = isSell ? 'rgba(239, 68, 68, 0.6)' : 'rgba(16, 185, 129, 0.6)';
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([4, 4]);
-                ctx.moveTo(x, chartArea.top);
-                ctx.lineTo(x, chartArea.bottom);
-                ctx.stroke();
-            }
-        });
-        ctx.restore();
-    }
+    return { labels, data, costData };
 };
 
 // --- 4. DATA ENGINE ---
@@ -134,15 +97,22 @@ async function loadData() {
 
         const seenDates = new Set();
         const rawPf = [];
+        const rawCost = []; // New Array for Cost History
         const rawSym = {};
+        
         combined.forEach(r => {
             const dt = r.data.lastUpdated || r.last_updated;
             if (!dt) return;
             const timeKey = new Date(dt).getTime();
             if (seenDates.has(timeKey)) return;
             seenDates.add(timeKey);
+            
             const val = Number(r.data.totals?.value || 0);
+            const cost = Number(r.data.totals?.cost || 0);
+            
             if (isFinite(val)) rawPf.push([dt, val]);
+            if (isFinite(cost)) rawCost.push([dt, cost]);
+
             (r.data.positions || []).forEach(p => {
                 if (p?.symbol) {
                     if (!rawSym[p.symbol]) rawSym[p.symbol] = [];
@@ -151,10 +121,15 @@ async function loadData() {
             });
         });
 
+        // Sort both arrays by date
         rawPf.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+        rawCost.sort((a, b) => new Date(a[0]) - new Date(b[0]));
         Object.keys(rawSym).forEach(k => rawSym[k].sort((a, b) => new Date(a[0]) - new Date(b[0])));
+        
         summary.history = rawPf;
+        summary.costHistory = rawCost; // Store cost history
         summary.symbolHistory = rawSym;
+        
         renderUI();
     } catch (e) {
         console.error(e);
@@ -181,23 +156,23 @@ function renderUI() {
 
     const statsHTML = `
         <div class="glass-card p-6 border-b-4 ${p >= 0 ? 'border-accent-green' : 'border-accent-red'}">
-            <p class="text-[10px] uppercase font-black text-neutral-500 tracking-[0.2em] mb-2">Winning Value</p>
+            <p class="text-[10px] uppercase font-black text-neutral-500 tracking-[0.2em] mb-2">Total Equity</p>
             <p class="text-3xl font-black text-white tracking-tighter">${fmtMoney(v, true)}</p>
             <p class="text-xs font-bold ${p >= 0 ? 'text-accent-green' : 'text-accent-red'} mt-2">${p >= 0 ? '▲' : '▼'} ${fmtMoney(Math.abs(p), true)}</p>
         </div>
         <div class="glass-card p-6">
-            <p class="text-[10px] uppercase font-black text-neutral-500 tracking-[0.2em] mb-2">Alpha Yield</p>
+            <p class="text-[10px] uppercase font-black text-neutral-500 tracking-[0.2em] mb-2">Total Return</p>
             <p class="text-3xl font-black text-white tracking-tighter">${fmtPct(t.pct)}%</p>
             <p class="text-xs font-bold text-neutral-500 mt-2 uppercase tracking-widest">Inception to Date</p>
         </div>
         <div class="glass-card p-6">
-            <p class="text-[10px] uppercase font-black text-neutral-500 tracking-[0.2em] mb-2">Capital Deployed</p>
+            <p class="text-[10px] uppercase font-black text-neutral-500 tracking-[0.2em] mb-2">Cost Basis</p>
             <p class="text-3xl font-black text-white tracking-tighter">${fmtMoney(c, true)}</p>
-            <p class="text-xs font-bold text-neutral-500 mt-2 uppercase tracking-widest">Net Cost Basis</p>
+            <p class="text-xs font-bold text-neutral-500 mt-2 uppercase tracking-widest">Net Invested</p>
         </div>
         <div class="glass-card p-6 bg-amber-600/5 border-amber-500/20">
-            <p class="text-[10px] uppercase font-black text-amber-500 tracking-[0.2em] mb-2">Win Sentiment</p>
-            <p class="text-3xl font-black text-white tracking-tighter">${p >= 0 ? 'Peak' : 'Dip'}</p>
+            <p class="text-[10px] uppercase font-black text-amber-500 tracking-[0.2em] mb-2">Performance Meter</p>
+            <p class="text-3xl font-black text-white tracking-tighter">${p >= 0 ? 'High' : 'Low'}</p>
             <div class="w-full bg-neutral-800 h-1 rounded-full mt-4 overflow-hidden"><div class="bg-amber-500 h-full transition-all duration-1000" style="width: ${Math.min(100, Math.max(0, 50 + t.pct))}%"></div></div>
         </div>
     `;
@@ -228,51 +203,64 @@ function renderMainChart(factor) {
     const grad = ctx.createLinearGradient(0, 0, 0, 450);
     grad.addColorStop(0, 'rgba(245, 158, 11, 0.2)');
     grad.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
+    
+    // Filter Cost History separately
     const hist = simplifyData(filterRange(summary.history, globalRange));
-    const cd = prepareChartData(hist, null, factor, globalRange);
+    const costHist = simplifyData(filterRange(summary.costHistory || [], globalRange));
+    
+    // Prep data for 2 datasets
+    const cd = prepareChartData(hist, costHist, factor, globalRange);
     
     if (chartRegistry['main']) chartRegistry['main'].destroy();
     
-    Chart.register(tradeLinePlugin);
-
     chartRegistry['main'] = new Chart(ctx, {
         type: 'line',
         data: {
             labels: cd.labels,
-            datasets: [{
-                data: cd.data, 
-                borderColor: '#f59e0b', 
-                borderWidth: 3, 
-                backgroundColor: grad, 
-                fill: true, 
-                tension: 0.15,
-                pointRadius: cd.pointRadii, 
-                pointHoverRadius: cd.pointHoverRadius, 
-                pointBackgroundColor: '#f59e0b',
-                details: cd.details
-            }]
+            datasets: [
+                {
+                    label: 'Portfolio Value',
+                    data: cd.data, 
+                    borderColor: '#f59e0b', // Amber for Value
+                    borderWidth: 3, 
+                    backgroundColor: grad, 
+                    fill: true, 
+                    tension: 0.15,
+                    pointRadius: 0, 
+                    pointHoverRadius: 6,
+                    order: 1
+                },
+                {
+                    label: 'Cost Basis',
+                    data: cd.costData, 
+                    borderColor: 'rgba(255, 255, 255, 0.4)', // White dashed for Cost
+                    borderWidth: 2, 
+                    borderDash: [5, 5],
+                    backgroundColor: 'transparent',
+                    fill: false, 
+                    tension: 0.1, // Straighter line for cost
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    order: 2
+                }
+            ]
         },
         options: getChartOptions()
     });
 }
 
-// --- RESPONSIVE CARD TABLE RENDERER ---
 function renderTable(factor) {
     const body = document.getElementById("holdingsBody");
     body.innerHTML = "";
     
     summary.positions.forEach(p => {
         const row = document.createElement("tr");
-        
-        // CSS: On mobile (default), display as BLOCK with margins. On desktop (md), behave like a table row.
         row.className = "block md:table-row hover:bg-white/[0.04] cursor-pointer transition-all group border-b border-white/5 p-4 mb-4 md:mb-0 bg-white/[0.03] md:bg-transparent rounded-2xl md:rounded-none";
-        
         row.onclick = () => openDrawer(p.symbol);
         
         const weight = ((p.value / summary.totals.value) * 100);
         const unrealized = (p.value - p.cost) / factor;
 
-        // NOTE: We added "md:hidden" spans to act as labels on mobile cards
         row.innerHTML = `
             <td class="block md:table-cell px-4 py-3 md:px-6 md:py-5">
                 <div class="flex items-center gap-3">
@@ -282,7 +270,7 @@ function renderTable(factor) {
             </td>
             
             <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center">
-                <span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Value</span>
+                <span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Equity</span>
                 <span class="font-bold text-neutral-200">${fmtMoney(p.value / factor, true)}</span>
             </td>
             
@@ -292,7 +280,7 @@ function renderTable(factor) {
             </td>
             
             <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center">
-                <span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">P/L</span>
+                <span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Unrealized</span>
                 <span class="font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}">
                     ${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}
                 </span>
@@ -345,7 +333,7 @@ function renderDrawerChart(sym, factor) {
     const range = tickerRangeMode[sym] || "YEAR";
     const rawHist = filterRange(summary.symbolHistory[sym] || [], range);
     const hist = simplifyData(rawHist);
-    const cd = prepareChartData(hist, sym, factor, range);
+    const cd = prepareChartData(hist, null, factor, range); // Drawer only shows single line
     if (chartRegistry['drawer']) chartRegistry['drawer'].destroy();
     
     chartRegistry['drawer'] = new Chart(ctx, {
@@ -354,7 +342,7 @@ function renderDrawerChart(sym, factor) {
             labels: cd.labels,
             datasets: [{
                 data: cd.data, borderColor: '#f59e0b', borderWidth: 2.5, backgroundColor: 'rgba(245, 158, 11, 0.05)', fill: true, tension: 0.1,
-                pointRadius: cd.pointRadii, pointHoverRadius: cd.pointHoverRadius, pointBackgroundColor: '#f59e0b', details: cd.details
+                pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: '#f59e0b'
             }]
         },
         options: getChartOptions(false)
@@ -385,7 +373,11 @@ function getChartOptions(showScales = true) {
             tooltip: {
                 backgroundColor: 'rgba(10, 10, 10, 0.95)', titleColor: '#888', bodyColor: '#fff', borderColor: '#333', borderWidth: 1, padding: 12, cornerRadius: 12,
                 titleFont: { size: 10, weight: 'bold' }, bodyFont: { size: 12, weight: '900' }, displayColors: false,
-                callbacks: { label: (ctx) => { const d = ctx.dataset.details; return (d && d[ctx.dataIndex]) ? d[ctx.dataIndex] : fmtMoney(ctx.raw, true); } }
+                callbacks: { 
+                    label: (ctx) => { 
+                        return ctx.dataset.label + ': ' + fmtMoney(ctx.raw, true);
+                    } 
+                }
             }
         },
         scales: {
