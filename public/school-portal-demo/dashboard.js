@@ -19,6 +19,12 @@ const fmtMoney = (v, sign = false) => {
 
 const fmtPct = (v) => (v == null) ? "0.00" : Number(v).toFixed(2);
 
+// Force NZ/Local friendly Date Strings
+const getLocalYMD = (iso) => {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+
 const smartDate = (iso, range) => {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;
@@ -28,6 +34,7 @@ const smartDate = (iso, range) => {
     return `${d.getDate()} ${months[d.getMonth()]}`;
 };
 
+// Standard simplifier for VALUE line (keep detail)
 const simplifyData = (arr) => {
     if (!arr || arr.length < 2) return arr;
     const clean = [arr[0]];
@@ -40,49 +47,73 @@ const simplifyData = (arr) => {
     return clean;
 };
 
+// --- NEW: AGGRESSIVE SIMPLIFIER FOR COST LINE ---
+// This ignores changes smaller than 0.5% to hide Currency Fluctuation noise
+const simplifyCostData = (arr) => {
+    if (!arr || arr.length < 2) return arr;
+    const clean = [arr[0]];
+    
+    // We iterate through and only accept a new point if it changed significantly
+    for (let i = 1; i < arr.length; i++) {
+        const lastVal = clean[clean.length - 1][1];
+        const currVal = arr[i][1];
+        
+        // Calculate % change
+        const pctChange = lastVal === 0 ? 1 : Math.abs((currVal - lastVal) / lastVal);
+        
+        // Threshold: 0.005 (0.5%). If change is smaller than this, it's just FX noise.
+        // We also always keep the very last point to ensure current state is accurate.
+        if (i === arr.length - 1 || pctChange > 0.005) {
+            clean.push(arr[i]);
+        } else {
+            // OPTIONAL: If we skip a point, we could push a duplicate of the LAST value 
+            // to maintain the "Stepped" look perfectly, but Chart.js handles gaps well.
+            // For a perfect step, we actually want to ignore the wobble completely.
+        }
+    }
+    return clean;
+};
+
 const filterRange = (hist, rng) => {
     if (!hist?.length) return [];
     const ms = { DAY: 86400000, WEEK: 604800000, MONTH: 2592000000, SIX_MONTHS: 15552000000, YEAR: 31536000000 };
     let data = ms[rng] ? hist.filter(p => new Date(p[0]).getTime() >= (Date.now() - ms[rng])) : hist;
+    
     if (['MONTH', 'YEAR', 'ALL'].includes(rng)) {
         const dailyMap = new Map();
-        data.forEach(pt => { dailyMap.set(new Date(pt[0]).toDateString(), pt); });
+        data.forEach(pt => { 
+            const dateKey = getLocalYMD(pt[0]);
+            dailyMap.set(dateKey, pt); 
+        });
         data = Array.from(dailyMap.values());
     }
     return data;
 };
 
-// --- DATA PREP (Synchronized Cost Basis) ---
+// --- CHART DATA PREP ---
 const prepareChartData = (hist, costHist = [], factor = 1, currentRange = 'MONTH') => {
     const labels = [];
     const data = [];
     const costData = [];
     
-    // Sort cost history to be safe
     const sortedCost = [...costHist].sort((a,b) => new Date(a[0]) - new Date(b[0]));
     
     let lastKnownCost = 0;
     let costIdx = 0;
 
-    // Loop through VALUE history (The master timeline)
     hist.forEach((pt) => { 
         const timestamp = new Date(pt[0]).getTime();
         
         labels.push(smartDate(pt[0], currentRange)); 
         data.push((pt[1] || 0) / factor);
         
-        // Advance the Cost Index until we catch up to this timestamp
-        // This ensures "lastKnownCost" is exactly what the cost was at this moment in time.
+        // Sync Cost
         while(costIdx < sortedCost.length && new Date(sortedCost[costIdx][0]).getTime() <= timestamp) {
             lastKnownCost = sortedCost[costIdx][1];
             costIdx++;
         }
         
-        // If we haven't found a cost yet (start of chart), assume 0 or first cost
         if (lastKnownCost === 0 && sortedCost.length > 0 && costIdx === 0) {
-             // Look ahead slightly? Or just stay 0.
-             // If we are looking at a week view, cost might have been established years ago.
-             // In that case, the 'filterRange' logic handles it, but if cost starts later, 0 is correct.
              if(sortedCost[0]) lastKnownCost = sortedCost[0][1]; 
         }
 
@@ -123,7 +154,6 @@ async function loadData() {
             const cost = Number(r.data.totals?.cost || 0);
             
             if (isFinite(val)) rawPf.push([dt, val]);
-            // Always push cost if valid, even if 0
             if (isFinite(cost)) rawCost.push([dt, cost]);
 
             (r.data.positions || []).forEach(p => {
@@ -214,10 +244,13 @@ function renderMainChart(factor) {
     grad.addColorStop(0, 'rgba(245, 158, 11, 0.2)');
     grad.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
     
-    // Filter Cost History separately
+    // 1. FILTER VALUE HISTORY (Standard)
     const hist = simplifyData(filterRange(summary.history, globalRange));
-    const costHist = simplifyData(filterRange(summary.costHistory || [], globalRange));
     
+    // 2. FILTER COST HISTORY (Aggressive - Removes FX noise)
+    const costHist = simplifyCostData(filterRange(summary.costHistory || [], globalRange));
+    
+    // 3. PREPARE
     const cd = prepareChartData(hist, costHist, factor, globalRange);
     
     if (chartRegistry['main']) chartRegistry['main'].destroy();
@@ -242,13 +275,13 @@ function renderMainChart(factor) {
                 {
                     label: 'Cost Basis',
                     data: cd.costData, 
-                    borderColor: 'rgba(255, 255, 255, 0.3)', // Grey/White Dotted
+                    borderColor: 'rgba(255, 255, 255, 0.3)', 
                     borderWidth: 2, 
-                    borderDash: [4, 4], // Dotted Effect
+                    borderDash: [4, 4], 
                     backgroundColor: 'transparent',
                     fill: false, 
-                    tension: 0, // Zero tension = Sharp steps
-                    stepped: 'before', // This forces the square "Step" look for buy/sells
+                    tension: 0, 
+                    stepped: 'before', // Ensures nice square steps
                     pointRadius: 0,
                     pointHoverRadius: 0,
                     order: 2
@@ -323,7 +356,7 @@ function renderDrawerChart(sym, factor) {
             labels: cd.labels,
             datasets: [{
                 data: cd.data, borderColor: '#f59e0b', borderWidth: 2.5, backgroundColor: 'rgba(245, 158, 11, 0.05)', fill: true, tension: 0.1,
-                pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: '#f59e0b'
+                pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: '#f59e0b', details: cd.details
             }]
         },
         options: getChartOptions(false)
