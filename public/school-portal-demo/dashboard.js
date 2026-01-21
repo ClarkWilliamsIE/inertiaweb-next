@@ -60,62 +60,53 @@ const filterRange = (hist, rng) => {
     return data;
 };
 
-// --- NEW ENGINE: Reconstruct Cost History from Trades ---
-// This builds a perfectly flat step-line based on trade events
-const generateCostFromTrades = (histPoints, trades, targetTotalCost) => {
+// --- NEW STRICT ENGINE: Pure Cost Calculation ---
+const generateCostFromTrades = (histPoints, trades) => {
     const costCurve = [];
     
     // 1. Sort trades chronologically
     const sortedTrades = [...trades].sort((a,b) => new Date(a.date) - new Date(b.date));
     
     // 2. Portfolio State Tracking
-    // We track weighted average cost for every symbol to handle sells correctly
     let portfolio = {}; // { 'AAPL': { qty: 10, totalCost: 1000 } }
-    let currentTotalCost = 0;
+    let currentTotalInvested = 0;
+    let tradeIdx = 0;
 
     // 3. Iterate through every point on the chart
     histPoints.forEach(pt => {
         const pointTime = new Date(pt[0]).getTime();
 
         // Process all trades that happened BEFORE this point
-        while (sortedTrades.length > 0 && new Date(sortedTrades[0].date).getTime() <= pointTime) {
-            const tr = sortedTrades.shift();
+        while (tradeIdx < sortedTrades.length && new Date(sortedTrades[tradeIdx].date).getTime() <= pointTime) {
+            const tr = sortedTrades[tradeIdx];
             const sym = tr.symbol;
             const q = Number(tr.quantity);
-            const p = Number(tr.price);
+            const p = Number(tr.price); // STRICTLY TRUST THIS PRICE (NZD)
 
             if (!portfolio[sym]) portfolio[sym] = { qty: 0, totalCost: 0 };
             
             if (tr.type === 'BUY') {
-                portfolio[sym].totalCost += (p * q);
+                const tradeValue = p * q;
+                portfolio[sym].totalCost += tradeValue;
                 portfolio[sym].qty += q;
-                currentTotalCost += (p * q);
+                currentTotalInvested += tradeValue;
             } else {
                 // SELL logic: Reduce cost basis proportionally
+                // (e.g. If I sell 50% of my shares, I remove 50% of the cost)
                 if (portfolio[sym].qty > 0) {
                     const avgCost = portfolio[sym].totalCost / portfolio[sym].qty;
                     const costRemoved = avgCost * q;
                     portfolio[sym].totalCost -= costRemoved;
                     portfolio[sym].qty -= q;
-                    currentTotalCost -= costRemoved;
+                    currentTotalInvested -= costRemoved;
                 }
             }
+            tradeIdx++;
         }
         
         // Push the calculated cost at this moment in time
-        costCurve.push(currentTotalCost);
+        costCurve.push(currentTotalInvested);
     });
-
-    // 4. Auto-Scale to match Reality (Fixes USD/NZD mismatch)
-    // The curve shape is perfect, but the magnitude might be wrong (USD vs NZD).
-    // We scale the entire curve so the FINAL point matches the dashboard's current Total Cost.
-    const finalCalculated = costCurve[costCurve.length - 1] || 1;
-    const scaleFactor = targetTotalCost / finalCalculated;
-
-    // If scale is wild (e.g. 0), ignore it. Otherwise apply scale.
-    if (finalCalculated > 0 && targetTotalCost > 0) {
-        return costCurve.map(c => c * scaleFactor);
-    }
 
     return costCurve;
 };
@@ -129,7 +120,7 @@ const prepareChartData = (hist, costCurve, factor = 1, currentRange = 'MONTH') =
     hist.forEach((pt, index) => { 
         labels.push(smartDate(pt[0], currentRange)); 
         data.push((pt[1] || 0) / factor);
-        // Use our generated cost curve (divide by factor for 1/11th scale)
+        // Direct map from our generated curve
         costData.push((costCurve[index] || 0) / factor);
     });
 
@@ -196,7 +187,6 @@ function renderUI() {
     const c = (t.cost || 0) / factor;
     const unrealized = v - c; 
 
-    // --- WINNERLAND / LOSERLAND LOGIC ---
     const titleEl = document.querySelector("h1");
     if(titleEl) {
         titleEl.textContent = p >= 0 ? "WINNERLAND" : "LOSERLAND";
@@ -235,9 +225,9 @@ function renderMainChart(factor) {
     // 1. Get History (Value)
     const hist = simplifyData(filterRange(summary.history, globalRange));
     
-    // 2. Generate Cost Curve from Trades (Pass a COPY of trades to avoid mutation)
-    // We pass 'summary.totals.cost' as the target to scale towards.
-    const costCurve = generateCostFromTrades(hist, JSON.parse(JSON.stringify(tradesHistory)), summary.totals.cost);
+    // 2. Generate Cost Curve from Trades (Strict Mode)
+    // We do NOT pass a target cost anymore. We let the trades dictate reality.
+    const costCurve = generateCostFromTrades(hist, JSON.parse(JSON.stringify(tradesHistory)));
     
     // 3. Prep Data
     const cd = prepareChartData(hist, costCurve, factor, globalRange);
@@ -336,7 +326,6 @@ function renderDrawerChart(sym, factor) {
     const range = tickerRangeMode[sym] || "YEAR";
     const rawHist = filterRange(summary.symbolHistory[sym] || [], range);
     const hist = simplifyData(rawHist);
-    // Tickers don't have cost history logic in this version (optional todo)
     const cd = prepareChartData(hist, [], factor, range); 
     if (chartRegistry['drawer']) chartRegistry['drawer'].destroy();
     
