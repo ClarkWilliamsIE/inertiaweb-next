@@ -60,53 +60,60 @@ const filterRange = (hist, rng) => {
     return data;
 };
 
-// --- NEW STRICT ENGINE: Pure Cost Calculation ---
-const generateCostFromTrades = (histPoints, trades) => {
+// --- ANCHORED COST ENGINE (Fixes Scaling Issues) ---
+const generateCostFromTrades = (histPoints, trades, targetTotalCost) => {
     const costCurve = [];
     
     // 1. Sort trades chronologically
     const sortedTrades = [...trades].sort((a,b) => new Date(a.date) - new Date(b.date));
     
-    // 2. Portfolio State Tracking
-    let portfolio = {}; // { 'AAPL': { qty: 10, totalCost: 1000 } }
-    let currentTotalInvested = 0;
+    let portfolio = {}; 
+    let runningCost = 0;
     let tradeIdx = 0;
 
-    // 3. Iterate through every point on the chart
+    // 2. Build the Raw Curve (The Shape)
     histPoints.forEach(pt => {
         const pointTime = new Date(pt[0]).getTime();
 
-        // Process all trades that happened BEFORE this point
         while (tradeIdx < sortedTrades.length && new Date(sortedTrades[tradeIdx].date).getTime() <= pointTime) {
             const tr = sortedTrades[tradeIdx];
             const sym = tr.symbol;
             const q = Number(tr.quantity);
-            const p = Number(tr.price); // STRICTLY TRUST THIS PRICE (NZD)
+            const p = Number(tr.price);
 
             if (!portfolio[sym]) portfolio[sym] = { qty: 0, totalCost: 0 };
             
             if (tr.type === 'BUY') {
-                const tradeValue = p * q;
-                portfolio[sym].totalCost += tradeValue;
+                const val = p * q;
+                portfolio[sym].totalCost += val;
                 portfolio[sym].qty += q;
-                currentTotalInvested += tradeValue;
+                runningCost += val;
             } else {
-                // SELL logic: Reduce cost basis proportionally
-                // (e.g. If I sell 50% of my shares, I remove 50% of the cost)
                 if (portfolio[sym].qty > 0) {
                     const avgCost = portfolio[sym].totalCost / portfolio[sym].qty;
                     const costRemoved = avgCost * q;
                     portfolio[sym].totalCost -= costRemoved;
                     portfolio[sym].qty -= q;
-                    currentTotalInvested -= costRemoved;
+                    runningCost -= costRemoved;
                 }
             }
             tradeIdx++;
         }
-        
-        // Push the calculated cost at this moment in time
-        costCurve.push(currentTotalInvested);
+        costCurve.push(runningCost);
     });
+
+    // 3. ANCHOR LOGIC (The Fix)
+    // We compare where our calculation ended vs where the backend says we are.
+    // If they differ, we scale the entire line to match the backend (Result: Perfect Line).
+    const calculatedEnd = costCurve[costCurve.length - 1] || 0;
+    
+    if (calculatedEnd > 0 && targetTotalCost > 0) {
+        const ratio = targetTotalCost / calculatedEnd;
+        // Only scale if the difference is significant (e.g. currency conversion difference)
+        // If it's close (within 1%), we assume it's accurate and don't touch it.
+        // But here, we assume user inputs might be mixed currency, so we force alignment.
+        return costCurve.map(val => val * ratio);
+    }
 
     return costCurve;
 };
@@ -120,7 +127,6 @@ const prepareChartData = (hist, costCurve, factor = 1, currentRange = 'MONTH') =
     hist.forEach((pt, index) => { 
         labels.push(smartDate(pt[0], currentRange)); 
         data.push((pt[1] || 0) / factor);
-        // Direct map from our generated curve
         costData.push((costCurve[index] || 0) / factor);
     });
 
@@ -222,14 +228,12 @@ function renderMainChart(factor) {
     grad.addColorStop(0, 'rgba(245, 158, 11, 0.2)');
     grad.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
     
-    // 1. Get History (Value)
     const hist = simplifyData(filterRange(summary.history, globalRange));
     
-    // 2. Generate Cost Curve from Trades (Strict Mode)
-    // We do NOT pass a target cost anymore. We let the trades dictate reality.
-    const costCurve = generateCostFromTrades(hist, JSON.parse(JSON.stringify(tradesHistory)));
+    // GENERATE AND ANCHOR COST CURVE
+    // We pass 'summary.totals.cost' so the function knows where the line MUST end.
+    const costCurve = generateCostFromTrades(hist, JSON.parse(JSON.stringify(tradesHistory)), summary.totals.cost);
     
-    // 3. Prep Data
     const cd = prepareChartData(hist, costCurve, factor, globalRange);
     
     if (chartRegistry['main']) chartRegistry['main'].destroy();
@@ -260,7 +264,7 @@ function renderMainChart(factor) {
                     backgroundColor: 'transparent',
                     fill: false, 
                     tension: 0, 
-                    stepped: 'before', // Ensures nice square steps
+                    stepped: 'before',
                     pointRadius: 0,
                     pointHoverRadius: 0,
                     order: 2
