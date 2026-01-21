@@ -45,6 +45,20 @@ const simplifyData = (arr) => {
     return clean;
 };
 
+const simplifyCostData = (arr) => {
+    if (!arr || arr.length < 2) return arr;
+    const clean = [arr[0]];
+    for (let i = 1; i < arr.length; i++) {
+        const lastVal = clean[clean.length - 1][1];
+        const currVal = arr[i][1];
+        const pctChange = lastVal === 0 ? 1 : Math.abs((currVal - lastVal) / lastVal);
+        if (i === arr.length - 1 || pctChange > 0.05) {
+            clean.push(arr[i]);
+        }
+    }
+    return clean;
+};
+
 const filterRange = (hist, rng) => {
     if (!hist?.length) return [];
     const ms = { DAY: 86400000, WEEK: 604800000, MONTH: 2592000000, SIX_MONTHS: 15552000000, YEAR: 31536000000 };
@@ -60,74 +74,32 @@ const filterRange = (hist, rng) => {
     return data;
 };
 
-// --- ANCHORED COST ENGINE (Fixes Scaling Issues) ---
-const generateCostFromTrades = (histPoints, trades, targetTotalCost) => {
-    const costCurve = [];
-    
-    // 1. Sort trades chronologically
-    const sortedTrades = [...trades].sort((a,b) => new Date(a.date) - new Date(b.date));
-    
-    let portfolio = {}; 
-    let runningCost = 0;
-    let tradeIdx = 0;
-
-    // 2. Build the Raw Curve (The Shape)
-    histPoints.forEach(pt => {
-        const pointTime = new Date(pt[0]).getTime();
-
-        while (tradeIdx < sortedTrades.length && new Date(sortedTrades[tradeIdx].date).getTime() <= pointTime) {
-            const tr = sortedTrades[tradeIdx];
-            const sym = tr.symbol;
-            const q = Number(tr.quantity);
-            const p = Number(tr.price);
-
-            if (!portfolio[sym]) portfolio[sym] = { qty: 0, totalCost: 0 };
-            
-            if (tr.type === 'BUY') {
-                const val = p * q;
-                portfolio[sym].totalCost += val;
-                portfolio[sym].qty += q;
-                runningCost += val;
-            } else {
-                if (portfolio[sym].qty > 0) {
-                    const avgCost = portfolio[sym].totalCost / portfolio[sym].qty;
-                    const costRemoved = avgCost * q;
-                    portfolio[sym].totalCost -= costRemoved;
-                    portfolio[sym].qty -= q;
-                    runningCost -= costRemoved;
-                }
-            }
-            tradeIdx++;
-        }
-        costCurve.push(runningCost);
-    });
-
-    // 3. ANCHOR LOGIC (The Fix)
-    // We compare where our calculation ended vs where the backend says we are.
-    // If they differ, we scale the entire line to match the backend (Result: Perfect Line).
-    const calculatedEnd = costCurve[costCurve.length - 1] || 0;
-    
-    if (calculatedEnd > 0 && targetTotalCost > 0) {
-        const ratio = targetTotalCost / calculatedEnd;
-        // Only scale if the difference is significant (e.g. currency conversion difference)
-        // If it's close (within 1%), we assume it's accurate and don't touch it.
-        // But here, we assume user inputs might be mixed currency, so we force alignment.
-        return costCurve.map(val => val * ratio);
-    }
-
-    return costCurve;
-};
-
 // --- CHART DATA PREP ---
-const prepareChartData = (hist, costCurve, factor = 1, currentRange = 'MONTH') => {
+const prepareChartData = (hist, costHist = [], factor = 1, currentRange = 'MONTH') => {
     const labels = [];
     const data = [];
     const costData = [];
+    
+    // FIX: Ensure costHist is an array before spreading
+    const safeCostHist = Array.isArray(costHist) ? costHist : [];
+    const sortedCost = [...safeCostHist].sort((a,b) => new Date(a[0]) - new Date(b[0]));
+    
+    let lastKnownCost = 0;
+    let costIdx = 0;
 
-    hist.forEach((pt, index) => { 
+    hist.forEach((pt) => { 
+        const timestamp = new Date(pt[0]).getTime();
         labels.push(smartDate(pt[0], currentRange)); 
         data.push((pt[1] || 0) / factor);
-        costData.push((costCurve[index] || 0) / factor);
+        
+        while(costIdx < sortedCost.length && new Date(sortedCost[costIdx][0]).getTime() <= timestamp) {
+            lastKnownCost = sortedCost[costIdx][1];
+            costIdx++;
+        }
+        if (lastKnownCost === 0 && sortedCost.length > 0 && costIdx === 0) {
+             if(sortedCost[0]) lastKnownCost = sortedCost[0][1]; 
+        }
+        costData.push(lastKnownCost / factor);
     });
 
     return { labels, data, costData };
@@ -150,6 +122,7 @@ async function loadData() {
 
         const seenDates = new Set();
         const rawPf = [];
+        const rawCost = [];
         const rawSym = {};
         
         combined.forEach(r => {
@@ -160,7 +133,10 @@ async function loadData() {
             seenDates.add(timeKey);
             
             const val = Number(r.data.totals?.value || 0);
+            const cost = Number(r.data.totals?.cost || 0);
+            
             if (isFinite(val)) rawPf.push([dt, val]);
+            if (isFinite(cost)) rawCost.push([dt, cost]);
 
             (r.data.positions || []).forEach(p => {
                 if (p?.symbol) {
@@ -171,9 +147,11 @@ async function loadData() {
         });
 
         rawPf.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+        rawCost.sort((a, b) => new Date(a[0]) - new Date(b[0]));
         Object.keys(rawSym).forEach(k => rawSym[k].sort((a, b) => new Date(a[0]) - new Date(b[0])));
         
         summary.history = rawPf;
+        summary.costHistory = rawCost;
         summary.symbolHistory = rawSym;
         
         renderUI();
@@ -229,12 +207,9 @@ function renderMainChart(factor) {
     grad.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
     
     const hist = simplifyData(filterRange(summary.history, globalRange));
+    const costHist = simplifyCostData(filterRange(summary.costHistory || [], globalRange));
     
-    // GENERATE AND ANCHOR COST CURVE
-    // We pass 'summary.totals.cost' so the function knows where the line MUST end.
-    const costCurve = generateCostFromTrades(hist, JSON.parse(JSON.stringify(tradesHistory)), summary.totals.cost);
-    
-    const cd = prepareChartData(hist, costCurve, factor, globalRange);
+    const cd = prepareChartData(hist, costHist, factor, globalRange);
     
     if (chartRegistry['main']) chartRegistry['main'].destroy();
     
@@ -328,9 +303,16 @@ function closeDrawer() {
 function renderDrawerChart(sym, factor) {
     const ctx = document.getElementById('drawerChart').getContext('2d');
     const range = tickerRangeMode[sym] || "YEAR";
+    
+    // Set context for helper
+    chartRegistry.symbol = sym;
+
     const rawHist = filterRange(summary.symbolHistory[sym] || [], range);
     const hist = simplifyData(rawHist);
+    
+    // FIX: Pass empty array for costHist to avoid crash
     const cd = prepareChartData(hist, [], factor, range); 
+    
     if (chartRegistry['drawer']) chartRegistry['drawer'].destroy();
     
     chartRegistry['drawer'] = new Chart(ctx, {
