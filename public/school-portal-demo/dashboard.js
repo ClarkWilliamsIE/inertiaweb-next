@@ -45,20 +45,6 @@ const simplifyData = (arr) => {
     return clean;
 };
 
-const simplifyCostData = (arr) => {
-    if (!arr || arr.length < 2) return arr;
-    const clean = [arr[0]];
-    for (let i = 1; i < arr.length; i++) {
-        const lastVal = clean[clean.length - 1][1];
-        const currVal = arr[i][1];
-        const pctChange = lastVal === 0 ? 1 : Math.abs((currVal - lastVal) / lastVal);
-        if (i === arr.length - 1 || pctChange > 0.05) {
-            clean.push(arr[i]);
-        }
-    }
-    return clean;
-};
-
 const filterRange = (hist, rng) => {
     if (!hist?.length) return [];
     const ms = { DAY: 86400000, WEEK: 604800000, MONTH: 2592000000, SIX_MONTHS: 15552000000, YEAR: 31536000000 };
@@ -74,32 +60,77 @@ const filterRange = (hist, rng) => {
     return data;
 };
 
+// --- NEW ENGINE: Reconstruct Cost History from Trades ---
+// This builds a perfectly flat step-line based on trade events
+const generateCostFromTrades = (histPoints, trades, targetTotalCost) => {
+    const costCurve = [];
+    
+    // 1. Sort trades chronologically
+    const sortedTrades = [...trades].sort((a,b) => new Date(a.date) - new Date(b.date));
+    
+    // 2. Portfolio State Tracking
+    // We track weighted average cost for every symbol to handle sells correctly
+    let portfolio = {}; // { 'AAPL': { qty: 10, totalCost: 1000 } }
+    let currentTotalCost = 0;
+
+    // 3. Iterate through every point on the chart
+    histPoints.forEach(pt => {
+        const pointTime = new Date(pt[0]).getTime();
+
+        // Process all trades that happened BEFORE this point
+        while (sortedTrades.length > 0 && new Date(sortedTrades[0].date).getTime() <= pointTime) {
+            const tr = sortedTrades.shift();
+            const sym = tr.symbol;
+            const q = Number(tr.quantity);
+            const p = Number(tr.price);
+
+            if (!portfolio[sym]) portfolio[sym] = { qty: 0, totalCost: 0 };
+            
+            if (tr.type === 'BUY') {
+                portfolio[sym].totalCost += (p * q);
+                portfolio[sym].qty += q;
+                currentTotalCost += (p * q);
+            } else {
+                // SELL logic: Reduce cost basis proportionally
+                if (portfolio[sym].qty > 0) {
+                    const avgCost = portfolio[sym].totalCost / portfolio[sym].qty;
+                    const costRemoved = avgCost * q;
+                    portfolio[sym].totalCost -= costRemoved;
+                    portfolio[sym].qty -= q;
+                    currentTotalCost -= costRemoved;
+                }
+            }
+        }
+        
+        // Push the calculated cost at this moment in time
+        costCurve.push(currentTotalCost);
+    });
+
+    // 4. Auto-Scale to match Reality (Fixes USD/NZD mismatch)
+    // The curve shape is perfect, but the magnitude might be wrong (USD vs NZD).
+    // We scale the entire curve so the FINAL point matches the dashboard's current Total Cost.
+    const finalCalculated = costCurve[costCurve.length - 1] || 1;
+    const scaleFactor = targetTotalCost / finalCalculated;
+
+    // If scale is wild (e.g. 0), ignore it. Otherwise apply scale.
+    if (finalCalculated > 0 && targetTotalCost > 0) {
+        return costCurve.map(c => c * scaleFactor);
+    }
+
+    return costCurve;
+};
+
 // --- CHART DATA PREP ---
-const prepareChartData = (hist, costHist = [], factor = 1, currentRange = 'MONTH') => {
+const prepareChartData = (hist, costCurve, factor = 1, currentRange = 'MONTH') => {
     const labels = [];
     const data = [];
     const costData = [];
-    
-    // FIX: Ensure costHist is an array before spreading
-    const safeCostHist = Array.isArray(costHist) ? costHist : [];
-    const sortedCost = [...safeCostHist].sort((a,b) => new Date(a[0]) - new Date(b[0]));
-    
-    let lastKnownCost = 0;
-    let costIdx = 0;
 
-    hist.forEach((pt) => { 
-        const timestamp = new Date(pt[0]).getTime();
+    hist.forEach((pt, index) => { 
         labels.push(smartDate(pt[0], currentRange)); 
         data.push((pt[1] || 0) / factor);
-        
-        while(costIdx < sortedCost.length && new Date(sortedCost[costIdx][0]).getTime() <= timestamp) {
-            lastKnownCost = sortedCost[costIdx][1];
-            costIdx++;
-        }
-        if (lastKnownCost === 0 && sortedCost.length > 0 && costIdx === 0) {
-             if(sortedCost[0]) lastKnownCost = sortedCost[0][1]; 
-        }
-        costData.push(lastKnownCost / factor);
+        // Use our generated cost curve (divide by factor for 1/11th scale)
+        costData.push((costCurve[index] || 0) / factor);
     });
 
     return { labels, data, costData };
@@ -122,7 +153,6 @@ async function loadData() {
 
         const seenDates = new Set();
         const rawPf = [];
-        const rawCost = [];
         const rawSym = {};
         
         combined.forEach(r => {
@@ -133,10 +163,7 @@ async function loadData() {
             seenDates.add(timeKey);
             
             const val = Number(r.data.totals?.value || 0);
-            const cost = Number(r.data.totals?.cost || 0);
-            
             if (isFinite(val)) rawPf.push([dt, val]);
-            if (isFinite(cost)) rawCost.push([dt, cost]);
 
             (r.data.positions || []).forEach(p => {
                 if (p?.symbol) {
@@ -147,11 +174,9 @@ async function loadData() {
         });
 
         rawPf.sort((a, b) => new Date(a[0]) - new Date(b[0]));
-        rawCost.sort((a, b) => new Date(a[0]) - new Date(b[0]));
         Object.keys(rawSym).forEach(k => rawSym[k].sort((a, b) => new Date(a[0]) - new Date(b[0])));
         
         summary.history = rawPf;
-        summary.costHistory = rawCost;
         summary.symbolHistory = rawSym;
         
         renderUI();
@@ -171,6 +196,7 @@ function renderUI() {
     const c = (t.cost || 0) / factor;
     const unrealized = v - c; 
 
+    // --- WINNERLAND / LOSERLAND LOGIC ---
     const titleEl = document.querySelector("h1");
     if(titleEl) {
         titleEl.textContent = p >= 0 ? "WINNERLAND" : "LOSERLAND";
@@ -206,10 +232,15 @@ function renderMainChart(factor) {
     grad.addColorStop(0, 'rgba(245, 158, 11, 0.2)');
     grad.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
     
+    // 1. Get History (Value)
     const hist = simplifyData(filterRange(summary.history, globalRange));
-    const costHist = simplifyCostData(filterRange(summary.costHistory || [], globalRange));
     
-    const cd = prepareChartData(hist, costHist, factor, globalRange);
+    // 2. Generate Cost Curve from Trades (Pass a COPY of trades to avoid mutation)
+    // We pass 'summary.totals.cost' as the target to scale towards.
+    const costCurve = generateCostFromTrades(hist, JSON.parse(JSON.stringify(tradesHistory)), summary.totals.cost);
+    
+    // 3. Prep Data
+    const cd = prepareChartData(hist, costCurve, factor, globalRange);
     
     if (chartRegistry['main']) chartRegistry['main'].destroy();
     
@@ -239,7 +270,7 @@ function renderMainChart(factor) {
                     backgroundColor: 'transparent',
                     fill: false, 
                     tension: 0, 
-                    stepped: 'before',
+                    stepped: 'before', // Ensures nice square steps
                     pointRadius: 0,
                     pointHoverRadius: 0,
                     order: 2
@@ -303,16 +334,10 @@ function closeDrawer() {
 function renderDrawerChart(sym, factor) {
     const ctx = document.getElementById('drawerChart').getContext('2d');
     const range = tickerRangeMode[sym] || "YEAR";
-    
-    // Set context for helper
-    chartRegistry.symbol = sym;
-
     const rawHist = filterRange(summary.symbolHistory[sym] || [], range);
     const hist = simplifyData(rawHist);
-    
-    // FIX: Pass empty array for costHist to avoid crash
+    // Tickers don't have cost history logic in this version (optional todo)
     const cd = prepareChartData(hist, [], factor, range); 
-    
     if (chartRegistry['drawer']) chartRegistry['drawer'].destroy();
     
     chartRegistry['drawer'] = new Chart(ctx, {
