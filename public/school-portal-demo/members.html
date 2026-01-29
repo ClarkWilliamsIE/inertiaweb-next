@@ -185,178 +185,178 @@
     <script src="dashboard.js"></script>
 
 <script>
-        // Use a block scope to prevent variable conflicts
-        {
-            // --- CONFIGURATION ---
-            const _ETF_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
-            const _ETF_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
-            const _INITIAL_CAPITAL = 1000;
+        // 1. Define Unique Variables to prevent conflicts
+        const WINNER_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
+        const WINNER_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+        const WINNER_CAPITAL = 1000;
+        
+        // Global variables for data
+        let winnerlandMembers = [];
+        let winnerClient = null;
+
+        // 2. Define the Click Function IMMEDIATELY (Global Scope)
+        // This ensures the button works even if data hasn't loaded yet
+        window.openEtfLeaderboard = function() {
+            if (winnerlandMembers.length === 0) {
+                alert("Data is syncing or empty. Please wait.");
+                return;
+            }
+            renderDrawerChart();
+        };
+
+        // 3. Main Startup Function
+        async function initWinnerland() {
+            const previewEl = document.getElementById('etf-leader-preview');
             
-            let _etfMembersData = [];
-            let _dbEtf = null;
-
-            // --- MAIN STARTUP FUNCTION ---
-            async function initEtfSystem() {
-                try {
-                    // 1. Check if Supabase library is loaded
-                    if (!window.supabase) {
-                        throw new Error("Supabase Library not found. Check <head> script tags.");
-                    }
-
-                    // 2. Initialize Client (Lazy Load)
-                    if (!_dbEtf) {
-                        _dbEtf = window.supabase.createClient(_ETF_URL, _ETF_KEY);
-                    }
-
-                    // 3. Fetch Data
-                    const { data, error } = await _dbEtf.from('etf_members').select('*');
-
-                    if (error) {
-                        console.error("ETF Permission Error:", error);
-                        updateStatus("Permission Error");
-                        return;
-                    }
-
-                    // 4. Success - Process Data
-                    _etfMembersData = data || [];
-                    renderEtfBanner();
-
-                } catch (err) {
-                    console.error("ETF System Error:", err);
-                    updateStatus("System Error"); // Check Console (F12) for details
+            try {
+                // Check if library loaded
+                if (typeof window.supabase === 'undefined') {
+                    throw new Error("Supabase library not found in <head>");
                 }
-            }
 
-            // --- HELPER: Update Status Text ---
-            function updateStatus(msg) {
-                const el = document.getElementById('etf-leader-preview');
-                if (el) el.innerText = msg;
-            }
+                // Initialize separate client
+                winnerClient = window.supabase.createClient(WINNER_URL, WINNER_KEY);
 
-            // --- CALCULATION ENGINE ---
-            function calculateEtfMetrics() {
-                let totalFundValue = 0;
-                let totalInitial = _etfMembersData.length > 0 ? _etfMembersData.length * _INITIAL_CAPITAL : 0;
-                
-                const leaderboard = _etfMembersData.map(m => {
-                    const start = parseFloat(m.start_price) || 0;
-                    const current = parseFloat(m.current_price) || 0;
-                    
-                    // Avoid divide by zero
-                    const performance = start > 0 ? (current - start) / start : 0;
-                    const currentValue = _INITIAL_CAPITAL * (1 + performance);
-                    
-                    totalFundValue += currentValue;
-                    
-                    return {
-                        name: m.name,
-                        ticker: m.ticker,
-                        value: currentValue,
-                        returnPct: (performance * 100).toFixed(2),
-                        isPositive: performance >= 0
-                    };
-                }).sort((a, b) => b.value - a.value);
+                // Fetch Data
+                const { data, error } = await winnerClient.from('etf_members').select('*');
 
-                return { leaderboard, totalFundValue, totalInitial };
-            }
-
-            // --- RENDER BANNER ---
-            function renderEtfBanner() {
-                if (!_etfMembersData || _etfMembersData.length === 0) {
-                    document.getElementById('etf-total-value').innerText = "$0.00";
-                    document.getElementById('etf-total-return').innerText = "0.00%";
-                    updateStatus("No Members");
+                if (error) {
+                    console.error("Supabase Error:", error);
+                    previewEl.innerText = "DB Error: " + error.message; 
                     return;
                 }
 
-                const metrics = calculateEtfMetrics();
-                
-                // Calculate Total Return %
-                let totalReturn = 0;
-                if (metrics.totalInitial > 0) {
-                    totalReturn = ((metrics.totalFundValue - metrics.totalInitial) / metrics.totalInitial) * 100;
-                }
+                // Success
+                winnerlandMembers = data || [];
+                updateEtfDashboard();
 
-                // Update DOM
-                document.getElementById('etf-total-value').innerText = '$' + metrics.totalFundValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                
-                const returnEl = document.getElementById('etf-total-return');
-                returnEl.innerText = (totalReturn > 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
-                returnEl.className = `text-2xl font-black tracking-tight text-right ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
-                
-                if (metrics.leaderboard.length > 0) {
-                    const leader = metrics.leaderboard[0];
-                    document.getElementById('etf-leader-preview').innerHTML = `Leader: <span class="text-amber-500">${leader.name} (${leader.ticker})</span>`;
-                }
+            } catch (err) {
+                console.error("Winnerland Crash:", err);
+                // Print the actual error to the screen so we can see it
+                previewEl.innerText = "Error: " + err.message;
+                previewEl.style.color = "#ef4444"; // Red color
+            }
+        }
+
+        // 4. Update the Dashboard Banner
+        function updateEtfDashboard() {
+            if (winnerlandMembers.length === 0) {
+                document.getElementById('etf-leader-preview').innerText = "No Members Found";
+                return;
             }
 
-            // --- GLOBAL FUNCTION: OPEN DRAWER ---
-            window.openEtfLeaderboard = function() {
-                if (_etfMembersData.length === 0) return;
+            const stats = calculateStats();
+            
+            // Total Return %
+            let totalReturn = 0;
+            if (stats.totalInitial > 0) {
+                totalReturn = ((stats.totalValue - stats.totalInitial) / stats.totalInitial) * 100;
+            }
 
-                const drawer = document.getElementById('drawer');
-                const overlay = document.getElementById('drawer-overlay');
-                const metrics = calculateEtfMetrics();
-                
-                let totalReturn = 0;
-                if(metrics.totalInitial > 0) {
-                    totalReturn = ((metrics.totalFundValue - metrics.totalInitial) / metrics.totalInitial) * 100;
-                }
+            // Update HTML
+            document.getElementById('etf-total-value').innerText = '$' + stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2});
+            
+            const returnEl = document.getElementById('etf-total-return');
+            returnEl.innerText = (totalReturn > 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
+            returnEl.className = `text-2xl font-black tracking-tight text-right ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
 
-                // UI Transitions
-                drawer.classList.add('open');
-                overlay.classList.remove('opacity-0', 'pointer-events-none');
-
-                // Set Drawer Content
-                document.getElementById('drawer-symbol').innerText = "WINNERLAND ETF";
-                document.getElementById('drawer-name').innerText = "Member Leaderboard ($1k Start)";
-                document.getElementById('drawer-value').innerText = '$' + metrics.totalFundValue.toLocaleString(undefined, {minimumFractionDigits: 2});
-                
-                const retEl = document.getElementById('drawer-return');
-                retEl.innerText = (totalReturn >= 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
-                retEl.className = `text-2xl font-black ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
-
-                document.getElementById('drawer-ranges').innerHTML = '<span class="text-[10px] text-neutral-500 font-bold uppercase">LIVE RANKING</span>';
-
-                // Chart.js Rendering
-                const ctx = document.getElementById('drawerChart').getContext('2d');
-                if (window.myDrawerChart) window.myDrawerChart.destroy();
-
-                window.myDrawerChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: metrics.leaderboard.map(i => `${i.name} (${i.ticker})`),
-                        datasets: [{
-                            label: 'Equity Value',
-                            data: metrics.leaderboard.map(i => i.value),
-                            backgroundColor: metrics.leaderboard.map(i => i.isPositive ? '#10b981' : '#ef4444'),
-                            borderRadius: 6,
-                            barThickness: 30
-                        }]
-                    },
-                    options: {
-                        indexAxis: 'y',
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#737373' } },
-                            y: { grid: { display: false }, ticks: { color: '#e5e5e5', font: { weight: 'bold' } } }
-                        }
-                    }
-                });
-            };
-
-            // --- INITIALIZE ON PAGE LOAD ---
-            window.addEventListener('load', initEtfSystem);
-
-            // Drawer Closing Logic
-            const closeDrawer = () => {
-                document.getElementById('drawer').classList.remove('open');
-                document.getElementById('drawer-overlay').classList.add('opacity-0', 'pointer-events-none');
-            };
-            document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
-            document.getElementById('btnCloseDrawer').addEventListener('click', closeDrawer);
-            document.getElementById('btnCloseDrawerFooter').addEventListener('click', closeDrawer);
+            // Show Leader
+            if (stats.leaderboard.length > 0) {
+                const leader = stats.leaderboard[0];
+                document.getElementById('etf-leader-preview').innerHTML = `Leader: <span class="text-amber-500">${leader.name} (${leader.ticker})</span>`;
+            }
         }
+
+        // 5. Math Logic
+        function calculateStats() {
+            let totalValue = 0;
+            let totalInitial = winnerlandMembers.length * WINNER_CAPITAL;
+
+            const leaderboard = winnerlandMembers.map(m => {
+                const start = parseFloat(m.start_price) || 1; // avoid zero div
+                const current = parseFloat(m.current_price) || start;
+                
+                const performance = (current - start) / start;
+                const currentValue = WINNER_CAPITAL * (1 + performance);
+                
+                totalValue += currentValue;
+
+                return {
+                    name: m.name,
+                    ticker: m.ticker,
+                    value: currentValue,
+                    pct: (performance * 100).toFixed(2),
+                    isPos: performance >= 0
+                };
+            }).sort((a, b) => b.value - a.value);
+
+            return { leaderboard, totalValue, totalInitial };
+        }
+
+        // 6. Drawer & Chart Logic
+        function renderDrawerChart() {
+            const drawer = document.getElementById('drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            const stats = calculateStats();
+
+            // Open Drawer
+            drawer.classList.add('open');
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+
+            // Set Text
+            document.getElementById('drawer-symbol').innerText = "WINNERLAND ETF";
+            document.getElementById('drawer-name').innerText = "Leaderboard";
+            document.getElementById('drawer-value').innerText = '$' + stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2});
+
+            let totalReturn = ((stats.totalValue - stats.totalInitial) / stats.totalInitial) * 100;
+            const retEl = document.getElementById('drawer-return');
+            retEl.innerText = (totalReturn >= 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
+            retEl.className = `text-2xl font-black ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
+
+            document.getElementById('drawer-ranges').innerHTML = '<span class="text-[10px] text-neutral-500 font-bold uppercase">LIVE</span>';
+
+            // Draw Chart
+            const ctx = document.getElementById('drawerChart').getContext('2d');
+            
+            // Destroy old chart safely
+            if (window.myDrawerChart instanceof Chart) {
+                window.myDrawerChart.destroy();
+            }
+
+            window.myDrawerChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: stats.leaderboard.map(i => `${i.name} (${i.ticker})`),
+                    datasets: [{
+                        label: 'Equity',
+                        data: stats.leaderboard.map(i => i.value),
+                        backgroundColor: stats.leaderboard.map(i => i.isPos ? '#10b981' : '#ef4444'),
+                        borderRadius: 6,
+                        barThickness: 30
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { grid: { display: false }, ticks: { color: '#fff', font: { weight: 'bold' } } }
+                    }
+                }
+            });
+        }
+
+        // 7. Start
+        window.addEventListener('load', initWinnerland);
+
+        // 8. Close Handlers
+        function closeDrawer() {
+            document.getElementById('drawer').classList.remove('open');
+            document.getElementById('drawer-overlay').classList.add('opacity-0', 'pointer-events-none');
+        }
+        document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+        document.getElementById('btnCloseDrawer').addEventListener('click', closeDrawer);
+        document.getElementById('btnCloseDrawerFooter').addEventListener('click', closeDrawer);
     </script>
