@@ -185,99 +185,105 @@
     <script src="dashboard.js"></script>
 
 <script>
-        // 1. Define Unique Variables to prevent conflicts
-        const WINNER_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
-        const WINNER_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
-        const WINNER_CAPITAL = 1000;
-        
-        // Global variables for data
-        let winnerlandMembers = [];
-        let winnerClient = null;
+        // 1. Config
+        const _WINNER_CAPITAL = 1000;
+        let _winnerMembers = [];
 
-        // 2. Define the Click Function IMMEDIATELY (Global Scope)
-        // This ensures the button works even if data hasn't loaded yet
+        // 2. Global Open Function (Must be on window)
         window.openEtfLeaderboard = function() {
-            if (winnerlandMembers.length === 0) {
-                alert("Data is syncing or empty. Please wait.");
+            if (!_winnerMembers || _winnerMembers.length === 0) {
+                alert("Still syncing data... please try again in a moment.");
                 return;
             }
             renderDrawerChart();
         };
 
-        // 3. Main Startup Function
+        // 3. Main Logic
         async function initWinnerland() {
             const previewEl = document.getElementById('etf-leader-preview');
-            
-            try {
-                // Check if library loaded
-                if (typeof window.supabase === 'undefined') {
-                    throw new Error("Supabase library not found in <head>");
-                }
+            let dbClient = null;
 
-                // Initialize separate client
-                winnerClient = window.supabase.createClient(WINNER_URL, WINNER_KEY);
+            try {
+                // --- CRITICAL FIX START ---
+                // Check if 'window.supabase' is the Library (has createClient) or already a Client (has .from)
+                
+                if (window.supabase && typeof window.supabase.from === 'function') {
+                    // It is already a connected client! Use it directly.
+                    console.log("Using existing Supabase connection from dashboard.js");
+                    dbClient = window.supabase;
+                } 
+                else if (window.supabase && typeof window.supabase.createClient === 'function') {
+                    // It is the library, create a new connection.
+                    console.log("Creating new Supabase connection");
+                    const URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
+                    const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+                    dbClient = window.supabase.createClient(URL, KEY);
+                } 
+                else {
+                    throw new Error("Supabase not found. Check if dashboard.js loaded correctly.");
+                }
+                // --- CRITICAL FIX END ---
 
                 // Fetch Data
-                const { data, error } = await winnerClient.from('etf_members').select('*');
+                const { data, error } = await dbClient.from('etf_members').select('*');
 
                 if (error) {
-                    console.error("Supabase Error:", error);
-                    previewEl.innerText = "DB Error: " + error.message; 
+                    // If error is 404 or RLS, show it
+                    console.error("DB Error:", error);
+                    previewEl.innerText = "DB Error"; 
                     return;
                 }
 
                 // Success
-                winnerlandMembers = data || [];
+                _winnerMembers = data || [];
                 updateEtfDashboard();
 
             } catch (err) {
                 console.error("Winnerland Crash:", err);
-                // Print the actual error to the screen so we can see it
-                previewEl.innerText = "Error: " + err.message;
-                previewEl.style.color = "#ef4444"; // Red color
+                previewEl.innerText = "Error";
+                previewEl.title = err.message; // Hover to see full error
             }
         }
 
-        // 4. Update the Dashboard Banner
+        // 4. Update Banner
         function updateEtfDashboard() {
-            if (winnerlandMembers.length === 0) {
-                document.getElementById('etf-leader-preview').innerText = "No Members Found";
+            if (_winnerMembers.length === 0) {
+                document.getElementById('etf-leader-preview').innerText = "No Members";
                 return;
             }
 
             const stats = calculateStats();
             
-            // Total Return %
+            // Calc Return
             let totalReturn = 0;
             if (stats.totalInitial > 0) {
                 totalReturn = ((stats.totalValue - stats.totalInitial) / stats.totalInitial) * 100;
             }
 
-            // Update HTML
+            // Update Text
             document.getElementById('etf-total-value').innerText = '$' + stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2});
             
             const returnEl = document.getElementById('etf-total-return');
             returnEl.innerText = (totalReturn > 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
             returnEl.className = `text-2xl font-black tracking-tight text-right ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
 
-            // Show Leader
             if (stats.leaderboard.length > 0) {
                 const leader = stats.leaderboard[0];
                 document.getElementById('etf-leader-preview').innerHTML = `Leader: <span class="text-amber-500">${leader.name} (${leader.ticker})</span>`;
             }
         }
 
-        // 5. Math Logic
+        // 5. Math
         function calculateStats() {
             let totalValue = 0;
-            let totalInitial = winnerlandMembers.length * WINNER_CAPITAL;
+            let totalInitial = _winnerMembers.length * _WINNER_CAPITAL;
 
-            const leaderboard = winnerlandMembers.map(m => {
-                const start = parseFloat(m.start_price) || 1; // avoid zero div
-                const current = parseFloat(m.current_price) || start;
+            const leaderboard = _winnerMembers.map(m => {
+                const start = parseFloat(m.start_price) || 1;
+                const current = parseFloat(m.current_price) || start; // Default to start if current missing
                 
                 const performance = (current - start) / start;
-                const currentValue = WINNER_CAPITAL * (1 + performance);
+                const currentValue = _WINNER_CAPITAL * (1 + performance);
                 
                 totalValue += currentValue;
 
@@ -285,7 +291,6 @@
                     name: m.name,
                     ticker: m.ticker,
                     value: currentValue,
-                    pct: (performance * 100).toFixed(2),
                     isPos: performance >= 0
                 };
             }).sort((a, b) => b.value - a.value);
@@ -293,17 +298,15 @@
             return { leaderboard, totalValue, totalInitial };
         }
 
-        // 6. Drawer & Chart Logic
+        // 6. Draw Chart
         function renderDrawerChart() {
             const drawer = document.getElementById('drawer');
             const overlay = document.getElementById('drawer-overlay');
             const stats = calculateStats();
 
-            // Open Drawer
             drawer.classList.add('open');
             overlay.classList.remove('opacity-0', 'pointer-events-none');
 
-            // Set Text
             document.getElementById('drawer-symbol').innerText = "WINNERLAND ETF";
             document.getElementById('drawer-name').innerText = "Leaderboard";
             document.getElementById('drawer-value').innerText = '$' + stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2});
@@ -315,13 +318,8 @@
 
             document.getElementById('drawer-ranges').innerHTML = '<span class="text-[10px] text-neutral-500 font-bold uppercase">LIVE</span>';
 
-            // Draw Chart
             const ctx = document.getElementById('drawerChart').getContext('2d');
-            
-            // Destroy old chart safely
-            if (window.myDrawerChart instanceof Chart) {
-                window.myDrawerChart.destroy();
-            }
+            if (window.myDrawerChart instanceof Chart) window.myDrawerChart.destroy();
 
             window.myDrawerChart = new Chart(ctx, {
                 type: 'bar',
@@ -348,7 +346,7 @@
             });
         }
 
-        // 7. Start
+        // 7. Init
         window.addEventListener('load', initWinnerland);
 
         // 8. Close Handlers
