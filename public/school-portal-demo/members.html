@@ -120,19 +120,19 @@
                 </div>
                 <div>
                     <h3 class="text-xl font-black text-white tracking-tighter uppercase">Winnerland <span class="text-amber-500">ETF</span></h3>
-                    <p class="text-xs text-neutral-400 font-medium mt-1">Internal Competition • $1,000 Entry • <span id="etf-leader-preview" class="text-white font-bold">...</span></p>
+                    <p class="text-xs text-neutral-400 font-medium mt-1">Internal Competition • $1,000 Entry • <span id="etf-leader-preview" class="text-white font-bold">Syncing...</span></p>
                 </div>
             </div>
 
             <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
                 <div>
                     <p class="text-[10px] uppercase font-bold text-neutral-500 tracking-widest text-right">Fund Value</p>
-                    <p class="text-2xl font-black text-white tracking-tight text-right" id="etf-total-value">$0.00</p>
+                    <p class="text-2xl font-black text-white tracking-tight text-right" id="etf-total-value">---</p>
                 </div>
                 <div class="w-px h-8 bg-white/10"></div>
                 <div>
                     <p class="text-[10px] uppercase font-bold text-neutral-500 tracking-widest text-right">Total Return</p>
-                    <p class="text-2xl font-black text-emerald-400 tracking-tight text-right" id="etf-total-return">0.00%</p>
+                    <p class="text-2xl font-black text-neutral-500 tracking-tight text-right" id="etf-total-return">---</p>
                 </div>
                 <div class="hidden md:flex items-center justify-center w-8 h-8 rounded-full border border-white/10 text-neutral-400 group-hover:bg-white group-hover:text-black transition-all">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -185,43 +185,62 @@
     <script src="dashboard.js"></script>
 
     <script>
-        // --- 1. CONFIGURATION: Define your Members & Picks here ---
-        // UPDATE THIS LIST WITH YOUR REAL DATA
-        const etfMembers = [
-            { member: "Alex",   stock: "NVDA", currentPrice: 124.50, startPrice: 90.00 },
-            { member: "Sarah",  stock: "TSLA", currentPrice: 175.20, startPrice: 210.00 },
-            { member: "Mike",   stock: "MSTR", currentPrice: 1600.00, startPrice: 1200.00 },
-            { member: "Jess",   stock: "COIN", currentPrice: 245.00, startPrice: 150.00 },
-            { member: "Dave",   stock: "AMD",  currentPrice: 160.00, startPrice: 170.00 } 
-        ];
-    
+        // --- 1. SETUP SUPABASE ---
+        // (Make sure these match your Admin file)
+        const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+        const dbEtf = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
         const INITIAL_CAPITAL = 1000;
-    
-        // --- 2. Calculate Logic ---
+        let etfMembersData = []; // Will store fetched data
+
+        // --- 2. FETCH DATA FROM DB ---
+        async function fetchEtfData() {
+            try {
+                const { data, error } = await dbEtf.from('etf_members').select('*');
+                if(error) throw error;
+                etfMembersData = data;
+                initEtfBanner(); // Update UI after fetch
+            } catch (err) {
+                console.error("Error fetching ETF data:", err);
+                document.getElementById('etf-leader-preview').innerText = "Offline";
+            }
+        }
+
+        // --- 3. CALCULATE LOGIC ---
         function calculateEtfData() {
             let totalFundValue = 0;
-            let totalInitial = etfMembers.length * INITIAL_CAPITAL;
+            // If no members, total initial is 0 to avoid division by zero
+            let totalInitial = etfMembersData.length > 0 ? etfMembersData.length * INITIAL_CAPITAL : 1;
             
-            // Calculate performance for each member
-            const leaderboard = etfMembers.map(m => {
-                const performance = (m.currentPrice - m.startPrice) / m.startPrice;
+            const leaderboard = etfMembersData.map(m => {
+                const performance = (m.current_price - m.start_price) / m.start_price;
                 const currentValue = INITIAL_CAPITAL * (1 + performance);
                 totalFundValue += currentValue;
                 
                 return {
-                    name: m.member,
-                    ticker: m.stock,
+                    name: m.name,
+                    ticker: m.ticker,
                     value: currentValue,
                     returnPct: (performance * 100).toFixed(2),
                     isPositive: performance >= 0
                 };
             }).sort((a, b) => b.value - a.value); // Sort highest to lowest
-    
+
+            if(etfMembersData.length === 0) totalFundValue = 0;
+
             return { leaderboard, totalFundValue, totalInitial };
         }
     
-        // --- 3. Update the Small Banner on Load ---
+        // --- 4. UPDATE BANNER UI ---
         function initEtfBanner() {
+            if(etfMembersData.length === 0) {
+                 document.getElementById('etf-total-value').innerText = "$0.00";
+                 document.getElementById('etf-total-return').innerText = "0.00%";
+                 document.getElementById('etf-leader-preview').innerText = "No Members";
+                 return;
+            }
+
             const data = calculateEtfData();
             const totalReturn = ((data.totalFundValue - data.totalInitial) / data.totalInitial) * 100;
     
@@ -238,10 +257,12 @@
             }
         }
     
-        // --- 4. Handle Click & Draw Leaderboard Chart ---
+        // --- 5. OPEN DRAWER (CHART) ---
         let drawerChartInstance = null;
     
         function openEtfLeaderboard() {
+            if(etfMembersData.length === 0) return;
+
             const drawer = document.getElementById('drawer');
             const overlay = document.getElementById('drawer-overlay');
             const { leaderboard, totalFundValue, totalInitial } = calculateEtfData();
@@ -251,7 +272,7 @@
             drawer.classList.add('open');
             overlay.classList.remove('opacity-0', 'pointer-events-none');
     
-            // 2. Override Drawer Text Content for ETF Context
+            // 2. Override Drawer Text Content
             document.getElementById('drawer-symbol').innerText = "WINNERLAND ETF";
             document.getElementById('drawer-name').innerText = "Member Leaderboard ($1k Start)";
             document.getElementById('drawer-value').innerText = '$' + totalFundValue.toLocaleString(undefined, {minimumFractionDigits: 2});
@@ -260,17 +281,14 @@
             retEl.innerText = (totalReturn >= 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
             retEl.className = `text-2xl font-black ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
     
-            // Hide date ranges (not relevant for leaderboard)
             document.getElementById('drawer-ranges').innerHTML = '<span class="text-[10px] text-neutral-500 font-bold uppercase">LIVE RANKING</span>';
     
-            // 3. Render The Leaderboard Chart
+            // 3. Render Chart
             const ctx = document.getElementById('drawerChart').getContext('2d');
             
-            // Destroy existing chart if it exists (from stock view or previous click)
             if (window.myDrawerChart) window.myDrawerChart.destroy();
             if (drawerChartInstance) drawerChartInstance.destroy();
     
-            // Chart.js Configuration
             drawerChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -284,7 +302,7 @@
                     }]
                 },
                 options: {
-                    indexAxis: 'y', // MAKES IT HORIZONTAL
+                    indexAxis: 'y', // Horizontal bars
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
@@ -315,15 +333,13 @@
                 }
             });
             
-            // Assign to global so existing dashboard.js knows to destroy it if it tries to open a stock
             window.myDrawerChart = drawerChartInstance; 
         }
     
-        // Initialize Banner on page load
-        window.addEventListener('load', initEtfBanner);
+        // INITIALIZE ON LOAD
+        window.addEventListener('load', fetchEtfData);
     
-        // Re-attach close logic just in case (uses existing IDs)
-        // If dashboard.js handles this, these might be redundant but harmless
+        // DRAWER CLOSING LOGIC
         const closeDrawer = () => {
             document.getElementById('drawer').classList.remove('open');
             document.getElementById('drawer-overlay').classList.add('opacity-0', 'pointer-events-none');
