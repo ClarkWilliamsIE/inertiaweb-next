@@ -30,6 +30,10 @@
     .btn-primary:hover { background: #2563eb; }
     .btn-accent { background: #f59e0b; border-color: #d97706; color: #000; } 
     .btn-accent:hover { background: #d97706; }
+    
+    /* New Refresh Button Style */
+    .btn-refresh { background: #10b981; border-color: #059669; color: #000; }
+    .btn-refresh:hover { background: #059669; }
 
     .container { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
     
@@ -82,8 +86,13 @@
 <body>
 
   <header class="container">
-    <h1>OS Admin</h1>
-    <a href="index.html" class="btn">Back to Dashboard</a>
+    <div>
+        <h1>OS Admin</h1>
+    </div>
+    <div style="display:flex; gap:0.5rem;">
+        <button onclick="triggerSync()" class="btn btn-refresh">Force Refresh Data</button>
+        <a href="index.html" class="btn">Back to Dashboard</a>
+    </div>
   </header>
 
   <div class="container">
@@ -122,8 +131,8 @@
         <div class="form-grid">
           <div class="form-group"><label>Member Name</label><input type="text" id="etfName" placeholder="e.g. Alex" required></div>
           <div class="form-group"><label>Stock Ticker</label><input type="text" id="etfTicker" placeholder="e.g. NVDA" required style="text-transform: uppercase;"></div>
-          <div class="form-group"><label>Start Price</label><input type="number" id="etfStart" placeholder="Entry Price" step="any" required></div>
-          <div class="form-group"><label>Current Price</label><input type="number" id="etfCurrent" placeholder="Update Manually" step="any" required></div>
+          <div class="form-group full-width"><label>Entry Price ($)</label><input type="number" id="etfStart" placeholder="Price they bought at" step="any" required></div>
+          
           <div class="full-width" style="margin-top: 0.5rem;"><button type="submit" class="btn btn-accent" style="width:100%;">Save Member</button></div>
         </div>
       </form>
@@ -133,7 +142,7 @@
         <h2>ETF Leaderboard List</h2>
         <div class="table-container">
           <table>
-            <thead><tr><th>Member</th><th>Ticker</th><th class="text-right">Entry</th><th class="text-right">Current</th><th class="text-right">Return</th><th></th></tr></thead>
+            <thead><tr><th>Member</th><th>Ticker</th><th class="text-right">Entry</th><th class="text-right">Current (Live)</th><th class="text-right">Return</th><th></th></tr></thead>
             <tbody id="etfTable"></tbody>
           </table>
         </div>
@@ -145,10 +154,14 @@
     // --- 1. SETUP SUPABASE ---
     if (typeof window.supabase === 'undefined') { throw new Error("Supabase library not found."); }
     
-    // UPDATE KEYS IF NEEDED
+    // Credentials
     const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ** IMPORTANT: REPLACE THIS with your actual Edge Function URL **
+    // You can find this in Supabase Dashboard -> Edge Functions
+    const EDGE_FUNCTION_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co/functions/v1/update-prices"; 
 
     // --- 2. DOM ELEMENTS ---
     const form = document.getElementById('tradeForm');
@@ -215,7 +228,10 @@
       });
 
       if (error) return showMsg("Error saving trade: " + error.message, "error");
-      await updateDashboardData();
+      
+      // We no longer calculate locally, we trigger the Edge Function for everything
+      triggerSync();
+      
       form.reset();
       document.getElementById('symbol').focus();
       loadHistory();
@@ -225,7 +241,7 @@
       if (!confirm("Delete this trade?")) return;
       const { error } = await db.from('trades').delete().eq('id', id);
       if(error) return alert("Error: " + error.message);
-      await updateDashboardData();
+      triggerSync();
       loadHistory();
     };
 
@@ -267,18 +283,19 @@
         const name = document.getElementById('etfName').value.trim();
         const ticker = document.getElementById('etfTicker').value.toUpperCase().trim();
         const start_price = parseFloat(document.getElementById('etfStart').value);
-        const current_price = parseFloat(document.getElementById('etfCurrent').value);
-
-        // Simple Upsert logic (Assuming we just add new ones for now, delete to edit)
+        
+        // We initialize current_price as start_price. 
+        // It will be updated to the real live price the next time "Sync" runs.
         const { error } = await db.from('etf_members').insert({
-            name, ticker, start_price, current_price
+            name, ticker, start_price, current_price: start_price
         });
 
         if(error) return showMsg(error.message, "error");
 
-        showMsg("Member Saved", "success");
+        showMsg("Member Saved. Updating prices...", "success");
         etfForm.reset();
         loadEtf();
+        triggerSync(); // Auto-trigger sync to get correct price immediately
     }
 
     window.deleteMember = async (id) => {
@@ -286,62 +303,39 @@
         const { error } = await db.from('etf_members').delete().eq('id', id);
         if(error) return showMsg(error.message, "error");
         loadEtf();
+        triggerSync();
     }
 
     // ==========================================
-    //  SECTION C: DASHBOARD SYNC ENGINE
+    //  SECTION C: FORCE SYNC
     // ==========================================
 
-    async function updateDashboardData() {
-      // (This logic remains the same as your previous file - keeping it concise here)
-      const { data: summaryHistory } = await db.from('flex_summary').select('data').order('last_updated', {ascending: false}).limit(1);
-      let lastKnownPrices = {};
-      if (summaryHistory && summaryHistory.length > 0 && summaryHistory[0].data.positions) {
-        summaryHistory[0].data.positions.forEach(pos => { if (pos.quantity > 0) lastKnownPrices[pos.symbol] = pos.value / pos.quantity; });
-      }
-
-      const { data: trades } = await db.from('trades').select('*').order('date', {ascending: true});
-      
-      let portfolio = {}; 
-      let realizedPl = 0;
-
-      trades.forEach(t => {
-        const sym = t.symbol.toUpperCase();
-        if(!portfolio[sym]) portfolio[sym] = { qty: 0, cost: 0, lastTradePrice: 0 };
-        const p = portfolio[sym];
-        const q = Number(t.quantity); const val = Number(t.price);
-        p.lastTradePrice = val; 
-
-        if(t.type === 'BUY') { p.cost += (q * val); p.qty += q; } 
-        else {
-          if(p.qty > 0) {
-            const avgCost = p.cost / p.qty;
-            realizedPl += ((q * val) - (q * avgCost));
-            p.cost -= (q * avgCost); p.qty -= q;
-            if (p.qty <= 0.000001) { p.qty = 0; p.cost = 0; }
-          }
+    async function triggerSync() {
+        showMsg("Syncing with live markets...", "success");
+        try {
+            // Call the Edge Function
+            const res = await fetch(EDGE_FUNCTION_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const json = await res.json();
+            
+            if(res.ok) {
+                showMsg("Sync Complete!", "success");
+                loadEtf(); // Reload table to show new prices
+            } else {
+                console.error(json);
+                showMsg("Sync Failed (Check Console)", "error");
+            }
+        } catch(err) {
+            console.error(err);
+            // Fallback: If edge function fails/doesn't exist yet, we just warn.
+            showMsg("Sync Trigger Failed (Is Edge Function deployed?)", "error");
         }
-      });
-
-      let positions = [];
-      let totalHoldingsValue = 0; let totalHoldingsCost = 0;
-
-      for (const [sym, data] of Object.entries(portfolio)) {
-        if(data.qty < 0.001) continue; 
-        let currentPrice = lastKnownPrices[sym] || data.lastTradePrice;
-        const mktValue = data.qty * currentPrice;
-        totalHoldingsValue += mktValue; totalHoldingsCost += data.cost;
-        positions.push({ symbol: sym, quantity: data.qty, cost: data.cost, value: mktValue, profit: mktValue - data.cost, pct: ((mktValue - data.cost)/data.cost)*100 });
-      }
-
-      const totalProfit = (totalHoldingsValue - totalHoldingsCost) + realizedPl;
-      const totalPct = totalHoldingsCost > 0.01 ? (totalProfit / totalHoldingsCost) * 100 : 0;
-      
-      await db.from('flex_summary').insert({
-        last_updated: new Date().toISOString(),
-        data: { totals: { value: totalHoldingsValue, cost: totalHoldingsCost, profit: totalProfit, pct: totalPct }, positions: positions.sort((a,b) => b.value - a.value) }
-      });
-      showMsg("Dashboard Updated Successfully!", "success");
     }
 
     function showMsg(text, type) {
