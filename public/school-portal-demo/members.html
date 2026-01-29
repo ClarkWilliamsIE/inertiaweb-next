@@ -1,349 +1,353 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin - Portfolio OS</title>
-  
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <style>
-    :root { color-scheme: dark; }
-    body {
-      margin: 0; padding: 1rem;
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #0f0f0f; color: #e0e0e0;
-    }
-    header { 
-      display: flex; align-items: center; justify-content: space-between; 
-      margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;
-    }
-    h1 { margin: 0; font-size: 1.8rem; font-weight: 800; text-transform: uppercase; color: #a1a1aa; }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Winnerland | Portfolio OS</title>
     
-    .btn {
-      padding: .6rem 1rem; border-radius: 8px; border: 1px solid #333;
-      background: #1f1f1f; color: #fff; cursor: pointer; text-decoration: none; font-size: 0.9rem;
-      font-weight: 600; transition: 0.2s;
-    }
-    .btn:hover { background: #2a2a2a; }
-    .btn-primary { background: #3b82f6; border-color: #2563eb; }
-    .btn-primary:hover { background: #2563eb; }
-    .btn-accent { background: #f59e0b; border-color: #d97706; color: #000; } 
-    .btn-accent:hover { background: #d97706; }
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    /* New Refresh Button Style */
-    .btn-refresh { background: #10b981; border-color: #059669; color: #000; }
-    .btn-refresh:hover { background: #059669; }
-
-    .container { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
-    .section-title { 
-        color: #f59e0b; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 1rem;
-        border-bottom: 1px solid #333; padding-bottom: 0.5rem;
-    }
-
-    .card {
-      background: #18181b; border: 1px solid #27272a; border-radius: 16px;
-      padding: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-    .card h2 { margin: 0 0 1rem 0; font-size: 1.1rem; font-weight: 600; color: #fff; }
-
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-    .full-width { grid-column: span 2; }
-    
-    .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
-    label { font-size: 0.8rem; text-transform: uppercase; color: #71717a; font-weight: 600; }
-    
-    input, select {
-      background: #27272a; border: 1px solid #3f3f46; color: #fff;
-      padding: 0.75rem; border-radius: 8px; font-size: 1rem; outline: none; width: 100%; box-sizing: border-box;
-    }
-    input:focus, select:focus { border-color: #3b82f6; }
-
-    .table-container { width: 100%; overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 500px; }
-    th { text-align: left; color: #71717a; font-size: 0.75rem; text-transform: uppercase; padding-bottom: 0.5rem; border-bottom: 1px solid #27272a; }
-    td { padding: 0.75rem 0; border-bottom: 1px solid #27272a; color: #d4d4d8; }
-    
-    .badge { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
-    .badge-buy { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-    .badge-sell { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-    
-    .text-right { text-align: right; }
-    .delete-btn { background: none; border: none; color: #52525b; cursor: pointer; font-size: 1.2rem; padding: 0 10px; }
-    .delete-btn:hover { color: #ef4444; }
-
-    #message { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; display: none; text-align: center; }
-    .success { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
-    .error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
-
-    @media (max-width: 600px) {
-      .form-grid { grid-template-columns: 1fr; }
-      .full-width { grid-column: span 1; }
-    }
-  </style>
+    <style>
+        :root { --bg-deep: #0a0a0a; --accent-green: #10b981; --accent-red: #ef4444; --accent-winner: #f59e0b; }
+        body { background-color: var(--bg-deep); color: #e5e5e5; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        
+        .glass-card { background: rgba(18, 18, 18, 0.7); backdrop-filter: blur(16px); border: 1px solid #262626; border-radius: 20px; transition: all 0.2s; }
+        .glass-card:hover { border-color: #404040; background: rgba(22, 22, 22, 0.8); }
+        
+        .live-pulse { width: 8px; height: 8px; background-color: var(--accent-green); border-radius: 50%; position: relative; }
+        .live-pulse::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent-green); animation: pulse 2s infinite; opacity: 0; }
+        @keyframes pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
+        
+        #drawer { transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        #drawer.open { transform: translateX(0); }
+        
+        .range-btn.active { background: #262626; color: #fff; border-color: var(--accent-winner); }
+        .shimmer { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent); background-size: 200% 100%; animation: shimmer 2s infinite; }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+    </style>
 </head>
-<body>
+<body class="p-6 md:p-10 max-w-[1600px] mx-auto min-h-screen flex flex-col">
 
-  <header class="container">
-    <div>
-        <h1>OS Admin</h1>
-    </div>
-    <div style="display:flex; gap:0.5rem;">
-        <button onclick="triggerSync()" class="btn btn-refresh">Force Refresh Data</button>
-        <a href="index.html" class="btn">Back to Dashboard</a>
-    </div>
-  </header>
-
-  <div class="container">
-    <div id="message"></div>
-
-    <div class="section-title">Main Portfolio</div>
-
-    <div class="card">
-      <h2>Record New Trade</h2>
-      <form id="tradeForm">
-        <div class="form-grid">
-          <div class="form-group"><label>Symbol</label><input type="text" id="symbol" placeholder="e.g. NKE" required style="text-transform: uppercase;"></div>
-          <div class="form-group"><label>Type</label><select id="type"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
-          <div class="form-group"><label>Quantity</label><input type="number" id="quantity" placeholder="0" step="any" required></div>
-          <div class="form-group"><label>Price per Share</label><input type="number" id="price" placeholder="0.00" step="any" required></div>
-          <div class="full-width" style="margin-top: 0.5rem;"><button type="submit" class="btn btn-primary" style="width:100%;">Record Trade</button></div>
+    <header class="flex flex-col md:flex-row items-center justify-between mb-8 gap-6">
+        <div class="flex items-center gap-4">
+            <div class="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 shadow-xl">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-amber-500"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-black tracking-tighter text-white uppercase">Portfolio OS</h1>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <div class="live-pulse"></div>
+                    <span class="text-[10px] uppercase font-bold text-neutral-500 tracking-[0.2em]">Live Market Data</span>
+                </div>
+            </div>
         </div>
-      </form>
-    </div>
 
-    <div class="card">
-      <h2>Recent Transactions</h2>
-      <div class="table-container">
-        <table>
-          <thead><tr><th>Date</th><th>Symbol</th><th>Type</th><th class="text-right">Qty</th><th class="text-right">Price</th><th></th></tr></thead>
-          <tbody id="historyTable"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="section-title">Winnerland ETF</div>
-
-    <div class="card" style="border-color: #f59e0b;">
-      <h2 style="color: #f59e0b;">Manage ETF Member</h2>
-      <form id="etfForm">
-        <div class="form-grid">
-          <div class="form-group"><label>Member Name</label><input type="text" id="etfName" placeholder="e.g. Alex" required></div>
-          <div class="form-group"><label>Stock Ticker</label><input type="text" id="etfTicker" placeholder="e.g. NVDA" required style="text-transform: uppercase;"></div>
-          <div class="form-group full-width"><label>Entry Price ($)</label><input type="number" id="etfStart" placeholder="Price they bought at" step="any" required></div>
-          
-          <div class="full-width" style="margin-top: 0.5rem;"><button type="submit" class="btn btn-accent" style="width:100%;">Save Member</button></div>
+        <div class="flex flex-wrap justify-center items-center gap-4 md:gap-6 bg-white/5 p-1.5 rounded-2xl border border-white/10">
+            <nav class="flex items-center gap-1 px-2">
+                <a href="watchlist.html" class="px-3 py-1.5 text-xs font-bold text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-all">Watchlist</a>
+                <a href="polls.html" class="px-3 py-1.5 text-xs font-bold text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-all">Polls</a>
+                <a href="admin.html" class="px-3 py-1.5 text-xs font-bold text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-all">Admin</a>
+            </nav>
+            <div class="w-px h-6 bg-white/10 hidden md:block"></div>
+            <div class="flex items-center gap-3 px-2">
+                <span class="text-[10px] font-bold text-neutral-500 uppercase tracking-wider hidden sm:inline">1/11th Scale</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="divideToggle" class="sr-only peer">
+                    <div class="w-9 h-5 bg-neutral-800 rounded-full peer peer-checked:bg-amber-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                </label>
+            </div>
+            <button id="btnSignOut" class="px-4 py-2 bg-white text-black text-[10px] font-black rounded-xl hover:bg-neutral-200 transition-all uppercase tracking-tighter">Sign Out</button>
         </div>
-      </form>
+    </header>
+
+    <section class="glass-card p-4 md:p-8 mb-8 relative">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
+            <div class="flex flex-wrap gap-x-8 gap-y-4">
+                
+                <div>
+                    <h2 class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Total Equity</h2>
+                    <div class="flex items-baseline gap-2">
+                        <p class="text-3xl md:text-4xl font-black text-white tracking-tighter" id="totalValueDisplay">---</p>
+                        <p class="text-sm font-bold" id="totalChangeDisplay">---</p>
+                    </div>
+                </div>
+
+                <div class="hidden md:block w-px h-10 bg-white/10"></div>
+
+                <div>
+                    <h2 class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Cost Basis</h2>
+                    <p class="text-2xl font-bold text-neutral-300 tracking-tight" id="costDisplay">---</p>
+                </div>
+
+                <div class="hidden md:block w-px h-10 bg-white/10"></div>
+
+                <div>
+                    <h2 class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Unrealized P/L</h2>
+                    <p class="text-2xl font-bold tracking-tight" id="unrealizedDisplay">---</p>
+                </div>
+
+            </div>
+
+            <div class="flex bg-neutral-900/80 p-1 rounded-xl border border-neutral-800 overflow-x-auto max-w-full" id="mainRangeSelector">
+                <button data-range="DAY" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">1D</button>
+                <button data-range="WEEK" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">1W</button>
+                <button data-range="MONTH" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">1M</button>
+                <button data-range="YEAR" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">1Y</button>
+                <button data-range="ALL" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">ALL</button>
+            </div>
+        </div>
+        
+        <div class="h-[350px] md:h-[450px] w-full"><canvas id="mainChart"></canvas></div>
+    </section>
+
+    <section class="glass-card p-6 relative overflow-hidden mb-8 group cursor-pointer transition-all hover:border-amber-500/50" onclick="openEtfLeaderboard()">
+        <div class="absolute -right-10 -top-10 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-all"></div>
+        
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+            <div class="flex items-center gap-4">
+                <div class="p-4 bg-amber-500 rounded-xl shadow-lg shadow-amber-500/20">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-xl font-black text-white tracking-tighter uppercase">Winnerland <span class="text-amber-500">ETF</span></h3>
+                    <p class="text-xs text-neutral-400 font-medium mt-1">Internal Competition • $1,000 Entry • <span id="etf-leader-preview" class="text-white font-bold">Syncing...</span></p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
+                <div>
+                    <p class="text-[10px] uppercase font-bold text-neutral-500 tracking-widest text-right">Fund Value</p>
+                    <p class="text-2xl font-black text-white tracking-tight text-right" id="etf-total-value">---</p>
+                </div>
+                <div class="w-px h-8 bg-white/10"></div>
+                <div>
+                    <p class="text-[10px] uppercase font-bold text-neutral-500 tracking-widest text-right">Total Return</p>
+                    <p class="text-2xl font-black text-neutral-500 tracking-tight text-right" id="etf-total-return">---</p>
+                </div>
+                <div class="hidden md:flex items-center justify-center w-8 h-8 rounded-full border border-white/10 text-neutral-400 group-hover:bg-white group-hover:text-black transition-all">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="glass-card overflow-hidden mb-10">
+        <div class="p-6 md:p-8 flex items-center justify-between border-b border-white/5">
+            <h2 class="text-lg font-black text-white tracking-tight">Active Holdings <span class="text-neutral-500 text-xs font-normal ml-2 tracking-normal hidden sm:inline">(Click row for details)</span></h2>
+            <div class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest" id="lastUpdated">Syncing...</div>
+        </div>
+        <div class="w-full">
+            <table class="w-full text-left border-collapse">
+                <thead class="hidden md:table-header-group">
+                    <tr class="text-[10px] text-neutral-500 uppercase font-black tracking-widest bg-white/[0.02]">
+                        <th class="px-6 py-4">Asset</th>
+                        <th class="px-6 py-4">Total Equity</th>
+                        <th class="px-6 py-4">Cost Basis</th>
+                        <th class="px-6 py-4">Unrealized P/L</th>
+                        <th class="px-6 py-4">Total Return</th>
+                        <th class="px-6 py-4">Weight %</th>
+                    </tr>
+                </thead>
+                <tbody id="holdingsBody">
+                    <tr><td colspan="6" class="px-8 py-20 text-center text-neutral-600 font-bold uppercase tracking-widest shimmer">Connecting to Neural Net...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div id="drawer-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-md z-40 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+    <div id="drawer" class="fixed top-0 right-0 h-full w-full md:w-[600px] bg-neutral-950 border-l border-white/10 z-50 p-6 md:p-10 flex flex-col shadow-2xl overflow-y-auto">
+        <div class="flex items-center justify-between mb-8">
+            <div><h3 class="text-4xl font-black text-white tracking-tighter" id="drawer-symbol">---</h3><p class="text-xs font-bold text-neutral-500 uppercase tracking-widest mt-1" id="drawer-name">Position Detail</p></div>
+            <button id="btnCloseDrawer" class="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/5 text-white"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        </div>
+        <div class="grid grid-cols-2 gap-4 md:gap-6 mb-8">
+            <div class="p-6 bg-white/[0.03] rounded-3xl border border-white/5"><p class="text-[10px] uppercase font-black text-neutral-500 mb-2 tracking-widest">Market Value</p><p class="text-2xl font-black text-white" id="drawer-value">---</p></div>
+            <div class="p-6 bg-white/[0.03] rounded-3xl border border-white/5"><p class="text-[10px] uppercase font-black text-neutral-500 mb-2 tracking-widest">Total P/L</p><p class="text-2xl font-black" id="drawer-return">---</p></div>
+        </div>
+        <div class="flex-1 flex flex-col">
+            <div class="flex items-center justify-between mb-4"><h4 class="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em]">Growth History</h4><div class="flex gap-1" id="drawer-ranges"></div></div>
+            <div class="flex-1 min-h-[300px] w-full bg-neutral-900/20 rounded-3xl border border-white/5 p-4 relative"><canvas id="drawerChart"></canvas></div>
+        </div>
+        <button id="btnCloseDrawerFooter" class="mt-8 w-full py-4 bg-white hover:bg-neutral-200 text-black font-black text-xs rounded-2xl transition-all shadow-2xl uppercase tracking-tighter">Close View</button>
     </div>
 
-    <div class="card">
-        <h2>ETF Leaderboard List</h2>
-        <div class="table-container">
-          <table>
-            <thead><tr><th>Member</th><th>Ticker</th><th class="text-right">Entry</th><th class="text-right">Current (Live)</th><th class="text-right">Return</th><th></th></tr></thead>
-            <tbody id="etfTable"></tbody>
-          </table>
-        </div>
-      </div>
+    <script src="dashboard.js"></script>
 
-  </div>
+    <script>
+        // --- 1. SETUP SUPABASE ---
+        // (Make sure these match your Admin file)
+        const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+        const dbEtf = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  <script>
-    // --- 1. SETUP SUPABASE ---
-    if (typeof window.supabase === 'undefined') { throw new Error("Supabase library not found."); }
-    
-    // Credentials
-    const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
-    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const INITIAL_CAPITAL = 1000;
+        let etfMembersData = []; // Will store fetched data
 
-    // ** IMPORTANT: REPLACE THIS with your actual Edge Function URL **
-    // You can find this in Supabase Dashboard -> Edge Functions
-    const EDGE_FUNCTION_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co/functions/v1/update-prices"; 
-
-    // --- 2. DOM ELEMENTS ---
-    const form = document.getElementById('tradeForm');
-    const tableBody = document.getElementById('historyTable');
-    const msgBox = document.getElementById('message');
-
-    // ETF DOM
-    const etfForm = document.getElementById('etfForm');
-    const etfTable = document.getElementById('etfTable');
-
-    // --- 3. STARTUP ---
-    init();
-
-    async function init() {
-      const { data: { session } } = await db.auth.getSession();
-      if (!session) window.location.href = "login.html";
-      
-      // Load both datasets
-      loadHistory();
-      loadEtf();
-    }
-
-    // ==========================================
-    //  SECTION A: MAIN PORTFOLIO LOGIC
-    // ==========================================
-
-    async function loadHistory() {
-      const { data, error } = await db.from('trades').select('*').order('date', { ascending: false }).limit(20);
-      
-      if (error) { showMsg("Error loading history", "error"); return; }
-      
-      tableBody.innerHTML = "";
-      if(!data || data.length === 0) {
-        tableBody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:2rem; color:#52525b'>No trades yet.</td></tr>";
-        return;
-      }
-
-      data.forEach(trade => {
-        const date = new Date(trade.date).toLocaleDateString();
-        const badgeClass = trade.type === 'BUY' ? 'badge-buy' : 'badge-sell';
-        tableBody.innerHTML += `
-          <tr>
-            <td style="white-space:nowrap;">${date}</td>
-            <td style="font-weight:bold; color:#fff;">${trade.symbol}</td>
-            <td><span class="badge ${badgeClass}">${trade.type}</span></td>
-            <td class="text-right">${Number(trade.quantity).toLocaleString()}</td>
-            <td class="text-right">$${Number(trade.price).toLocaleString()}</td>
-            <td class="text-right"><button class="delete-btn" onclick="deleteTrade('${trade.id}')">&times;</button></td>
-          </tr>`;
-      });
-    }
-
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      showMsg("Saving trade...", "success"); 
-
-      const symbol = document.getElementById('symbol').value.toUpperCase().trim();
-      const type = document.getElementById('type').value;
-      const qty = parseFloat(document.getElementById('quantity').value);
-      const price = parseFloat(document.getElementById('price').value);
-
-      const { error } = await db.from('trades').insert({
-        symbol, type, quantity: qty, price, date: new Date().toISOString()
-      });
-
-      if (error) return showMsg("Error saving trade: " + error.message, "error");
-      
-      // We no longer calculate locally, we trigger the Edge Function for everything
-      triggerSync();
-      
-      form.reset();
-      document.getElementById('symbol').focus();
-      loadHistory();
-    };
-
-    window.deleteTrade = async (id) => {
-      if (!confirm("Delete this trade?")) return;
-      const { error } = await db.from('trades').delete().eq('id', id);
-      if(error) return alert("Error: " + error.message);
-      triggerSync();
-      loadHistory();
-    };
-
-    // ==========================================
-    //  SECTION B: WINNERLAND ETF LOGIC
-    // ==========================================
-
-    async function loadEtf() {
-        const { data, error } = await db.from('etf_members').select('*').order('name', { ascending: true });
-
-        if (error) { console.error(error); return; }
-
-        etfTable.innerHTML = "";
-        if(!data || data.length === 0) {
-            etfTable.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:2rem; color:#52525b'>No members found.</td></tr>";
-            return;
+        // --- 2. FETCH DATA FROM DB ---
+        async function fetchEtfData() {
+            try {
+                const { data, error } = await dbEtf.from('etf_members').select('*');
+                if(error) throw error;
+                etfMembersData = data;
+                initEtfBanner(); // Update UI after fetch
+            } catch (err) {
+                console.error("Error fetching ETF data:", err);
+                document.getElementById('etf-leader-preview').innerText = "Offline";
+            }
         }
 
-        data.forEach(m => {
-            const ret = ((m.current_price - m.start_price) / m.start_price) * 100;
-            const color = ret >= 0 ? '#34d399' : '#f87171';
+        // --- 3. CALCULATE LOGIC ---
+        function calculateEtfData() {
+            let totalFundValue = 0;
+            // If no members, total initial is 0 to avoid division by zero
+            let totalInitial = etfMembersData.length > 0 ? etfMembersData.length * INITIAL_CAPITAL : 1;
             
-            etfTable.innerHTML += `
-            <tr>
-                <td style="font-weight:bold; color:#fff;">${m.name}</td>
-                <td><span class="badge" style="background:#333; color:#fff;">${m.ticker}</span></td>
-                <td class="text-right">$${m.start_price}</td>
-                <td class="text-right" style="color:#fff; font-weight:bold;">$${m.current_price}</td>
-                <td class="text-right" style="color:${color}">${ret > 0 ? '+' : ''}${ret.toFixed(2)}%</td>
-                <td class="text-right"><button class="delete-btn" onclick="deleteMember('${m.id}')">&times;</button></td>
-            </tr>`;
-        });
-    }
+            const leaderboard = etfMembersData.map(m => {
+                const performance = (m.current_price - m.start_price) / m.start_price;
+                const currentValue = INITIAL_CAPITAL * (1 + performance);
+                totalFundValue += currentValue;
+                
+                return {
+                    name: m.name,
+                    ticker: m.ticker,
+                    value: currentValue,
+                    returnPct: (performance * 100).toFixed(2),
+                    isPositive: performance >= 0
+                };
+            }).sort((a, b) => b.value - a.value); // Sort highest to lowest
 
-    etfForm.onsubmit = async (e) => {
-        e.preventDefault();
-        showMsg("Saving Member...", "success");
+            if(etfMembersData.length === 0) totalFundValue = 0;
 
-        const name = document.getElementById('etfName').value.trim();
-        const ticker = document.getElementById('etfTicker').value.toUpperCase().trim();
-        const start_price = parseFloat(document.getElementById('etfStart').value);
-        
-        // We initialize current_price as start_price. 
-        // It will be updated to the real live price the next time "Sync" runs.
-        const { error } = await db.from('etf_members').insert({
-            name, ticker, start_price, current_price: start_price
-        });
+            return { leaderboard, totalFundValue, totalInitial };
+        }
+    
+        // --- 4. UPDATE BANNER UI ---
+        function initEtfBanner() {
+            if(etfMembersData.length === 0) {
+                 document.getElementById('etf-total-value').innerText = "$0.00";
+                 document.getElementById('etf-total-return').innerText = "0.00%";
+                 document.getElementById('etf-leader-preview').innerText = "No Members";
+                 return;
+            }
 
-        if(error) return showMsg(error.message, "error");
+            const data = calculateEtfData();
+            const totalReturn = ((data.totalFundValue - data.totalInitial) / data.totalInitial) * 100;
+    
+            // Update Text
+            document.getElementById('etf-total-value').innerText = '$' + data.totalFundValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            
+            const returnEl = document.getElementById('etf-total-return');
+            returnEl.innerText = (totalReturn > 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
+            returnEl.className = `text-2xl font-black tracking-tight text-right ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
+            
+            // Show Leader name in preview
+            if(data.leaderboard.length > 0) {
+                document.getElementById('etf-leader-preview').innerHTML = `Leader: <span class="text-amber-500">${data.leaderboard[0].name} (${data.leaderboard[0].ticker})</span>`;
+            }
+        }
+    
+        // --- 5. OPEN DRAWER (CHART) ---
+        let drawerChartInstance = null;
+    
+        function openEtfLeaderboard() {
+            if(etfMembersData.length === 0) return;
 
-        showMsg("Member Saved. Updating prices...", "success");
-        etfForm.reset();
-        loadEtf();
-        triggerSync(); // Auto-trigger sync to get correct price immediately
-    }
-
-    window.deleteMember = async (id) => {
-        if(!confirm("Remove this member?")) return;
-        const { error } = await db.from('etf_members').delete().eq('id', id);
-        if(error) return showMsg(error.message, "error");
-        loadEtf();
-        triggerSync();
-    }
-
-    // ==========================================
-    //  SECTION C: FORCE SYNC
-    // ==========================================
-
-    async function triggerSync() {
-        showMsg("Syncing with live markets...", "success");
-        try {
-            // Call the Edge Function
-            const res = await fetch(EDGE_FUNCTION_URL, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
-                    'Content-Type': 'application/json'
+            const drawer = document.getElementById('drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            const { leaderboard, totalFundValue, totalInitial } = calculateEtfData();
+            const totalReturn = ((totalFundValue - totalInitial) / totalInitial) * 100;
+    
+            // 1. Open Drawer UI
+            drawer.classList.add('open');
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+    
+            // 2. Override Drawer Text Content
+            document.getElementById('drawer-symbol').innerText = "WINNERLAND ETF";
+            document.getElementById('drawer-name').innerText = "Member Leaderboard ($1k Start)";
+            document.getElementById('drawer-value').innerText = '$' + totalFundValue.toLocaleString(undefined, {minimumFractionDigits: 2});
+            
+            const retEl = document.getElementById('drawer-return');
+            retEl.innerText = (totalReturn >= 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
+            retEl.className = `text-2xl font-black ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
+    
+            document.getElementById('drawer-ranges').innerHTML = '<span class="text-[10px] text-neutral-500 font-bold uppercase">LIVE RANKING</span>';
+    
+            // 3. Render Chart
+            const ctx = document.getElementById('drawerChart').getContext('2d');
+            
+            if (window.myDrawerChart) window.myDrawerChart.destroy();
+            if (drawerChartInstance) drawerChartInstance.destroy();
+    
+            drawerChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: leaderboard.map(i => `${i.name} (${i.ticker})`),
+                    datasets: [{
+                        label: 'Current Equity Value ($)',
+                        data: leaderboard.map(i => i.value),
+                        backgroundColor: leaderboard.map(i => i.isPositive ? '#10b981' : '#ef4444'),
+                        borderRadius: 6,
+                        barThickness: 30
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', // Horizontal bars
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#171717',
+                            titleColor: '#fff',
+                            bodyFont: { family: 'Inter' },
+                            callbacks: {
+                                label: function(context) {
+                                    let val = context.raw;
+                                    let roi = ((val - 1000)/1000)*100;
+                                    return `$${val.toFixed(2)} (${roi > 0 ? '+' : ''}${roi.toFixed(1)}%)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#737373', font: { family: 'Inter', size: 10 } }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: '#e5e5e5', font: { family: 'Inter', weight: 'bold' } }
+                        }
+                    }
                 }
             });
             
-            const json = await res.json();
-            
-            if(res.ok) {
-                showMsg("Sync Complete!", "success");
-                loadEtf(); // Reload table to show new prices
-            } else {
-                console.error(json);
-                showMsg("Sync Failed (Check Console)", "error");
-            }
-        } catch(err) {
-            console.error(err);
-            // Fallback: If edge function fails/doesn't exist yet, we just warn.
-            showMsg("Sync Trigger Failed (Is Edge Function deployed?)", "error");
+            window.myDrawerChart = drawerChartInstance; 
         }
-    }
+    
+        // INITIALIZE ON LOAD
+        window.addEventListener('load', fetchEtfData);
+    
+        // DRAWER CLOSING LOGIC
+        const closeDrawer = () => {
+            document.getElementById('drawer').classList.remove('open');
+            document.getElementById('drawer-overlay').classList.add('opacity-0', 'pointer-events-none');
+        };
 
-    function showMsg(text, type) {
-      msgBox.textContent = text;
-      msgBox.className = type;
-      msgBox.style.display = 'block';
-      setTimeout(() => { msgBox.style.display = 'none'; }, 4000);
-    }
-  </script>
+        document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+        document.getElementById('btnCloseDrawer').addEventListener('click', closeDrawer);
+        document.getElementById('btnCloseDrawerFooter').addEventListener('click', closeDrawer);
+    </script>
 </body>
 </html>
