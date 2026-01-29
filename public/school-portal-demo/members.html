@@ -187,7 +187,6 @@
 <script>
 (function() {
     // 1. CONFIGURATION
-    // We define these locally so they don't conflict with dashboard.js
     const ETF_CONFIG = {
         URL: "https://acdlgvcxzxjvcwiqlydj.supabase.co",
         KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI",
@@ -198,46 +197,21 @@
 
     // 2. CONNECTION HANDLER
     function getSupabase() {
-        // A. Check if dashboard.js already connected globally
-        if (window.supabase && typeof window.supabase.from === 'function') {
-            return window.supabase;
-        }
-        // B. Check if we stored it as 'supabaseClient' (like in your login page)
-        if (window.supabaseClient && typeof window.supabaseClient.from === 'function') {
-            return window.supabaseClient;
-        }
-        // C. If neither, create a fresh local connection
-        if (window.supabase && typeof window.supabase.createClient === 'function') {
-            return window.supabase.createClient(ETF_CONFIG.URL, ETF_CONFIG.KEY);
-        }
+        if (window.supabase && typeof window.supabase.from === 'function') return window.supabase;
+        if (window.supabaseClient && typeof window.supabaseClient.from === 'function') return window.supabaseClient;
+        if (window.supabase && typeof window.supabase.createClient === 'function') return window.supabase.createClient(ETF_CONFIG.URL, ETF_CONFIG.KEY);
         return null;
     }
 
     // 3. MAIN STARTUP
     async function initEtf() {
-        const previewEl = document.getElementById('etf-leader-preview');
-        
         try {
             const db = getSupabase();
-            if (!db) throw new Error("Supabase library not loaded");
-
-            // Fetch Data
-            const { data, error } = await db.from('etf_members').select('*');
-
-            if (error) {
-                console.error("ETF Error:", error);
-                if (previewEl) previewEl.innerText = "DB Error"; 
-                return;
-            }
-
-            // Success
+            if (!db) return; // Silent fail if DB not ready
+            const { data } = await db.from('etf_members').select('*');
             etfMembers = data || [];
             updateBanner();
-
-        } catch (err) {
-            console.error("ETF Crash:", err);
-            if (previewEl) previewEl.innerText = "Offline";
-        }
+        } catch (err) { console.error(err); }
     }
 
     // 4. UI UPDATER
@@ -246,18 +220,10 @@
             document.getElementById('etf-leader-preview').innerText = "No Members";
             return;
         }
-
         const stats = calculateStats();
-        
-        // Total Return Calculation
-        let totalReturn = 0;
-        if (stats.totalInitial > 0) {
-            totalReturn = ((stats.totalValue - stats.totalInitial) / stats.totalInitial) * 100;
-        }
+        let totalReturn = stats.totalInitial > 0 ? ((stats.totalValue - stats.totalInitial) / stats.totalInitial) * 100 : 0;
 
-        // Update DOM
         document.getElementById('etf-total-value').innerText = '$' + stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2});
-        
         const returnEl = document.getElementById('etf-total-return');
         returnEl.innerText = (totalReturn > 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
         returnEl.className = `text-2xl font-black tracking-tight text-right ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
@@ -268,35 +234,42 @@
         }
     }
 
-    // 5. CALCULATION ENGINE
+    // 5. CALCULATION
     function calculateStats() {
         let totalValue = 0;
         let totalInitial = etfMembers.length * ETF_CONFIG.CAPITAL;
-
         const leaderboard = etfMembers.map(m => {
             const start = parseFloat(m.start_price) || 1;
             const current = parseFloat(m.current_price) || start;
-            
             const performance = (current - start) / start;
             const currentValue = ETF_CONFIG.CAPITAL * (1 + performance);
-            
             totalValue += currentValue;
-
-            return {
-                name: m.name,
-                ticker: m.ticker,
-                value: currentValue,
-                isPos: performance >= 0
-            };
+            return { name: m.name, ticker: m.ticker, value: currentValue, isPos: performance >= 0 };
         }).sort((a, b) => b.value - a.value);
-
         return { leaderboard, totalValue, totalInitial };
     }
 
-    // 6. GLOBAL CLICK HANDLER
-    // We must attach this to 'window' so the HTML onclick="..." can find it
+    // --- HELPER: FORCE CHART CLEANUP ---
+    // This function finds ANY chart on the canvas and kills it.
+    function killExistingChart() {
+        // Method 1: Global variable
+        if (window.myDrawerChart instanceof Chart) {
+            window.myDrawerChart.destroy();
+            window.myDrawerChart = null;
+        }
+        // Method 2: Direct Canvas check (The most robust way)
+        const chartInstance = Chart.getChart("drawerChart");
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+    }
+
+    // 6. GLOBAL OPEN FUNCTION
     window.openEtfLeaderboard = function() {
         if (!etfMembers.length) return;
+
+        // Clean up previous charts first
+        killExistingChart();
 
         const drawer = document.getElementById('drawer');
         const overlay = document.getElementById('drawer-overlay');
@@ -305,22 +278,19 @@
         drawer.classList.add('open');
         overlay.classList.remove('opacity-0', 'pointer-events-none');
 
-        // Update Drawer Texts
         document.getElementById('drawer-symbol').innerText = "WINNERLAND ETF";
         document.getElementById('drawer-name').innerText = "Leaderboard";
         document.getElementById('drawer-value').innerText = '$' + stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2});
         
-        let totalReturn = ((stats.totalValue - stats.totalInitial) / stats.totalInitial) * 100;
+        let totalReturn = stats.totalInitial > 0 ? ((stats.totalValue - stats.totalInitial) / stats.totalInitial) * 100 : 0;
         const retEl = document.getElementById('drawer-return');
         retEl.innerText = (totalReturn >= 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
         retEl.className = `text-2xl font-black ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
-
         document.getElementById('drawer-ranges').innerHTML = '<span class="text-[10px] text-neutral-500 font-bold uppercase">LIVE</span>';
 
-        // Draw Chart
         const ctx = document.getElementById('drawerChart').getContext('2d');
-        if (window.myDrawerChart instanceof Chart) window.myDrawerChart.destroy();
-
+        
+        // Create and save to global so dashboard.js can find it too
         window.myDrawerChart = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -346,17 +316,31 @@
         });
     };
 
-    // 7. INITIALIZE
-    window.addEventListener('load', initEtf);
-    
+    // 7. CRITICAL FIX: WATCH FOR STOCK CLICKS
+    // If user clicks the stock table, we MUST kill the ETF chart so the stock chart can load
+    window.addEventListener('load', () => {
+        initEtf();
+        
+        const holdingsTable = document.getElementById('holdingsBody');
+        if(holdingsTable) {
+            holdingsTable.addEventListener('click', () => {
+                // If a user clicks a row, force kill the ETF chart logic immediately
+                // This clears the way for dashboard.js to draw its line chart
+                killExistingChart();
+            }, true); // Use capture phase to ensure this runs before dashboard.js
+        }
+    });
+
     // Close Logic
     function closeDrawer() {
         document.getElementById('drawer').classList.remove('open');
         document.getElementById('drawer-overlay').classList.add('opacity-0', 'pointer-events-none');
+        // Optional: Kill chart on close to be safe
+        setTimeout(killExistingChart, 300); 
     }
     document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
     document.getElementById('btnCloseDrawer').addEventListener('click', closeDrawer);
     document.getElementById('btnCloseDrawerFooter').addEventListener('click', closeDrawer);
 
-})(); // END OF SAFE WRAPPER
+})(); 
 </script>
