@@ -184,64 +184,68 @@
 
     <script src="dashboard.js"></script>
 
-    <script>
-        // We use a block { ... } here to isolate these variables.
-        // This prevents the "Already Declared" error if dashboard.js also uses SUPABASE_URL.
+<script>
+        // Use a block scope to prevent variable conflicts
         {
-            const ETF_SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
-            const ETF_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+            // --- CONFIGURATION ---
+            const _ETF_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
+            const _ETF_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+            const _INITIAL_CAPITAL = 1000;
             
-            // Safety check: ensure Supabase library is loaded
-            let dbEtf;
-            try {
-                dbEtf = window.supabase.createClient(ETF_SUPABASE_URL, ETF_SUPABASE_KEY);
-            } catch (e) {
-                console.error("Supabase failed to load in ETF script:", e);
-                const el = document.getElementById('etf-leader-preview');
-                if(el) el.innerText = "System Error";
-            }
+            let _etfMembersData = [];
+            let _dbEtf = null;
 
-            const INITIAL_CAPITAL = 1000;
-            let etfMembersData = []; 
-
-            // --- FETCH DATA ---
-            async function fetchEtfData() {
-                if (!dbEtf) return;
-
+            // --- MAIN STARTUP FUNCTION ---
+            async function initEtfSystem() {
                 try {
-                    // Fetch members
-                    const { data, error } = await dbEtf.from('etf_members').select('*');
-                    
+                    // 1. Check if Supabase library is loaded
+                    if (!window.supabase) {
+                        throw new Error("Supabase Library not found. Check <head> script tags.");
+                    }
+
+                    // 2. Initialize Client (Lazy Load)
+                    if (!_dbEtf) {
+                        _dbEtf = window.supabase.createClient(_ETF_URL, _ETF_KEY);
+                    }
+
+                    // 3. Fetch Data
+                    const { data, error } = await _dbEtf.from('etf_members').select('*');
+
                     if (error) {
-                        console.error("Supabase ETF Error:", error.message);
-                        // This usually means you need to run the SQL "Public Read Access" policy fix I sent previously
-                        const el = document.getElementById('etf-leader-preview');
-                        if(el) el.innerText = "Permission Error";
+                        console.error("ETF Permission Error:", error);
+                        updateStatus("Permission Error");
                         return;
                     }
 
-                    etfMembersData = data || [];
-                    initEtfBanner(); 
+                    // 4. Success - Process Data
+                    _etfMembersData = data || [];
+                    renderEtfBanner();
 
                 } catch (err) {
-                    console.error("Script Error:", err);
-                    const el = document.getElementById('etf-leader-preview');
-                    if(el) el.innerText = "Offline";
+                    console.error("ETF System Error:", err);
+                    updateStatus("System Error"); // Check Console (F12) for details
                 }
             }
 
-            // --- CALCULATE LOGIC ---
-            function calculateEtfData() {
+            // --- HELPER: Update Status Text ---
+            function updateStatus(msg) {
+                const el = document.getElementById('etf-leader-preview');
+                if (el) el.innerText = msg;
+            }
+
+            // --- CALCULATION ENGINE ---
+            function calculateEtfMetrics() {
                 let totalFundValue = 0;
-                let totalInitial = etfMembersData.length > 0 ? etfMembersData.length * INITIAL_CAPITAL : 0;
+                let totalInitial = _etfMembersData.length > 0 ? _etfMembersData.length * _INITIAL_CAPITAL : 0;
                 
-                const leaderboard = etfMembersData.map(m => {
-                    const start = parseFloat(m.start_price);
-                    const current = parseFloat(m.current_price);
+                const leaderboard = _etfMembersData.map(m => {
+                    const start = parseFloat(m.start_price) || 0;
+                    const current = parseFloat(m.current_price) || 0;
                     
-                    // Prevent divide by zero if start price is missing
+                    // Avoid divide by zero
                     const performance = start > 0 ? (current - start) / start : 0;
-                    const currentValue = INITIAL_CAPITAL * (1 + performance);
+                    const currentValue = _INITIAL_CAPITAL * (1 + performance);
+                    
                     totalFundValue += currentValue;
                     
                     return {
@@ -251,76 +255,81 @@
                         returnPct: (performance * 100).toFixed(2),
                         isPositive: performance >= 0
                     };
-                }).sort((a, b) => b.value - a.value); 
+                }).sort((a, b) => b.value - a.value);
 
                 return { leaderboard, totalFundValue, totalInitial };
             }
-        
-            // --- UPDATE BANNER UI ---
-            function initEtfBanner() {
-                if(!etfMembersData || etfMembersData.length === 0) {
+
+            // --- RENDER BANNER ---
+            function renderEtfBanner() {
+                if (!_etfMembersData || _etfMembersData.length === 0) {
                     document.getElementById('etf-total-value').innerText = "$0.00";
                     document.getElementById('etf-total-return').innerText = "0.00%";
-                    document.getElementById('etf-leader-preview').innerText = "No Members";
+                    updateStatus("No Members");
                     return;
                 }
 
-                const data = calculateEtfData();
+                const metrics = calculateEtfMetrics();
                 
+                // Calculate Total Return %
                 let totalReturn = 0;
-                if (data.totalInitial > 0) {
-                    totalReturn = ((data.totalFundValue - data.totalInitial) / data.totalInitial) * 100;
+                if (metrics.totalInitial > 0) {
+                    totalReturn = ((metrics.totalFundValue - metrics.totalInitial) / metrics.totalInitial) * 100;
                 }
-        
-                document.getElementById('etf-total-value').innerText = '$' + data.totalFundValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+                // Update DOM
+                document.getElementById('etf-total-value').innerText = '$' + metrics.totalFundValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 
                 const returnEl = document.getElementById('etf-total-return');
                 returnEl.innerText = (totalReturn > 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
                 returnEl.className = `text-2xl font-black tracking-tight text-right ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
                 
-                if(data.leaderboard.length > 0) {
-                    document.getElementById('etf-leader-preview').innerHTML = `Leader: <span class="text-amber-500">${data.leaderboard[0].name} (${data.leaderboard[0].ticker})</span>`;
+                if (metrics.leaderboard.length > 0) {
+                    const leader = metrics.leaderboard[0];
+                    document.getElementById('etf-leader-preview').innerHTML = `Leader: <span class="text-amber-500">${leader.name} (${leader.ticker})</span>`;
                 }
             }
-        
-            // --- OPEN DRAWER (Global Function) ---
-            // We attach this to 'window' so the HTML onclick="openEtfLeaderboard()" can still find it
-            // even though we are inside a block scope.
+
+            // --- GLOBAL FUNCTION: OPEN DRAWER ---
             window.openEtfLeaderboard = function() {
-                if(etfMembersData.length === 0) return;
+                if (_etfMembersData.length === 0) return;
 
                 const drawer = document.getElementById('drawer');
                 const overlay = document.getElementById('drawer-overlay');
-                const { leaderboard, totalFundValue, totalInitial } = calculateEtfData();
+                const metrics = calculateEtfMetrics();
                 
                 let totalReturn = 0;
-                if(totalInitial > 0) totalReturn = ((totalFundValue - totalInitial) / totalInitial) * 100;
-        
+                if(metrics.totalInitial > 0) {
+                    totalReturn = ((metrics.totalFundValue - metrics.totalInitial) / metrics.totalInitial) * 100;
+                }
+
+                // UI Transitions
                 drawer.classList.add('open');
                 overlay.classList.remove('opacity-0', 'pointer-events-none');
-        
+
+                // Set Drawer Content
                 document.getElementById('drawer-symbol').innerText = "WINNERLAND ETF";
                 document.getElementById('drawer-name').innerText = "Member Leaderboard ($1k Start)";
-                document.getElementById('drawer-value').innerText = '$' + totalFundValue.toLocaleString(undefined, {minimumFractionDigits: 2});
+                document.getElementById('drawer-value').innerText = '$' + metrics.totalFundValue.toLocaleString(undefined, {minimumFractionDigits: 2});
                 
                 const retEl = document.getElementById('drawer-return');
                 retEl.innerText = (totalReturn >= 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
                 retEl.className = `text-2xl font-black ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
-        
+
                 document.getElementById('drawer-ranges').innerHTML = '<span class="text-[10px] text-neutral-500 font-bold uppercase">LIVE RANKING</span>';
-        
+
+                // Chart.js Rendering
                 const ctx = document.getElementById('drawerChart').getContext('2d');
-                
                 if (window.myDrawerChart) window.myDrawerChart.destroy();
-        
+
                 window.myDrawerChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: leaderboard.map(i => `${i.name} (${i.ticker})`),
+                        labels: metrics.leaderboard.map(i => `${i.name} (${i.ticker})`),
                         datasets: [{
-                            label: 'Current Equity Value ($)',
-                            data: leaderboard.map(i => i.value),
-                            backgroundColor: leaderboard.map(i => i.isPositive ? '#10b981' : '#ef4444'),
+                            label: 'Equity Value',
+                            data: metrics.leaderboard.map(i => i.value),
+                            backgroundColor: metrics.leaderboard.map(i => i.isPositive ? '#10b981' : '#ef4444'),
                             borderRadius: 6,
                             barThickness: 30
                         }]
@@ -329,55 +338,25 @@
                         indexAxis: 'y',
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                backgroundColor: '#171717',
-                                titleColor: '#fff',
-                                bodyFont: { family: 'Inter' },
-                                callbacks: {
-                                    label: function(context) {
-                                        let val = context.raw;
-                                        let roi = ((val - 1000)/1000)*100;
-                                        return `$${val.toFixed(2)} (${roi > 0 ? '+' : ''}${roi.toFixed(1)}%)`;
-                                    }
-                                }
-                            }
-                        },
+                        plugins: { legend: { display: false } },
                         scales: {
-                            x: {
-                                grid: { color: 'rgba(255,255,255,0.05)' },
-                                ticks: { color: '#737373', font: { family: 'Inter', size: 10 } }
-                            },
-                            y: {
-                                grid: { display: false },
-                                ticks: { color: '#e5e5e5', font: { family: 'Inter', weight: 'bold' } }
-                            }
+                            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#737373' } },
+                            y: { grid: { display: false }, ticks: { color: '#e5e5e5', font: { weight: 'bold' } } }
                         }
                     }
                 });
             };
-        
-            // INITIALIZE
-            window.addEventListener('load', fetchEtfData);
 
-            // Re-attach close listeners for the drawer
+            // --- INITIALIZE ON PAGE LOAD ---
+            window.addEventListener('load', initEtfSystem);
+
+            // Drawer Closing Logic
             const closeDrawer = () => {
-                const d = document.getElementById('drawer');
-                const o = document.getElementById('drawer-overlay');
-                if(d) d.classList.remove('open');
-                if(o) o.classList.add('opacity-0', 'pointer-events-none');
+                document.getElementById('drawer').classList.remove('open');
+                document.getElementById('drawer-overlay').classList.add('opacity-0', 'pointer-events-none');
             };
-
-            const ol = document.getElementById('drawer-overlay');
-            if(ol) ol.addEventListener('click', closeDrawer);
-            
-            const btn1 = document.getElementById('btnCloseDrawer');
-            if(btn1) btn1.addEventListener('click', closeDrawer);
-            
-            const btn2 = document.getElementById('btnCloseDrawerFooter');
-            if(btn2) btn2.addEventListener('click', closeDrawer);
+            document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+            document.getElementById('btnCloseDrawer').addEventListener('click', closeDrawer);
+            document.getElementById('btnCloseDrawerFooter').addEventListener('click', closeDrawer);
         }
     </script>
-</body>
-</html>
