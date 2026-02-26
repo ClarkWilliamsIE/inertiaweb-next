@@ -273,7 +273,17 @@ function renderTable(factor) {
             <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center"><span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Cost</span><span class="text-neutral-400 text-sm">${fmtMoney(p.cost / factor, true)}</span></td>
             <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center"><span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Unrealized</span><span class="font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}">${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}</span></td>
             <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center"><span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Return</span><span class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-sm ${p.pct >= 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}">${p.pct >= 0 ? '▲' : '▼'} ${fmtPct(Math.abs(p.pct))}%</span></td>
-            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center"><span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Weight</span><div class="flex items-center gap-3 justify-end md:justify-start w-1/2 md:w-auto"><span class="text-xs font-bold text-neutral-500 w-[30px]">${weight.toFixed(0)}%</span><div class="flex-1 max-w-[80px] h-1.5 bg-neutral-800 rounded-full overflow-hidden"><div class="h-full bg-neutral-600 group-hover:bg-amber-500 transition-all" style="width: ${weight}%"></div></div></div></td>
+            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center">
+                <span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Weight</span>
+                <div class="flex items-center gap-3 justify-end md:justify-start w-full md:w-32">
+                    <div class="relative flex-1 h-5 bg-neutral-800 rounded-md overflow-hidden border border-white/5">
+                        <div class="h-full bg-neutral-600 group-hover:bg-amber-500 transition-all ring-1 ring-white/20" style="width: ${weight}%"></div>
+                        <span class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white mix-blend-difference">
+                            ${weight.toFixed(1)}%
+                        </span>
+                    </div>
+                </div>
+            </td>
         `;
         body.appendChild(row);
     });
