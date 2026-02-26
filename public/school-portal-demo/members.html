@@ -290,31 +290,76 @@
 
         const ctx = document.getElementById('drawerChart').getContext('2d');
         
-        // Create and save to global so dashboard.js can find it too
-        window.myDrawerChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: stats.leaderboard.map(i => `${i.name} (${i.ticker})`),
-                datasets: [{
-                    label: 'Equity',
-                    data: stats.leaderboard.map(i => i.value),
-                    backgroundColor: stats.leaderboard.map(i => i.isPos ? '#10b981' : '#ef4444'),
-                    borderRadius: 6,
-                    barThickness: 30
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { grid: { color: 'rgba(255,255,255,0.05)' } },
-                    y: { grid: { display: false }, ticks: { color: '#fff', font: { weight: 'bold' } } }
+        // ... inside window.openEtfLeaderboard ...
+
+window.myDrawerChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: stats.leaderboard.map(i => `${i.name} (${i.ticker})`),
+        datasets: [{
+            label: 'Equity',
+            data: stats.leaderboard.map(i => i.value),
+            backgroundColor: stats.leaderboard.map(i => i.isPos ? '#10b981' : '#ef4444'),
+            borderRadius: 6,
+            barThickness: 30,
+            // --- ADDED THESE FOR THE STROKE ---
+            borderColor: 'rgba(255, 255, 255, 0.5)', 
+            borderWidth: 1,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { 
+            legend: { display: false },
+            // --- ADDED THIS TOOLTIP OVERRIDE TO SHOW PCT ---
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const val = context.raw;
+                        const pct = ((val - 1000) / 10).toFixed(2); // Based on $1000 capital
+                        return `Equity: $${val.toLocaleString()} (${pct >= 0 ? '+' : ''}${pct}%)`;
+                    }
                 }
             }
-        });
-    };
+        },
+        scales: {
+            x: { 
+                grid: { color: 'rgba(255,255,255,0.05)' },
+                ticks: { color: '#888' } 
+            },
+            y: { 
+                grid: { display: false }, 
+                ticks: { 
+                    color: '#fff', 
+                    font: { weight: 'bold', size: 11 } 
+                } 
+            }
+        },
+        // --- ADDED THIS TO SHOW PERCENTAGES ON THE BARS ---
+        animation: {
+            onComplete: function() {
+                const chart = this;
+                const ctx = chart.ctx;
+                ctx.font = "bold 10px 'Inter'";
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = "#fff";
+
+                chart.data.datasets.forEach((dataset, i) => {
+                    const meta = chart.getDatasetMeta(i);
+                    meta.data.forEach((bar, index) => {
+                        const val = dataset.data[index];
+                        const pct = ((val - 1000) / 10).toFixed(1) + '%';
+                        // Position text slightly inside or outside the end of the bar
+                        ctx.fillText(pct, bar.x + 8, bar.y);
+                    });
+                });
+            }
+        }
+    }
+});
 
     // 7. CRITICAL FIX: WATCH FOR STOCK CLICKS
     // If user clicks the stock table, we MUST kill the ETF chart so the stock chart can load
