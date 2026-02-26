@@ -16,14 +16,11 @@ const fmtMoney = (v, sign = false) => {
     const s = Math.round(v).toLocaleString();
     return sign ? "$" + s : s;
 };
-
 const fmtPct = (v) => (v == null) ? "0.00" : Number(v).toFixed(2);
-
 const getLocalYMD = (iso) => {
     const d = new Date(iso);
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 };
-
 const smartDate = (iso, range) => {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;
@@ -32,7 +29,6 @@ const smartDate = (iso, range) => {
     if (range === 'ALL' || range === 'YEAR') return `${months[d.getMonth()]} ${d.getFullYear().toString().substr(-2)}`;
     return `${d.getDate()} ${months[d.getMonth()]}`;
 };
-
 const simplifyData = (arr) => {
     if (!arr || arr.length < 2) return arr;
     const clean = [arr[0]];
@@ -44,7 +40,6 @@ const simplifyData = (arr) => {
     }
     return clean;
 };
-
 const simplifyCostData = (arr) => {
     if (!arr || arr.length < 2) return arr;
     const clean = [arr[0]];
@@ -52,13 +47,10 @@ const simplifyCostData = (arr) => {
         const lastVal = clean[clean.length - 1][1];
         const currVal = arr[i][1];
         const pctChange = lastVal === 0 ? 1 : Math.abs((currVal - lastVal) / lastVal);
-        if (i === arr.length - 1 || pctChange > 0.05) {
-            clean.push(arr[i]);
-        }
+        if (i === arr.length - 1 || pctChange > 0.05) clean.push(arr[i]);
     }
     return clean;
 };
-
 const filterRange = (hist, rng) => {
     if (!hist?.length) return [];
     const ms = { DAY: 86400000, WEEK: 604800000, MONTH: 2592000000, SIX_MONTHS: 15552000000, YEAR: 31536000000 };
@@ -73,25 +65,18 @@ const filterRange = (hist, rng) => {
     }
     return data;
 };
-
-// --- CHART DATA PREP ---
 const prepareChartData = (hist, costHist = [], factor = 1, currentRange = 'MONTH') => {
     const labels = [];
     const data = [];
     const costData = [];
-    
-    // FIX: Ensure costHist is an array before spreading
     const safeCostHist = Array.isArray(costHist) ? costHist : [];
     const sortedCost = [...safeCostHist].sort((a,b) => new Date(a[0]) - new Date(b[0]));
-    
     let lastKnownCost = 0;
     let costIdx = 0;
-
     hist.forEach((pt) => { 
         const timestamp = new Date(pt[0]).getTime();
         labels.push(smartDate(pt[0], currentRange)); 
         data.push((pt[1] || 0) / factor);
-        
         while(costIdx < sortedCost.length && new Date(sortedCost[costIdx][0]).getTime() <= timestamp) {
             lastKnownCost = sortedCost[costIdx][1];
             costIdx++;
@@ -101,7 +86,6 @@ const prepareChartData = (hist, costHist = [], factor = 1, currentRange = 'MONTH
         }
         costData.push(lastKnownCost / factor);
     });
-
     return { labels, data, costData };
 };
 
@@ -110,34 +94,27 @@ async function loadData() {
     try {
         const { data: trData } = await window.supabase.from("trades").select("*").order("date", { ascending: true });
         if (trData) tradesHistory = trData;
-
         const { data: sumRows } = await window.supabase.from("flex_summary").select("*").order("last_updated", { ascending: false }).limit(1);
         if (!sumRows?.length) return;
         summary = sumRows[0].data;
         summary.lastUpdatedDate = sumRows[0].last_updated;
-
         const { data: highRes } = await window.supabase.from("flex_summary").select("data,last_updated").order("last_updated", { ascending: false }).limit(500);
         const { data: lowRes } = await window.supabase.rpc('get_daily_history');
         const combined = [...(highRes || []), ...(lowRes || [])];
-
         const seenDates = new Set();
         const rawPf = [];
         const rawCost = [];
         const rawSym = {};
-        
         combined.forEach(r => {
             const dt = r.data.lastUpdated || r.last_updated;
             if (!dt) return;
             const timeKey = new Date(dt).getTime();
             if (seenDates.has(timeKey)) return;
             seenDates.add(timeKey);
-            
             const val = Number(r.data.totals?.value || 0);
             const cost = Number(r.data.totals?.cost || 0);
-            
             if (isFinite(val)) rawPf.push([dt, val]);
             if (isFinite(cost)) rawCost.push([dt, cost]);
-
             (r.data.positions || []).forEach(p => {
                 if (p?.symbol) {
                     if (!rawSym[p.symbol]) rawSym[p.symbol] = [];
@@ -145,15 +122,12 @@ async function loadData() {
                 }
             });
         });
-
         rawPf.sort((a, b) => new Date(a[0]) - new Date(b[0]));
         rawCost.sort((a, b) => new Date(a[0]) - new Date(b[0]));
         Object.keys(rawSym).forEach(k => rawSym[k].sort((a, b) => new Date(a[0]) - new Date(b[0])));
-        
         summary.history = rawPf;
         summary.costHistory = rawCost;
         summary.symbolHistory = rawSym;
-        
         renderUI();
     } catch (e) {
         console.error(e);
@@ -170,32 +144,23 @@ function renderUI() {
     const p = (t.profit || 0) / factor;
     const c = (t.cost || 0) / factor;
     const unrealized = v - c; 
-
     const titleEl = document.querySelector("h1");
     if(titleEl) {
         titleEl.textContent = p >= 0 ? "WINNERLAND" : "LOSERLAND";
         titleEl.className = `text-2xl font-black tracking-tighter uppercase ${p >= 0 ? 'text-emerald-500' : 'text-red-500'}`;
     }
-
     document.getElementById("totalValueDisplay").textContent = fmtMoney(v, true);
-    
     const disp = document.getElementById("totalChangeDisplay");
     disp.className = `text-sm font-bold ${p >= 0 ? 'text-accent-green' : 'text-accent-red'}`;
     disp.textContent = `${p >= 0 ? '+' : ''}${fmtPct(t.pct)}%`;
-
     const unEl = document.getElementById("unrealizedDisplay");
     if(unEl) {
         unEl.textContent = `${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}`;
         unEl.className = `text-lg font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
     }
-
     const costEl = document.getElementById("costDisplay");
-    if(costEl) {
-        costEl.textContent = fmtMoney(c, true);
-    }
-
+    if(costEl) { costEl.textContent = fmtMoney(c, true); }
     document.getElementById("lastUpdated").textContent = `Sync: ${new Date(summary.lastUpdatedDate).toLocaleTimeString()}`;
-
     renderMainChart(factor);
     renderTable(factor);
 }
@@ -205,14 +170,10 @@ function renderMainChart(factor) {
     const grad = ctx.createLinearGradient(0, 0, 0, 450);
     grad.addColorStop(0, 'rgba(245, 158, 11, 0.2)');
     grad.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
-    
     const hist = simplifyData(filterRange(summary.history, globalRange));
     const costHist = simplifyCostData(filterRange(summary.costHistory || [], globalRange));
-    
     const cd = prepareChartData(hist, costHist, factor, globalRange);
-    
     if (chartRegistry['main']) chartRegistry['main'].destroy();
-    
     chartRegistry['main'] = new Chart(ctx, {
         type: 'line',
         data: {
@@ -253,15 +214,12 @@ function renderMainChart(factor) {
 function renderTable(factor) {
     const body = document.getElementById("holdingsBody");
     body.innerHTML = "";
-    
     summary.positions.forEach(p => {
         const row = document.createElement("tr");
         row.className = "block md:table-row hover:bg-white/[0.04] cursor-pointer transition-all group border-b border-white/5 p-4 mb-4 md:mb-0 bg-white/[0.03] md:bg-transparent rounded-2xl md:rounded-none";
         row.onclick = () => openDrawer(p.symbol);
-        
         const weight = ((p.value / summary.totals.value) * 100);
         const unrealized = (p.value - p.cost) / factor;
-
         row.innerHTML = `
             <td class="block md:table-cell px-4 py-3 md:px-6 md:py-5">
                 <div class="flex items-center gap-3">
@@ -277,10 +235,8 @@ function renderTable(factor) {
                 <span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Weight</span>
                 <div class="flex items-center gap-3 justify-end md:justify-start w-full md:w-32">
                     <div class="relative flex-1 h-5 bg-neutral-800 rounded-md overflow-hidden border border-white/5">
-                        <div class="h-full bg-neutral-600 group-hover:bg-amber-500 transition-all ring-1 ring-white/20" style="width: ${weight}%"></div>
-                        <span class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white mix-blend-difference">
-                            ${weight.toFixed(1)}%
-                        </span>
+                        <div class="h-full bg-neutral-600 group-hover:bg-amber-500 transition-all border border-white/20" style="width: ${weight}%"></div>
+                        <span class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white mix-blend-difference">${weight.toFixed(1)}%</span>
                     </div>
                 </div>
             </td>
@@ -313,18 +269,11 @@ function closeDrawer() {
 function renderDrawerChart(sym, factor) {
     const ctx = document.getElementById('drawerChart').getContext('2d');
     const range = tickerRangeMode[sym] || "YEAR";
-    
-    // Set context for helper
     chartRegistry.symbol = sym;
-
     const rawHist = filterRange(summary.symbolHistory[sym] || [], range);
     const hist = simplifyData(rawHist);
-    
-    // FIX: Pass empty array for costHist to avoid crash
     const cd = prepareChartData(hist, [], factor, range); 
-    
     if (chartRegistry['drawer']) chartRegistry['drawer'].destroy();
-    
     chartRegistry['drawer'] = new Chart(ctx, {
         type: 'line',
         data: {
@@ -376,7 +325,6 @@ function getChartOptions(showScales = true) {
     };
 }
 
-// EVENTS
 document.getElementById("divideToggle").addEventListener('change', renderUI);
 document.getElementById("btnSignOut").onclick = async () => { await window.supabase.auth.signOut(); location.href = "login.html"; };
 document.getElementById("btnCloseDrawer").onclick = closeDrawer;
@@ -392,11 +340,9 @@ document.querySelectorAll("#mainRangeSelector button").forEach(btn => {
 });
 document.querySelectorAll("#mainRangeSelector button").forEach(b => b.classList.toggle("active", b.dataset.range === globalRange));
 
-// INIT
 (async () => {
     if(!window.supabase) return console.error("Supabase lib not loaded");
     window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
     const { data: { session } } = await window.supabase.auth.getSession();
     if (!session) location.href = "login.html";
     loadData();
