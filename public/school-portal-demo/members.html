@@ -73,7 +73,6 @@
     <section class="glass-card p-4 md:p-8 mb-8 relative">
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
             <div class="flex flex-wrap gap-x-8 gap-y-4">
-                
                 <div>
                     <h2 class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Total Equity</h2>
                     <div class="flex items-baseline gap-2">
@@ -81,21 +80,16 @@
                         <p class="text-sm font-bold" id="totalChangeDisplay">---</p>
                     </div>
                 </div>
-
                 <div class="hidden md:block w-px h-10 bg-white/10"></div>
-
                 <div>
                     <h2 class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Cost Basis</h2>
                     <p class="text-2xl font-bold text-neutral-300 tracking-tight" id="costDisplay">---</p>
                 </div>
-
                 <div class="hidden md:block w-px h-10 bg-white/10"></div>
-
                 <div>
                     <h2 class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Unrealized P/L</h2>
                     <p class="text-2xl font-bold tracking-tight" id="unrealizedDisplay">---</p>
                 </div>
-
             </div>
 
             <div class="flex bg-neutral-900/80 p-1 rounded-xl border border-neutral-800 overflow-x-auto max-w-full" id="mainRangeSelector">
@@ -106,13 +100,11 @@
                 <button data-range="ALL" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">ALL</button>
             </div>
         </div>
-        
         <div class="h-[350px] md:h-[450px] w-full"><canvas id="mainChart"></canvas></div>
     </section>
 
     <section class="glass-card p-6 relative overflow-hidden mb-8 group cursor-pointer transition-all hover:border-amber-500/50" onclick="openEtfLeaderboard()">
         <div class="absolute -right-10 -top-10 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-all"></div>
-        
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
             <div class="flex items-center gap-4">
                 <div class="p-4 bg-amber-500 rounded-xl shadow-lg shadow-amber-500/20">
@@ -123,7 +115,6 @@
                     <p class="text-xs text-neutral-400 font-medium mt-1">Internal Competition • $1,000 Entry • <span id="etf-leader-preview" class="text-white font-bold">Syncing...</span></p>
                 </div>
             </div>
-
             <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
                 <div>
                     <p class="text-[10px] uppercase font-bold text-neutral-500 tracking-widest text-right">Fund Value</p>
@@ -186,7 +177,6 @@
 
 <script>
 (function() {
-    // 1. CONFIGURATION
     const ETF_CONFIG = {
         URL: "https://acdlgvcxzxjvcwiqlydj.supabase.co",
         KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI",
@@ -195,7 +185,6 @@
 
     let etfMembers = [];
 
-    // 2. CONNECTION HANDLER
     function getSupabase() {
         if (window.supabase && typeof window.supabase.from === 'function') return window.supabase;
         if (window.supabaseClient && typeof window.supabaseClient.from === 'function') return window.supabaseClient;
@@ -203,18 +192,16 @@
         return null;
     }
 
-    // 3. MAIN STARTUP
     async function initEtf() {
         try {
             const db = getSupabase();
-            if (!db) return; // Silent fail if DB not ready
+            if (!db) return;
             const { data } = await db.from('etf_members').select('*');
             etfMembers = data || [];
             updateBanner();
         } catch (err) { console.error(err); }
     }
 
-    // 4. UI UPDATER
     function updateBanner() {
         if (!etfMembers.length) {
             document.getElementById('etf-leader-preview').innerText = "No Members";
@@ -222,19 +209,16 @@
         }
         const stats = calculateStats();
         let totalReturn = stats.totalInitial > 0 ? ((stats.totalValue - stats.totalInitial) / stats.totalInitial) * 100 : 0;
-
         document.getElementById('etf-total-value').innerText = '$' + stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2});
         const returnEl = document.getElementById('etf-total-return');
         returnEl.innerText = (totalReturn > 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
         returnEl.className = `text-2xl font-black tracking-tight text-right ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
-
         if (stats.leaderboard.length > 0) {
             const leader = stats.leaderboard[0];
             document.getElementById('etf-leader-preview').innerHTML = `Leader: <span class="text-amber-500">${leader.name} (${leader.ticker})</span>`;
         }
     }
 
-    // 5. CALCULATION
     function calculateStats() {
         let totalValue = 0;
         let totalInitial = etfMembers.length * ETF_CONFIG.CAPITAL;
@@ -244,44 +228,27 @@
             const performance = (current - start) / start;
             const currentValue = ETF_CONFIG.CAPITAL * (1 + performance);
             totalValue += currentValue;
-            return { name: m.name, ticker: m.ticker, value: currentValue, isPos: performance >= 0 };
+            return { name: m.name, ticker: m.ticker, value: currentValue, isPos: performance >= 0, pct: performance * 100 };
         }).sort((a, b) => b.value - a.value);
         return { leaderboard, totalValue, totalInitial };
     }
 
-    // --- HELPER: FORCE CHART CLEANUP ---
-    // This function finds ANY chart on the canvas and kills it.
     function killExistingChart() {
-        // Method 1: Global variable
-        if (window.myDrawerChart instanceof Chart) {
-            window.myDrawerChart.destroy();
-            window.myDrawerChart = null;
-        }
-        // Method 2: Direct Canvas check (The most robust way)
         const chartInstance = Chart.getChart("drawerChart");
-        if (chartInstance) {
-            chartInstance.destroy();
-        }
+        if (chartInstance) chartInstance.destroy();
     }
 
-    // 6. GLOBAL OPEN FUNCTION
     window.openEtfLeaderboard = function() {
         if (!etfMembers.length) return;
-
-        // Clean up previous charts first
         killExistingChart();
-
         const drawer = document.getElementById('drawer');
         const overlay = document.getElementById('drawer-overlay');
         const stats = calculateStats();
-
         drawer.classList.add('open');
         overlay.classList.remove('opacity-0', 'pointer-events-none');
-
         document.getElementById('drawer-symbol').innerText = "WINNERLAND ETF";
         document.getElementById('drawer-name').innerText = "Leaderboard";
         document.getElementById('drawer-value').innerText = '$' + stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2});
-        
         let totalReturn = stats.totalInitial > 0 ? ((stats.totalValue - stats.totalInitial) / stats.totalInitial) * 100 : 0;
         const retEl = document.getElementById('drawer-return');
         retEl.innerText = (totalReturn >= 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
@@ -289,103 +256,68 @@
         document.getElementById('drawer-ranges').innerHTML = '<span class="text-[10px] text-neutral-500 font-bold uppercase">LIVE</span>';
 
         const ctx = document.getElementById('drawerChart').getContext('2d');
-        
-        // ... inside window.openEtfLeaderboard ...
-
-window.myDrawerChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-        labels: stats.leaderboard.map(i => `${i.name} (${i.ticker})`),
-        datasets: [{
-            label: 'Equity',
-            data: stats.leaderboard.map(i => i.value),
-            backgroundColor: stats.leaderboard.map(i => i.isPos ? '#10b981' : '#ef4444'),
-            borderRadius: 6,
-            barThickness: 30,
-            // --- ADDED THESE FOR THE STROKE ---
-            borderColor: 'rgba(255, 255, 255, 0.5)', 
-            borderWidth: 1,
-        }]
-    },
-    options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { 
-            legend: { display: false },
-            // --- ADDED THIS TOOLTIP OVERRIDE TO SHOW PCT ---
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        const val = context.raw;
-                        const pct = ((val - 1000) / 10).toFixed(2); // Based on $1000 capital
-                        return `Equity: $${val.toLocaleString()} (${pct >= 0 ? '+' : ''}${pct}%)`;
+        window.myDrawerChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: stats.leaderboard.map(i => `${i.name} (${i.ticker})`),
+                datasets: [{
+                    data: stats.leaderboard.map(i => i.value),
+                    backgroundColor: stats.leaderboard.map(i => i.isPos ? '#10b981' : '#ef4444'),
+                    borderRadius: 6,
+                    barThickness: 30,
+                    borderColor: 'rgba(255, 255, 255, 0.4)',
+                    borderWidth: 1.5
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { right: 50 } },
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { display: false } },
+                    y: { grid: { display: false }, ticks: { color: '#fff', font: { weight: 'bold' } } }
+                },
+                animation: {
+                    onComplete: function() {
+                        const chart = this;
+                        const ctx = chart.ctx;
+                        ctx.font = "bold 11px 'Inter'";
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillStyle = "#fff";
+                        chart.data.datasets.forEach((dataset, i) => {
+                            const meta = chart.getDatasetMeta(i);
+                            meta.data.forEach((bar, index) => {
+                                const rawPct = stats.leaderboard[index].pct;
+                                const label = (rawPct >= 0 ? '+' : '') + rawPct.toFixed(1) + '%';
+                                ctx.fillText(label, bar.x + 10, bar.y);
+                            });
+                        });
                     }
                 }
             }
-        },
-        scales: {
-            x: { 
-                grid: { color: 'rgba(255,255,255,0.05)' },
-                ticks: { color: '#888' } 
-            },
-            y: { 
-                grid: { display: false }, 
-                ticks: { 
-                    color: '#fff', 
-                    font: { weight: 'bold', size: 11 } 
-                } 
-            }
-        },
-        // --- ADDED THIS TO SHOW PERCENTAGES ON THE BARS ---
-        animation: {
-            onComplete: function() {
-                const chart = this;
-                const ctx = chart.ctx;
-                ctx.font = "bold 10px 'Inter'";
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = "#fff";
+        });
+    };
 
-                chart.data.datasets.forEach((dataset, i) => {
-                    const meta = chart.getDatasetMeta(i);
-                    meta.data.forEach((bar, index) => {
-                        const val = dataset.data[index];
-                        const pct = ((val - 1000) / 10).toFixed(1) + '%';
-                        // Position text slightly inside or outside the end of the bar
-                        ctx.fillText(pct, bar.x + 8, bar.y);
-                    });
-                });
-            }
-        }
-    }
-});
-
-    // 7. CRITICAL FIX: WATCH FOR STOCK CLICKS
-    // If user clicks the stock table, we MUST kill the ETF chart so the stock chart can load
     window.addEventListener('load', () => {
         initEtf();
-        
         const holdingsTable = document.getElementById('holdingsBody');
         if(holdingsTable) {
-            holdingsTable.addEventListener('click', () => {
-                // If a user clicks a row, force kill the ETF chart logic immediately
-                // This clears the way for dashboard.js to draw its line chart
-                killExistingChart();
-            }, true); // Use capture phase to ensure this runs before dashboard.js
+            holdingsTable.addEventListener('click', () => { killExistingChart(); }, true);
         }
     });
 
-    // Close Logic
     function closeDrawer() {
         document.getElementById('drawer').classList.remove('open');
         document.getElementById('drawer-overlay').classList.add('opacity-0', 'pointer-events-none');
-        // Optional: Kill chart on close to be safe
         setTimeout(killExistingChart, 300); 
     }
     document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
     document.getElementById('btnCloseDrawer').addEventListener('click', closeDrawer);
     document.getElementById('btnCloseDrawerFooter').addEventListener('click', closeDrawer);
-
 })(); 
 </script>
+</body>
+</html>
