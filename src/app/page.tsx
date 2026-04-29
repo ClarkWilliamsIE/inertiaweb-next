@@ -20,7 +20,8 @@ export default function Home() {
     { name: 'Mission', id: '#vision' },
     { name: 'Impact', id: '#impact' },
     { name: 'Projects', id: '#projects' },
-    { name: 'Team', id: '#team' }
+    { name: 'Team', id: '#team' },
+    { name: 'Budget', id: '#budget' }
   ];
 
   return (
@@ -94,7 +95,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* New Timeline Section */}
+          {/* Timeline Section */}
           <div className="max-w-6xl mx-auto bg-slate-900/50 p-12 md:p-16 rounded-[4rem] border border-white/5 shadow-2xl">
             <h3 className="text-3xl md:text-5xl font-black mb-16 text-white font-heading tracking-tighter text-center uppercase italic">
               The Year-Long <span className="text-slate-700">Residency</span>
@@ -131,7 +132,7 @@ export default function Home() {
       <Projects />
 
       {/* Governance/Team Section */}
-      <section id="team" className="py-40 bg-slate-950">
+      <section id="team" className="py-32 bg-slate-950">
         <div className="container mx-auto px-6">
           <div className="text-center mb-24">
             <h3 className="text-accent font-bold tracking-[0.4em] text-xs uppercase mb-8">Architects of Vision</h3>
@@ -156,6 +157,76 @@ export default function Home() {
                 <p className="text-slate-500 text-sm leading-relaxed font-light">{member.bio}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Budget & Transparency Section */}
+      <section id="budget" className="py-32 bg-slate-900 relative border-t border-white/5">
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="max-w-4xl mb-20">
+            <h3 className="text-accent font-bold tracking-[0.4em] text-xs uppercase mb-6">Financial Transparency</h3>
+            <h2 className="text-4xl md:text-6xl font-black tracking-tighter text-white font-heading mb-6">
+              100% IMPACT. <span className="text-slate-600 italic uppercase">Zero Overhead.</span>
+            </h2>
+            <p className="text-xl text-slate-400 font-light leading-relaxed">
+              Because our staff salaries are fully covered by our partnership with the Ministry of Education, <strong className="text-white">every single dollar</strong> of foundational funding goes directly toward world-class equipment and securing the 10-year lifespan of the project.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-12 lg:gap-20">
+            {/* Budget Breakdown List */}
+            <div className="space-y-8">
+              <div className="border-b border-white/10 pb-6">
+                <div className="flex justify-between items-end mb-2">
+                  <h4 className="text-white font-bold text-lg">Mobile Infrastructure</h4>
+                  <span className="text-accent font-mono font-bold">$700,000</span>
+                </div>
+                <p className="text-slate-500 text-sm">62m² expandable Makerspace Trailer from the Netherlands & custom internal building.</p>
+              </div>
+              
+              <div className="border-b border-white/10 pb-6">
+                <div className="flex justify-between items-end mb-2">
+                  <h4 className="text-white font-bold text-lg">High-End Tech & Equipment</h4>
+                  <span className="text-accent font-mono font-bold">$262,000</span>
+                </div>
+                <p className="text-slate-500 text-sm">CAD/CAM, 3D printers, CNC, computing arrays, electronics, and digital media gear.</p>
+              </div>
+
+              <div className="border-b border-white/10 pb-6">
+                <div className="flex justify-between items-end mb-2">
+                  <h4 className="text-white font-bold text-lg">Cultural Implementation</h4>
+                  <span className="text-accent font-mono font-bold">$20,000</span>
+                </div>
+                <p className="text-slate-500 text-sm">Ensuring cultural narratives and Te Reo Māori are foundational to the space.</p>
+              </div>
+
+              <div className="border-b border-white/10 pb-6">
+                <div className="flex justify-between items-end mb-2">
+                  <h4 className="text-white font-bold text-lg">Decade-Long Sustainability Trust</h4>
+                  <span className="text-accent font-mono font-bold">$301,500</span>
+                </div>
+                <p className="text-slate-500 text-sm">Dedicated trust for hardware upgrades, materials, and maintenance for Years 2 through 10.</p>
+              </div>
+
+              <div className="pb-6">
+                <div className="flex justify-between items-end mb-2">
+                  <h4 className="text-white font-bold text-lg">Safety & Initial Admin</h4>
+                  <span className="text-accent font-mono font-bold">$17,000</span>
+                </div>
+                <p className="text-slate-500 text-sm">Year 1 insurance, safety equipment, and software licenses.</p>
+              </div>
+            </div>
+
+            {/* Total Highlight */}
+            <div className="flex items-center justify-center">
+              <div className="w-full bg-slate-950 rounded-[3rem] p-12 text-center border border-white/5 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent"></div>
+                <p className="text-slate-500 text-xs font-black tracking-[0.3em] uppercase mb-4">Total Required Capital</p>
+                <p className="text-6xl md:text-7xl font-black text-white font-heading tracking-tighter mb-6">$1.3M</p>
+                <p className="text-accent font-medium uppercase tracking-widest text-sm">Guarantees 10 Years of Operation</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
