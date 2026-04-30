@@ -141,7 +141,7 @@ export default function Home() {
             <div className="group rounded-[3rem] overflow-hidden bg-slate-900/50 border border-white/5 hover:border-accent/30 transition-all duration-500 shadow-xl">
               <div className="aspect-[4/3] overflow-hidden relative bg-slate-800">
                 <img 
-                  src="/images/p1.jpg" 
+                  src="/images/eg3.jpg" 
                   alt="Equity in Engineering" 
                   className="w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 scale-105 group-hover:scale-100" 
                 />
@@ -159,7 +159,7 @@ export default function Home() {
             <div className="group rounded-[3rem] overflow-hidden bg-slate-900/50 border border-white/5 hover:border-accent/30 transition-all duration-500 shadow-xl md:translate-y-12">
               <div className="aspect-[4/3] overflow-hidden relative bg-slate-800">
                 <img 
-                  src="/images/p2.jpg" 
+                  src="/images/eg2.jpg" 
                   alt="Cultural Velocity" 
                   className="w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 scale-105 group-hover:scale-100" 
                 />
@@ -177,7 +177,7 @@ export default function Home() {
             <div className="group rounded-[3rem] overflow-hidden bg-slate-900/50 border border-white/5 hover:border-accent/30 transition-all duration-500 shadow-xl">
               <div className="aspect-[4/3] overflow-hidden relative bg-slate-800">
                 <img 
-                  src="/images/p3.jpg" 
+                  src="/images/eg1.jpg" 
                   alt="The Multiplier Effect" 
                   className="w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 scale-105 group-hover:scale-100" 
                 />
