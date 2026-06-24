@@ -11,166 +11,198 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <style>
-        :root { --bg-deep: #0a0a0a; --accent-green: #10b981; --accent-red: #ef4444; --accent-winner: #f59e0b; }
+        :root { --bg-deep: #070708; --accent-green: #10b981; --accent-red: #ef4444; --accent-winner: #f59e0b; }
         body { background-color: var(--bg-deep); color: #e5e5e5; font-family: 'Inter', sans-serif; overflow-x: hidden; }
         
-        .glass-card { background: rgba(18, 18, 18, 0.7); backdrop-filter: blur(16px); border: 1px solid #262626; border-radius: 20px; transition: all 0.2s; }
-        .glass-card:hover { border-color: #404040; background: rgba(22, 22, 22, 0.8); }
+        .glass-card { background: rgba(15, 15, 17, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 24px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .glass-card:hover { border-color: rgba(255, 255, 255, 0.1); background: rgba(20, 20, 23, 0.85); box-shadow: 0 20px 40px -15px rgba(0,0,0,0.7); }
         
         .live-pulse { width: 8px; height: 8px; background-color: var(--accent-green); border-radius: 50%; position: relative; }
         .live-pulse::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent-green); animation: pulse 2s infinite; opacity: 0; }
         @keyframes pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
         
-        #drawer { transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        #drawer { transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
         #drawer.open { transform: translateX(0); }
         
-        .range-btn.active { background: #262626; color: #fff; border-color: var(--accent-winner); }
-        .shimmer { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent); background-size: 200% 100%; animation: shimmer 2s infinite; }
-        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        .range-btn { border-radius: 10px; border: 1px solid transparent; }
+        .range-btn.active { background: #f59e0b; color: #000; font-weight: 900; }
         
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #0a0a0a; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #070708; }
+        ::-webkit-scrollbar-thumb { background: #26262b; border-radius: 20px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
     </style>
 </head>
-<body class="p-6 md:p-10 max-w-[1600px] mx-auto min-h-screen flex flex-col">
+<body class="p-4 md:p-8 max-w-[1600px] mx-auto min-h-screen flex flex-col justify-between gap-6">
 
-    <header class="flex flex-col md:flex-row items-center justify-between mb-8 gap-6">
+    <header class="flex flex-col lg:flex-row items-center justify-between gap-6 bg-zinc-900/40 p-4 rounded-3xl border border-zinc-800/60 backdrop-blur-md">
         <div class="flex items-center gap-4">
-            <div class="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 shadow-xl">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-amber-500"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <div class="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 shadow-xl" id="brandIconContainer">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-amber-500" id="headerLogoSvg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
             </div>
             <div>
-                <h1 class="text-2xl font-black tracking-tighter text-white uppercase">Portfolio OS</h1>
+                <h1 class="text-xl font-black tracking-tighter text-white uppercase" id="mainDashboardTitle">Portfolio OS</h1>
                 <div class="flex items-center gap-2 mt-0.5">
                     <div class="live-pulse"></div>
-                    <span class="text-[10px] uppercase font-bold text-neutral-500 tracking-[0.2em]">Live Market Data</span>
+                    <span class="text-[9px] uppercase font-bold text-zinc-500 tracking-[0.2em]">Aggregated Historical Terminal</span>
                 </div>
             </div>
         </div>
 
-        <div class="flex flex-wrap justify-center items-center gap-4 md:gap-6 bg-white/5 p-1.5 rounded-2xl border border-white/10">
-            <nav class="flex items-center gap-1 px-2">
-                <a href="watchlist.html" class="px-3 py-1.5 text-xs font-bold text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-all">Watchlist</a>
-                <a href="polls.html" class="px-3 py-1.5 text-xs font-bold text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-all">Polls</a>
-                <a href="admin.html" class="px-3 py-1.5 text-xs font-bold text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-all">Admin</a>
+        <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 w-full lg:w-auto">
+            <nav class="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-zinc-800">
+                <a href="watchlist.html" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Watchlist</a>
+                <a href="polls.html" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Polls</a>
+                <a href="admin.html" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Admin</a>
             </nav>
-            <div class="w-px h-6 bg-white/10 hidden md:block"></div>
-            <div class="flex items-center gap-3 px-2">
-                <span class="text-[10px] font-bold text-neutral-500 uppercase tracking-wider hidden sm:inline">1/11th Scale</span>
-                <label class="relative inline-flex items-center cursor-pointer">
+            
+            <div class="flex items-center gap-3 bg-black/40 px-3 py-2 rounded-xl border border-zinc-800">
+                <div class="flex flex-col text-right">
+                    <span class="text-[10px] font-black text-white uppercase tracking-tight" id="scaleLabelMain">Total Pool View</span>
+                    <span class="text-[8px] text-zinc-500 font-bold uppercase tracking-wider" id="scaleLabelSub">100% Fund Valuation</span>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer select-none">
                     <input type="checkbox" id="divideToggle" class="sr-only peer">
-                    <div class="w-9 h-5 bg-neutral-800 rounded-full peer peer-checked:bg-amber-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                    <div class="w-10 h-6 bg-zinc-800 rounded-full peer peer-checked:bg-amber-500 after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-zinc-400 peer-checked:after:bg-black after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
                 </label>
             </div>
-            <button id="btnSignOut" class="px-4 py-2 bg-white text-black text-[10px] font-black rounded-xl hover:bg-neutral-200 transition-all uppercase tracking-tighter">Sign Out</button>
+
+            <button id="btnSignOut" class="px-4 py-2 bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-700 text-xs font-black rounded-xl transition-all uppercase tracking-tight border border-zinc-700/50">Sign Out</button>
         </div>
     </header>
 
-    <section class="glass-card p-4 md:p-8 mb-8 relative">
-        <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-            <div class="flex flex-wrap gap-x-8 gap-y-4">
-                <div>
-                    <h2 class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Total Equity</h2>
-                    <div class="flex items-baseline gap-2">
-                        <p class="text-3xl md:text-4xl font-black text-white tracking-tighter" id="totalValueDisplay">---</p>
-                        <p class="text-sm font-bold" id="totalChangeDisplay">---</p>
-                    </div>
-                </div>
-                <div class="hidden md:block w-px h-10 bg-white/10"></div>
-                <div>
-                    <h2 class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Cost Basis</h2>
-                    <p class="text-2xl font-bold text-neutral-300 tracking-tight" id="costDisplay">---</p>
-                </div>
-                <div class="hidden md:block w-px h-10 bg-white/10"></div>
-                <div>
-                    <h2 class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Unrealized P/L</h2>
-                    <p class="text-2xl font-bold tracking-tight" id="unrealizedDisplay">---</p>
+    <main class="grid grid-cols-1 md:grid-cols-3 gap-4" id="kpiDashboardGrid">
+        <div class="glass-card p-6 flex items-center justify-between relative overflow-hidden">
+            <div>
+                <h2 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Portfolio Asset Equity</h2>
+                <p class="text-3xl font-black text-white tracking-tighter" id="totalValueDisplay">---</p>
+                <div class="flex items-center gap-1.5 mt-1">
+                    <span class="text-xs font-bold" id="totalChangeDisplay">---</span>
+                    <span class="text-[9px] text-zinc-500 font-medium uppercase tracking-tight">Net Shift</span>
                 </div>
             </div>
-
-            <div class="flex bg-neutral-900/80 p-1 rounded-xl border border-neutral-800 overflow-x-auto max-w-full" id="mainRangeSelector">
-                <button data-range="DAY" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">1D</button>
-                <button data-range="WEEK" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">1W</button>
-                <button data-range="MONTH" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">1M</button>
-                <button data-range="YEAR" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">1Y</button>
-                <button data-range="ALL" class="range-btn px-3 md:px-4 py-2 text-[10px] font-black rounded-lg text-neutral-500 hover:text-white transition-all uppercase">ALL</button>
+            <div class="p-3.5 bg-zinc-800/40 rounded-2xl border border-zinc-800 text-zinc-400">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
             </div>
         </div>
-        <div class="h-[350px] md:h-[450px] w-full"><canvas id="mainChart"></canvas></div>
+
+        <div class="glass-card p-6 flex items-center justify-between relative overflow-hidden">
+            <div>
+                <h2 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Acquisition Cost Basis</h2>
+                <p class="text-3xl font-black text-zinc-200 tracking-tighter" id="costDisplay">---</p>
+                <p class="text-[9px] text-zinc-500 font-semibold uppercase tracking-wider mt-2">Total Contributed Principal</p>
+            </div>
+            <div class="p-3.5 bg-zinc-800/40 rounded-2xl border border-zinc-800 text-zinc-400">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 flex items-center justify-between relative overflow-hidden">
+            <div>
+                <h2 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Net Unrealized Yield</h2>
+                <p class="text-3xl font-black tracking-tighter" id="unrealizedDisplay">---</p>
+                <p class="text-[9px] text-zinc-500 font-semibold uppercase tracking-wider mt-2" id="yieldDescriptionLabel">Net Growth Allocation</p>
+            </div>
+            <div class="p-3.5 bg-zinc-800/40 rounded-2xl border border-zinc-800 text-zinc-400" id="yieldIconContainer">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+            </div>
+        </div>
+    </main>
+
+    <section class="glass-card p-4 md:p-6 flex flex-col gap-4">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800/60 pb-4">
+            <div>
+                <h3 class="text-sm font-black text-white uppercase tracking-wider">Fund Performance Index</h3>
+                <p class="text-[10px] text-zinc-500 font-semibold uppercase tracking-tight mt-0.5">Historical portfolio value and structural baseline changes</p>
+            </div>
+            <div class="flex bg-black/60 p-1 rounded-xl border border-zinc-800 overflow-x-auto max-w-full" id="mainRangeSelector">
+                <button data-range="DAY" class="range-btn px-3 py-1.5 text-[10px] font-black text-zinc-400 hover:text-white transition-all uppercase">1D</button>
+                <button data-range="WEEK" class="range-btn px-3 py-1.5 text-[10px] font-black text-zinc-400 hover:text-white transition-all uppercase">1W</button>
+                <button data-range="MONTH" class="range-btn px-3 py-1.5 text-[10px] font-black text-zinc-400 hover:text-white transition-all uppercase">1M</button>
+                <button data-range="YEAR" class="range-btn px-3 py-1.5 text-[10px] font-black text-zinc-400 hover:text-white transition-all uppercase">1Y</button>
+                <button data-range="ALL" class="range-btn px-3 py-1.5 text-[10px] font-black text-zinc-400 hover:text-white transition-all uppercase">ALL</button>
+            </div>
+        </div>
+        <div class="h-[360px] md:h-[420px] w-full relative"><canvas id="mainChart"></canvas></div>
     </section>
 
-    <section class="glass-card p-6 relative overflow-hidden mb-8 group cursor-pointer transition-all hover:border-amber-500/50" onclick="openEtfLeaderboard()">
-        <div class="absolute -right-10 -top-10 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-all"></div>
+    <section class="glass-card p-5 relative overflow-hidden group cursor-pointer border border-amber-500/10 hover:border-amber-500/40" onclick="openEtfLeaderboard()">
+        <div class="absolute -right-12 -top-12 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/10 transition-all"></div>
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
             <div class="flex items-center gap-4">
-                <div class="p-4 bg-amber-500 rounded-xl shadow-lg shadow-amber-500/20">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                <div class="p-3.5 bg-amber-500 rounded-2xl shadow-lg shadow-amber-500/10 text-black">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
                 </div>
                 <div>
-                    <h3 class="text-xl font-black text-white tracking-tighter uppercase">Winnerland <span class="text-amber-500">ETF</span></h3>
-                    <p class="text-xs text-neutral-400 font-medium mt-1">Internal Competition • $1,000 Entry • <span id="etf-leader-preview" class="text-white font-bold">Syncing...</span></p>
+                    <h3 class="text-base font-black text-white tracking-tight uppercase">Winnerland <span class="text-amber-500">ETF</span> Competition</h3>
+                    <p class="text-[11px] text-zinc-400 font-medium mt-0.5">Internal Challenge • $1,000 Starting Alloc • <span id="etf-leader-preview" class="text-white font-bold">Syncing Leaderboard...</span></p>
                 </div>
             </div>
-            <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
+            <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end bg-black/20 md:bg-transparent p-3 md:p-0 rounded-xl border border-zinc-800/40 md:border-0">
                 <div>
-                    <p class="text-[10px] uppercase font-bold text-neutral-500 tracking-widest text-right">Fund Value</p>
-                    <p class="text-2xl font-black text-white tracking-tight text-right" id="etf-total-value">---</p>
+                    <p class="text-[9px] uppercase font-bold text-zinc-500 tracking-wider text-right">Aggregate Pot</p>
+                    <p class="text-xl font-black text-white tracking-tight text-right" id="etf-total-value">---</p>
                 </div>
-                <div class="w-px h-8 bg-white/10"></div>
+                <div class="w-px h-6 bg-zinc-800"></div>
                 <div>
-                    <p class="text-[10px] uppercase font-bold text-neutral-500 tracking-widest text-right">Total Return</p>
-                    <p class="text-2xl font-black text-neutral-500 tracking-tight text-right" id="etf-total-return">---</p>
+                    <p class="text-[9px] uppercase font-bold text-zinc-500 tracking-wider text-right">Fund Run-Rate</p>
+                    <p class="text-xl font-black text-zinc-500 tracking-tight text-right" id="etf-total-return">---</p>
                 </div>
-                <div class="hidden md:flex items-center justify-center w-8 h-8 rounded-full border border-white/10 text-neutral-400 group-hover:bg-white group-hover:text-black transition-all">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                <div class="hidden md:flex items-center justify-center w-8 h-8 rounded-full border border-zinc-800 text-zinc-400 group-hover:bg-white group-hover:text-black transition-all">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="glass-card overflow-hidden mb-10">
-        <div class="p-6 md:p-8 flex items-center justify-between border-b border-white/5">
-            <h2 class="text-lg font-black text-white tracking-tight">Active Holdings <span class="text-neutral-500 text-xs font-normal ml-2 tracking-normal hidden sm:inline">(Click row for details)</span></h2>
-            <div class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest" id="lastUpdated">Syncing...</div>
+    <section class="glass-card overflow-hidden">
+        <div class="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800/80">
+            <h2 class="text-sm font-black text-white uppercase tracking-wider">Asset Allocation Distribution <span class="text-zinc-500 text-[10px] font-normal lowercase tracking-normal ml-1">(Click interactive headings to sort or click row for depth)</span></h2>
+            <div class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest bg-zinc-900 px-2.5 py-1 rounded-md border border-zinc-800" id="lastUpdated">Syncing Engine...</div>
         </div>
-        <div class="w-full">
-            <table class="w-full text-left border-collapse">
-                <thead class="hidden md:table-header-group">
-                    <tr class="text-[10px] text-neutral-500 uppercase font-black tracking-widest bg-white/[0.02]">
-                        <th class="px-6 py-4">Asset</th>
-                        <th class="px-6 py-4">Total Equity</th>
-                        <th class="px-6 py-4">Cost Basis</th>
-                        <th class="px-6 py-4">Unrealized P/L</th>
-                        <th class="px-6 py-4">Total Return</th>
+        <div class="w-full overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                    <tr class="text-[10px] text-zinc-500 uppercase font-black tracking-widest bg-white/[0.01] border-b border-zinc-950 select-none">
+                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('symbol')">Asset <span id="sort-symbol" class="text-xs"></span></th>
+                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('value')">Total Equity <span id="sort-value" class="text-xs"></span></th>
+                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('cost')">Cost Basis <span id="sort-cost" class="text-xs"></span></th>
+                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('profit')">Unrealized P/L <span id="sort-profit" class="text-xs"></span></th>
+                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('pct')">Total Return <span id="sort-pct" class="text-xs"></span></th>
                         <th class="px-6 py-4">Weight %</th>
                     </tr>
                 </thead>
-                <tbody id="holdingsBody">
-                    <tr><td colspan="6" class="px-8 py-20 text-center text-neutral-600 font-bold uppercase tracking-widest shimmer">Connecting to Neural Net...</td></tr>
+                <tbody id="holdingsBody" class="divide-y divide-zinc-900/60">
+                    <tr><td colspan="6" class="px-8 py-16 text-center text-zinc-500 text-xs font-bold uppercase tracking-widest bg-zinc-900/10">Initializing Connection Pipeline...</td></tr>
                 </tbody>
             </table>
         </div>
     </section>
 
-    <div id="drawer-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-md z-40 opacity-0 pointer-events-none transition-opacity duration-300"></div>
-    <div id="drawer" class="fixed top-0 right-0 h-full w-full md:w-[600px] bg-neutral-950 border-l border-white/10 z-50 p-6 md:p-10 flex flex-col shadow-2xl overflow-y-auto">
-        <div class="flex items-center justify-between mb-8">
-            <div><h3 class="text-4xl font-black text-white tracking-tighter" id="drawer-symbol">---</h3><p class="text-xs font-bold text-neutral-500 uppercase tracking-widest mt-1" id="drawer-name">Position Detail</p></div>
-            <button id="btnCloseDrawer" class="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/5 text-white"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    <div id="drawer-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+    <div id="drawer" class="fixed top-0 right-0 h-full w-full md:w-[560px] bg-zinc-950 border-l border-zinc-800/80 z-50 p-6 md:p-8 flex flex-col shadow-2xl overflow-y-auto">
+        <div class="flex items-center justify-between mb-6 border-b border-zinc-900 pb-4">
+            <div>
+                <h3 class="text-3xl font-black text-white tracking-tighter" id="drawer-symbol">---</h3>
+                <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5" id="drawer-name">Asset Metrics Audit</p>
+            </div>
+            <button id="btnCloseDrawer" class="p-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full transition-all border border-zinc-800"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
-        <div class="grid grid-cols-2 gap-4 md:gap-6 mb-8">
-            <div class="p-6 bg-white/[0.03] rounded-3xl border border-white/5"><p class="text-[10px] uppercase font-black text-neutral-500 mb-2 tracking-widest">Market Value</p><p class="text-2xl font-black text-white" id="drawer-value">---</p></div>
-            <div class="p-6 bg-white/[0.03] rounded-3xl border border-white/5"><p class="text-[10px] uppercase font-black text-neutral-500 mb-2 tracking-widest">Total P/L</p><p class="text-2xl font-black" id="drawer-return">---</p></div>
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="p-4 bg-zinc-900/50 rounded-2xl border border-zinc-900"><p class="text-[9px] uppercase font-black text-zinc-500 mb-1 tracking-wider">Position Market Equity</p><p class="text-xl font-black text-white tracking-tight" id="drawer-value">---</p></div>
+            <div class="p-4 bg-zinc-900/50 rounded-2xl border border-zinc-900"><p class="text-[9px] uppercase font-black text-zinc-500 mb-1 tracking-wider">Yield Return</p><p class="text-xl font-black tracking-tight" id="drawer-return">---</p></div>
         </div>
-        <div class="flex-1 flex flex-col">
-            <div class="flex items-center justify-between mb-4"><h4 class="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em]">Growth History</h4><div class="flex gap-1" id="drawer-ranges"></div></div>
-            <div class="flex-1 min-h-[300px] w-full bg-neutral-900/20 rounded-3xl border border-white/5 p-4 relative"><canvas id="drawerChart"></canvas></div>
+        <div class="flex-1 flex flex-col min-h-0">
+            <div class="flex items-center justify-between mb-3">
+                <h4 class="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Growth Timeline Delta</h4>
+                <div class="flex gap-1" id="drawer-ranges"></div>
+            </div>
+            <div class="flex-1 min-h-[260px] w-full bg-zinc-900/20 rounded-2xl border border-zinc-900 p-3 relative"><canvas id="drawerChart"></canvas></div>
         </div>
-        <button id="btnCloseDrawerFooter" class="mt-8 w-full py-4 bg-white hover:bg-neutral-200 text-black font-black text-xs rounded-2xl transition-all shadow-2xl uppercase tracking-tighter">Close View</button>
+        <button id="btnCloseDrawerFooter" class="mt-6 w-full py-3.5 bg-white hover:bg-zinc-200 text-black font-black text-xs rounded-xl transition-all uppercase tracking-tight">Close Inspection View</button>
     </div>
 
     <script src="dashboard.js"></script>
@@ -204,7 +236,7 @@
 
     function updateBanner() {
         if (!etfMembers.length) {
-            document.getElementById('etf-leader-preview').innerText = "No Members";
+            document.getElementById('etf-leader-preview').innerText = "No Members Linked";
             return;
         }
         const stats = calculateStats();
@@ -212,10 +244,10 @@
         document.getElementById('etf-total-value').innerText = '$' + stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2});
         const returnEl = document.getElementById('etf-total-return');
         returnEl.innerText = (totalReturn > 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
-        returnEl.className = `text-2xl font-black tracking-tight text-right ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
+        returnEl.className = `text-xl font-black tracking-tight text-right ${totalReturn >= 0 ? 'text-emerald-400' : 'text-rose-500'}`;
         if (stats.leaderboard.length > 0) {
             const leader = stats.leaderboard[0];
-            document.getElementById('etf-leader-preview').innerHTML = `Leader: <span class="text-amber-500">${leader.name} (${leader.ticker})</span>`;
+            document.getElementById('etf-leader-preview').innerHTML = `Leader: <span class="text-amber-500 font-black">${leader.name} (${leader.ticker})</span>`;
         }
     }
 
@@ -247,13 +279,13 @@
         drawer.classList.add('open');
         overlay.classList.remove('opacity-0', 'pointer-events-none');
         document.getElementById('drawer-symbol').innerText = "WINNERLAND ETF";
-        document.getElementById('drawer-name').innerText = "Leaderboard";
+        document.getElementById('drawer-name').innerText = "Leaderboard Standings Matrix";
         document.getElementById('drawer-value').innerText = '$' + stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2});
         let totalReturn = stats.totalInitial > 0 ? ((stats.totalValue - stats.totalInitial) / stats.totalInitial) * 100 : 0;
         const retEl = document.getElementById('drawer-return');
         retEl.innerText = (totalReturn >= 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
-        retEl.className = `text-2xl font-black ${totalReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
-        document.getElementById('drawer-ranges').innerHTML = '<span class="text-[10px] text-neutral-500 font-bold uppercase">LIVE</span>';
+        retEl.className = `text-2xl font-black ${totalReturn >= 0 ? 'text-emerald-400' : 'text-rose-500'}`;
+        document.getElementById('drawer-ranges').innerHTML = '<span class="text-[9px] text-emerald-400 font-bold uppercase tracking-wider bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">LIVE METRICS</span>';
 
         const ctx = document.getElementById('drawerChart').getContext('2d');
         window.myDrawerChart = new Chart(ctx, {
@@ -262,28 +294,28 @@
                 labels: stats.leaderboard.map(i => `${i.name} (${i.ticker})`),
                 datasets: [{
                     data: stats.leaderboard.map(i => i.value),
-                    backgroundColor: stats.leaderboard.map(i => i.isPos ? '#10b981' : '#ef4444'),
-                    borderRadius: 6,
-                    barThickness: 30,
-                    borderColor: 'rgba(255, 255, 255, 0.4)',
-                    borderWidth: 1.5
+                    backgroundColor: stats.leaderboard.map(i => i.isPos ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)'),
+                    borderRadius: 8,
+                    barThickness: 24,
+                    borderColor: 'rgba(255, 255, 255, 0.08)',
+                    borderWidth: 1
                 }]
             },
             options: {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                layout: { padding: { right: 50 } },
+                layout: { padding: { right: 60 } },
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { display: false } },
-                    y: { grid: { display: false }, ticks: { color: '#fff', font: { weight: 'bold' } } }
+                    x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { display: false } },
+                    y: { grid: { display: false }, ticks: { color: '#a1a1aa', font: { weight: 'bold', size: 10 } } }
                 },
                 animation: {
                     onComplete: function() {
                         const chart = this;
                         const ctx = chart.ctx;
-                        ctx.font = "bold 11px 'Inter'";
+                        ctx.font = "bold 10px 'Inter'";
                         ctx.textAlign = 'left';
                         ctx.textBaseline = 'middle';
                         ctx.fillStyle = "#fff";
@@ -292,7 +324,7 @@
                             meta.data.forEach((bar, index) => {
                                 const rawPct = stats.leaderboard[index].pct;
                                 const label = (rawPct >= 0 ? '+' : '') + rawPct.toFixed(1) + '%';
-                                ctx.fillText(label, bar.x + 10, bar.y);
+                                ctx.fillText(label, bar.x + 8, bar.y);
                             });
                         });
                     }
