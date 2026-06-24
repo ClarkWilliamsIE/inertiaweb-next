@@ -113,12 +113,18 @@ async function loadData() {
             seenDates.add(timeKey);
             const val = Number(r.data.totals?.value || 0);
             const cost = Number(r.data.totals?.cost || 0);
-            if (isFinite(val)) rawPf.push([dt, val]);
-            if (isFinite(cost)) rawCost.push([dt, cost]);
+            
+            // Fix negative and zero spikes caused by database or API synchronization timeouts
+            if (isFinite(val) && val > 0) rawPf.push([dt, val]);
+            if (isFinite(cost) && cost > 0) rawCost.push([dt, cost]);
+            
             (r.data.positions || []).forEach(p => {
                 if (p?.symbol) {
-                    if (!rawSym[p.symbol]) rawSym[p.symbol] = [];
-                    rawSym[p.symbol].push([dt, Number(p.value || 0)]);
+                    const pVal = Number(p.value || 0);
+                    if (isFinite(pVal) && pVal > 0) {
+                        if (!rawSym[p.symbol]) rawSym[p.symbol] = [];
+                        rawSym[p.symbol].push([dt, pVal]);
+                    }
                 }
             });
         });
