@@ -1,350 +1,378 @@
-// --- 1. CONFIG ---
-const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+/**
+ * Winnerland | Portfolio OS - Dashboard Core Engine
+ * Handles data syncing, calculation metrics, chart rendering,
+ * scale shifting, and automatic database anomaly filtering.
+ */
 
-// --- 2. STATE ---
-let summary = null;
-let tradesHistory = [];
-let chartRegistry = {};
-let globalRange = localStorage.getItem("pfRange") || "DAY";
-let tickerRangeMode = {};
-try { tickerRangeMode = JSON.parse(localStorage.getItem("tickerRanges") || "{}"); } catch(_) {}
+(function () {
+    // --- Configuration ---
+    const CONFIG = {
+        URL: "https://acdlgvcxzxjvcwiqlydj.supabase.co",
+        KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI"
+    };
 
-// --- 3. UTILS ---
-const fmtMoney = (v, sign = false) => {
-    if (v == null) return "0";
-    const s = Math.round(v).toLocaleString();
-    return sign ? "$" + s : s;
-};
-const fmtPct = (v) => (v == null) ? "0.00" : Number(v).toFixed(2);
-const getLocalYMD = (iso) => {
-    const d = new Date(iso);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-};
-const smartDate = (iso, range) => {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return iso;
-    if (range === 'DAY') return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    if (range === 'ALL' || range === 'YEAR') return `${months[d.getMonth()]} ${d.getFullYear().toString().substr(-2)}`;
-    return `${d.getDate()} ${months[d.getMonth()]}`;
-};
-const simplifyData = (arr) => {
-    if (!arr || arr.length < 2) return arr;
-    const clean = [arr[0]];
-    for (let i = 1; i < arr.length; i++) {
-        const lastVal = clean[clean.length - 1][1];
-        const currVal = arr[i][1];
-        const pctChange = lastVal === 0 ? 1 : Math.abs((currVal - lastVal) / lastVal);
-        if (i === arr.length - 1 || pctChange > 0.0005) clean.push(arr[i]);
+    // --- State ---
+    let supabaseClient = null;
+    let rawHistoryData = [];
+    let rawHoldingsData = [];
+    let currentRange = "ALL";
+    let isDividedScale = false;
+    let mainChartInstance = null;
+    let drawerChartInstance = null;
+    let selectedAssetHistory = [];
+
+    // --- Initialization ---
+    function init() {
+        initSupabase();
+        setupEventListeners();
+        fetchDashboardData();
     }
-    return clean;
-};
-const simplifyCostData = (arr) => {
-    if (!arr || arr.length < 2) return arr;
-    const clean = [arr[0]];
-    for (let i = 1; i < arr.length; i++) {
-        const lastVal = clean[clean.length - 1][1];
-        const currVal = arr[i][1];
-        const pctChange = lastVal === 0 ? 1 : Math.abs((currVal - lastVal) / lastVal);
-        if (i === arr.length - 1 || pctChange > 0.05) clean.push(arr[i]);
-    }
-    return clean;
-};
-const filterRange = (hist, rng) => {
-    if (!hist?.length) return [];
-    const ms = { DAY: 86400000, WEEK: 604800000, MONTH: 2592000000, SIX_MONTHS: 15552000000, YEAR: 31536000000 };
-    let data = ms[rng] ? hist.filter(p => new Date(p[0]).getTime() >= (Date.now() - ms[rng])) : hist;
-    if (['MONTH', 'YEAR', 'ALL'].includes(rng)) {
-        const dailyMap = new Map();
-        data.forEach(pt => { 
-            const dateKey = getLocalYMD(pt[0]);
-            dailyMap.set(dateKey, pt); 
-        });
-        data = Array.from(dailyMap.values());
-    }
-    return data;
-};
-const prepareChartData = (hist, costHist = [], factor = 1, currentRange = 'MONTH') => {
-    const labels = [];
-    const data = [];
-    const costData = [];
-    const safeCostHist = Array.isArray(costHist) ? costHist : [];
-    const sortedCost = [...safeCostHist].sort((a,b) => new Date(a[0]) - new Date(b[0]));
-    let lastKnownCost = 0;
-    let costIdx = 0;
-    hist.forEach((pt) => { 
-        const timestamp = new Date(pt[0]).getTime();
-        labels.push(smartDate(pt[0], currentRange)); 
-        data.push((pt[1] || 0) / factor);
-        while(costIdx < sortedCost.length && new Date(sortedCost[costIdx][0]).getTime() <= timestamp) {
-            lastKnownCost = sortedCost[costIdx][1];
-            costIdx++;
+
+    function initSupabase() {
+        if (window.supabase && typeof window.supabase.createClient === 'function') {
+            supabaseClient = window.supabase.createClient(CONFIG.URL, CONFIG.KEY);
+        } else if (window.supabaseClient) {
+            supabaseClient = window.supabaseClient;
+        } else {
+            console.error("Supabase SDK missing or failed to load.");
         }
-        if (lastKnownCost === 0 && sortedCost.length > 0 && costIdx === 0) {
-             if(sortedCost[0]) lastKnownCost = sortedCost[0][1]; 
-        }
-        costData.push(lastKnownCost / factor);
-    });
-    return { labels, data, costData };
-};
+    }
 
-// --- 4. DATA ENGINE ---
-async function loadData() {
-    try {
-        const { data: trData } = await window.supabase.from("trades").select("*").order("date", { ascending: true });
-        if (trData) tradesHistory = trData;
-        const { data: sumRows } = await window.supabase.from("flex_summary").select("*").order("last_updated", { ascending: false }).limit(1);
-        if (!sumRows?.length) return;
-        summary = sumRows[0].data;
-        summary.lastUpdatedDate = sumRows[0].last_updated;
-        const { data: highRes } = await window.supabase.from("flex_summary").select("data,last_updated").order("last_updated", { ascending: false }).limit(500);
-        const { data: lowRes } = await window.supabase.rpc('get_daily_history');
-        const combined = [...(highRes || []), ...(lowRes || [])];
-        const seenDates = new Set();
-        const rawPf = [];
-        const rawCost = [];
-        const rawSym = {};
-        combined.forEach(r => {
-            const dt = r.data.lastUpdated || r.last_updated;
-            if (!dt) return;
-            const timeKey = new Date(dt).getTime();
-            if (seenDates.has(timeKey)) return;
-            seenDates.add(timeKey);
-            const val = Number(r.data.totals?.value || 0);
-            const cost = Number(r.data.totals?.cost || 0);
-            if (isFinite(val)) rawPf.push([dt, val]);
-            if (isFinite(cost)) rawCost.push([dt, cost]);
-            (r.data.positions || []).forEach(p => {
-                if (p?.symbol) {
-                    if (!rawSym[p.symbol]) rawSym[p.symbol] = [];
-                    rawSym[p.symbol].push([dt, Number(p.value || 0)]);
-                }
+    function setupEventListeners() {
+        // Range Buttons
+        const rangeButtons = document.querySelectorAll("#mainRangeSelector button");
+        rangeButtons.forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                rangeButtons.forEach(b => b.classList.remove("active"));
+                e.target.classList.add("active");
+                currentRange = e.target.getAttribute("data-range");
+                updateChartsAndMetrics();
             });
         });
-        rawPf.sort((a, b) => new Date(a[0]) - new Date(b[0]));
-        rawCost.sort((a, b) => new Date(a[0]) - new Date(b[0]));
-        Object.keys(rawSym).forEach(k => rawSym[k].sort((a, b) => new Date(a[0]) - new Date(b[0])));
-        summary.history = rawPf;
-        summary.costHistory = rawCost;
-        summary.symbolHistory = rawSym;
-        renderUI();
-    } catch (e) {
-        console.error(e);
-        const el = document.getElementById("lastUpdated");
-        if(el) el.textContent = "Connection Failed";
-    }
-}
+        // Set initial active state
+        const initialActive = document.querySelector(`#mainRangeSelector button[data-range="${currentRange}"]`);
+        if (initialActive) initialActive.classList.add("active");
 
-// --- 5. RENDER UI ---
-function renderUI() {
-    const factor = document.getElementById("divideToggle").checked ? 11 : 1;
-    const t = summary.totals;
-    const v = (t.value || 0) / factor;
-    const p = (t.profit || 0) / factor;
-    const c = (t.cost || 0) / factor;
-    const unrealized = v - c; 
-    const titleEl = document.querySelector("h1");
-    if(titleEl) {
-        titleEl.textContent = p >= 0 ? "WINNERLAND" : "LOSERLAND";
-        titleEl.className = `text-2xl font-black tracking-tighter uppercase ${p >= 0 ? 'text-emerald-500' : 'text-red-500'}`;
-    }
-    document.getElementById("totalValueDisplay").textContent = fmtMoney(v, true);
-    const disp = document.getElementById("totalChangeDisplay");
-    disp.className = `text-sm font-bold ${p >= 0 ? 'text-accent-green' : 'text-accent-red'}`;
-    disp.textContent = `${p >= 0 ? '+' : ''}${fmtPct(t.pct)}%`;
-    const unEl = document.getElementById("unrealizedDisplay");
-    if(unEl) {
-        unEl.textContent = `${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}`;
-        unEl.className = `text-lg font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
-    }
-    const costEl = document.getElementById("costDisplay");
-    if(costEl) { costEl.textContent = fmtMoney(c, true); }
-    document.getElementById("lastUpdated").textContent = `Sync: ${new Date(summary.lastUpdatedDate).toLocaleTimeString()}`;
-    renderMainChart(factor);
-    renderTable(factor);
-}
+        // Scale Toggle
+        const toggle = document.getElementById("divideToggle");
+        if (toggle) {
+            toggle.addEventListener("change", (e) => {
+                isDividedScale = e.target.checked;
+                updateChartsAndMetrics();
+                renderHoldingsTable();
+            });
+        }
 
-function renderMainChart(factor) {
-    const ctx = document.getElementById('mainChart').getContext('2d');
-    const grad = ctx.createLinearGradient(0, 0, 0, 450);
-    grad.addColorStop(0, 'rgba(245, 158, 11, 0.2)');
-    grad.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
-    const hist = simplifyData(filterRange(summary.history, globalRange));
-    const costHist = simplifyCostData(filterRange(summary.costHistory || [], globalRange));
-    const cd = prepareChartData(hist, costHist, factor, globalRange);
-    if (chartRegistry['main']) chartRegistry['main'].destroy();
-    chartRegistry['main'] = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: cd.labels,
-            datasets: [
-                {
-                    label: 'Portfolio Value',
-                    data: cd.data, 
-                    borderColor: '#f59e0b', 
-                    borderWidth: 3, 
-                    backgroundColor: grad, 
-                    fill: true, 
-                    tension: 0.15,
-                    pointRadius: 0, 
-                    pointHoverRadius: 6,
-                    order: 1
-                },
-                {
-                    label: 'Cost Basis',
-                    data: cd.costData, 
-                    borderColor: 'rgba(255, 255, 255, 0.3)', 
-                    borderWidth: 2, 
-                    borderDash: [4, 4], 
-                    backgroundColor: 'transparent',
-                    fill: false, 
-                    tension: 0, 
-                    stepped: 'before',
-                    pointRadius: 0,
-                    pointHoverRadius: 0,
-                    order: 2
+        // Sign Out Button
+        const signOutBtn = document.getElementById("btnSignOut");
+        if (signOutBtn) {
+            signOutBtn.addEventListener("click", () => {
+                alert("Signing out...");
+                // Handle actual authentication sign out redirect here if needed
+            });
+        }
+
+        // Drawer Close
+        const closeBtn = document.getElementById("btnCloseDrawer");
+        const closeFooterBtn = document.getElementById("btnCloseDrawerFooter");
+        const overlay = document.getElementById("drawer-overlay");
+
+        if (closeBtn) closeBtn.addEventListener("click", closeDrawer);
+        if (closeFooterBtn) closeFooterBtn.addEventListener("click", closeDrawer);
+        if (overlay) overlay.addEventListener("click", closeDrawer);
+    }
+
+    // --- Anomaly and Cleaning Engine ---
+    /**
+     * Eliminates dramatic database sync drops where values fall to 
+     * near-zero or drop rapidly and return to normal in a V-shape.
+     */
+    function filterAnomalies(arr) {
+        if (!arr || arr.length === 0) return [];
+        
+        // Step 1: Strip out strict zero, negative, or undefined anomalies
+        let clean = arr.filter(pt => pt && pt.value > 0 && pt.date);
+        if (clean.length < 3) return clean;
+
+        // Step 2: Clear instant V-shaped drops (false tracking spikes)
+        return clean.filter((pt, idx) => {
+            if (idx === 0 || idx === clean.length - 1) return true;
+            
+            const prevVal = clean[idx - 1].value;
+            const nextVal = clean[idx + 1].value;
+            const currVal = pt.value;
+
+            // If value plunges below 25% of both previous and subsequent point, filter it out
+            if (currVal < prevVal * 0.25 && currVal < nextVal * 0.25) {
+                return false;
+            }
+            return true;
+        });
+    }
+
+    // --- Data Fetching ---
+    async function fetchDashboardData() {
+        if (!supabaseClient) return;
+
+        try {
+            document.getElementById("lastUpdated").innerText = "Syncing Data...";
+
+            // Fetch history metrics
+            const { data: history, error: historyErr } = await supabaseClient
+                .from("portfolio_history")
+                .select("created_at, total_value, cost_basis, asset_symbol, asset_name")
+                .order("created_at", { ascending: true });
+
+            if (historyErr) throw historyErr;
+
+            // Normalize and parse database fields
+            rawHistoryData = (history || []).map(row => ({
+                date: new Date(row.created_at),
+                value: parseFloat(row.total_value) || 0,
+                cost: parseFloat(row.cost_basis) || 0,
+                symbol: row.asset_symbol || "TOTAL",
+                name: row.asset_name || "Total Portfolio"
+            }));
+
+            // Filter out specific data entries for individual tracking
+            const activeHoldingsMap = {};
+            rawHistoryData.forEach(item => {
+                if (item.symbol !== "TOTAL") {
+                    activeHoldingsMap[item.symbol] = item;
                 }
-            ]
-        },
-        options: getChartOptions()
-    });
-}
+            });
 
-function renderTable(factor) {
-    const body = document.getElementById("holdingsBody");
-    body.innerHTML = "";
-    summary.positions.forEach(p => {
-        const row = document.createElement("tr");
-        row.className = "block md:table-row hover:bg-white/[0.04] cursor-pointer transition-all group border-b border-white/5 p-4 mb-4 md:mb-0 bg-white/[0.03] md:bg-transparent rounded-2xl md:rounded-none";
-        row.onclick = () => openDrawer(p.symbol);
-        const weight = ((p.value / summary.totals.value) * 100);
-        const unrealized = (p.value - p.cost) / factor;
-        row.innerHTML = `
-            <td class="block md:table-cell px-4 py-3 md:px-6 md:py-5">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center font-black text-xs text-amber-500 group-hover:bg-amber-500 group-hover:text-black transition-all">${p.symbol}</div>
-                    <span class="font-black text-white text-sm">${p.symbol}</span>
-                </div>
-            </td>
-            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center"><span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Equity</span><span class="font-bold text-neutral-200">${fmtMoney(p.value / factor, true)}</span></td>
-            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center"><span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Cost</span><span class="text-neutral-400 text-sm">${fmtMoney(p.cost / factor, true)}</span></td>
-            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center"><span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Unrealized</span><span class="font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}">${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}</span></td>
-            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center"><span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Return</span><span class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-sm ${p.pct >= 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}">${p.pct >= 0 ? '▲' : '▼'} ${fmtPct(Math.abs(p.pct))}%</span></td>
-            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center">
-                <span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Weight</span>
-                <div class="flex items-center gap-3 justify-end md:justify-start w-full md:w-32">
-                    <div class="relative flex-1 h-5 bg-neutral-800 rounded-md overflow-hidden border border-white/5">
-                        <div class="h-full bg-neutral-600 group-hover:bg-amber-500 transition-all border border-white/20" style="width: ${weight}%"></div>
-                        <span class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white mix-blend-difference">${weight.toFixed(1)}%</span>
-                    </div>
-                </div>
-            </td>
-        `;
-        body.appendChild(row);
-    });
-}
+            // Convert to parsed array structure for table render
+            rawHoldingsData = Object.values(activeHoldingsMap);
 
-function openDrawer(sym) {
-    const p = summary.positions.find(x => x.symbol === sym);
-    if (!p) return;
-    const factor = document.getElementById("divideToggle").checked ? 11 : 1;
-    document.getElementById("drawer-symbol").innerText = sym;
-    document.getElementById("drawer-value").innerText = fmtMoney(p.value / factor, true);
-    document.getElementById("drawer-return").innerText = (p.profit >= 0 ? '+' : '') + fmtMoney(p.profit / factor, true);
-    document.getElementById("drawer-return").className = `text-2xl font-black ${p.profit >= 0 ? 'text-accent-green' : 'text-accent-red'}`;
-    document.getElementById("drawer-overlay").style.opacity = "1";
-    document.getElementById("drawer-overlay").style.pointerEvents = "auto";
-    document.getElementById("drawer").classList.add("open");
-    renderDrawerChart(sym, factor);
-    renderDrawerRanges(sym);
-}
+            // Set Timestamp
+            document.getElementById("lastUpdated").innerText = "Updated: Just Now";
 
-function closeDrawer() {
-    document.getElementById("drawer-overlay").style.opacity = "0";
-    document.getElementById("drawer-overlay").style.pointerEvents = "none";
-    document.getElementById("drawer").classList.remove("open");
-}
+            updateChartsAndMetrics();
+            renderHoldingsTable();
 
-function renderDrawerChart(sym, factor) {
-    const ctx = document.getElementById('drawerChart').getContext('2d');
-    const range = tickerRangeMode[sym] || "YEAR";
-    chartRegistry.symbol = sym;
-    const rawHist = filterRange(summary.symbolHistory[sym] || [], range);
-    const hist = simplifyData(rawHist);
-    const cd = prepareChartData(hist, [], factor, range); 
-    if (chartRegistry['drawer']) chartRegistry['drawer'].destroy();
-    chartRegistry['drawer'] = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: cd.labels,
-            datasets: [{
-                data: cd.data, borderColor: '#f59e0b', borderWidth: 2.5, backgroundColor: 'rgba(245, 158, 11, 0.05)', fill: true, tension: 0.1,
-                pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: '#f59e0b', details: cd.details
-            }]
-        },
-        options: getChartOptions(false)
-    });
-}
+        } catch (err) {
+            console.error("Error fetching historical ecosystem maps: ", err);
+            document.getElementById("lastUpdated").innerText = "Sync Connection Error";
+        }
+    }
 
-function renderDrawerRanges(sym) {
-    const container = document.getElementById("drawer-ranges");
-    const current = tickerRangeMode[sym] || "YEAR";
-    container.innerHTML = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(k => `
-        <button onclick="window.updateTickerRange('${sym}', '${k}')" class="px-3 py-1.5 text-[10px] font-black rounded-lg transition-all border border-transparent ${current === k ? 'bg-amber-500 text-black' : 'text-neutral-500 hover:text-white hover:bg-white/5'}">${k === 'DAY' ? '1D' : k === 'WEEK' ? '1W' : k === 'MONTH' ? '1M' : k === 'YEAR' ? '1Y' : 'ALL'}</button>
-    `).join('');
-}
+    // --- UI Update Engines ---
+    function updateChartsAndMetrics() {
+        // Filter portfolio global tracker lines
+        const globalHistory = rawHistoryData.filter(item => item.symbol === "TOTAL");
+        const cleanHistory = filterAnomalies(globalHistory);
+        const windowedData = filterDataByRange(cleanHistory, currentRange);
 
-window.updateTickerRange = (sym, k) => {
-    tickerRangeMode[sym] = k;
-    localStorage.setItem("tickerRanges", JSON.stringify(tickerRangeMode));
-    const factor = document.getElementById("divideToggle").checked ? 11 : 1;
-    renderDrawerRanges(sym);
-    renderDrawerChart(sym, factor);
-};
+        if (windowedData.length === 0) return;
 
-function getChartOptions(showScales = true) {
-    return {
-        responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', axis: 'x', intersect: false },
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                backgroundColor: 'rgba(10, 10, 10, 0.95)', titleColor: '#888', bodyColor: '#fff', borderColor: '#333', borderWidth: 1, padding: 12, cornerRadius: 12,
-                titleFont: { size: 10, weight: 'bold' }, bodyFont: { size: 12, weight: '900' }, displayColors: false,
-                callbacks: { 
-                    label: (ctx) => { 
-                        return ctx.dataset.label ? ctx.dataset.label + ': ' + fmtMoney(ctx.raw, true) : fmtMoney(ctx.raw, true);
-                    } 
+        const latestEntry = windowedData[windowedData.length - 1];
+        const initialEntry = windowedData[0];
+
+        // Apply scale division option (1/11th scale module)
+        const scaleFactor = isDividedScale ? 11 : 1;
+        
+        const currentEquity = latestEntry.value / scaleFactor;
+        const currentCost = latestEntry.cost / scaleFactor;
+        const unrealizedPL = currentEquity - currentCost;
+        
+        const totalChangeAmt = currentEquity - (initialEntry.value / scaleFactor);
+        const totalChangePct = (initialEntry.value > 0) ? (totalChangeAmt / (initialEntry.value / scaleFactor)) * 100 : 0;
+
+        // Render upper metric cards
+        document.getElementById("totalValueDisplay").innerText = formatCurrency(currentEquity);
+        document.getElementById("costDisplay").innerText = formatCurrency(currentCost);
+        
+        // P/L Elements
+        const unRealEl = document.getElementById("unrealizedDisplay");
+        unRealEl.innerText = (unrealizedPL >= 0 ? "+" : "") + formatCurrency(unrealizedPL);
+        unRealEl.className = `text-2xl font-bold tracking-tight ${unrealizedPL >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
+
+        const changeEl = document.getElementById("totalChangeDisplay");
+        changeEl.innerText = `${totalChangeAmt >= 0 ? "▲" : "▼"} ${formatCurrency(Math.abs(totalChangeAmt))} (${totalChangePct.toFixed(2)}%)`;
+        changeEl.className = `text-sm font-bold ${totalChangeAmt >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
+
+        renderMainChart(windowedData, scaleFactor);
+    }
+
+    function filterDataByRange(data, range) {
+        if (range === "ALL" || data.length === 0) return data;
+        
+        const latestDate = data[data.length - 1].date;
+        let cutoffDate = new Date(latestDate);
+
+        switch (range) {
+            case "DAY": cutoffDate.setDate(cutoffDate.getDate() - 1); break;
+            case "WEEK": cutoffDate.setDate(cutoffDate.getDate() - 7); break;
+            case "MONTH": cutoffDate.setMonth(cutoffDate.getMonth() - 1); break;
+            case "YEAR": cutoffDate.setFullYear(cutoffDate.getFullYear() - 1); break;
+            default: return data;
+        }
+
+        return data.filter(pt => pt.date >= cutoffDate);
+    }
+
+    // --- Table Rendering Engine ---
+    function renderHoldingsTable() {
+        const tbody = document.getElementById("holdingsBody");
+        if (!tbody) return;
+
+        if (rawHoldingsData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-10 text-center text-neutral-500 font-bold uppercase">No Active Account Holdings found</td></tr>`;
+            return;
+        }
+
+        const scaleFactor = isDividedScale ? 11 : 1;
+        let runningTotalValue = 0;
+        
+        // Calculate dynamic sum for distribution allocations
+        rawHoldingsData.forEach(h => runningTotalValue += (h.value / scaleFactor));
+
+        tbody.innerHTML = "";
+
+        rawHoldingsData.forEach(holding => {
+            const val = holding.value / scaleFactor;
+            const cost = holding.cost / scaleFactor;
+            const pl = val - cost;
+            const pctReturn = cost > 0 ? (pl / cost) * 100 : 0;
+            const weight = runningTotalValue > 0 ? (val / runningTotalValue) * 100 : 0;
+
+            const tr = document.createElement("tr");
+            tr.className = "border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer text-sm font-medium text-neutral-300";
+            
+            tr.innerHTML = `
+                <td class="px-6 py-4 font-bold text-white">
+                    <div>${holding.symbol}</div>
+                    <div class="text-[10px] text-neutral-500 font-normal mt-0.5">${holding.name}</div>
+                </td>
+                <td class="px-6 py-4">${formatCurrency(val)}</td>
+                <td class="px-6 py-4 text-neutral-400">${formatCurrency(cost)}</td>
+                <td class="px-6 py-4 ${pl >= 0 ? 'text-emerald-400' : 'text-red-500'}">${pl >= 0 ? '+' : ''}${formatCurrency(pl)}</td>
+                <td class="px-6 py-4 ${pctReturn >= 0 ? 'text-emerald-400' : 'text-red-500'}">${pctReturn >= 0 ? '+' : ''}${pctReturn.toFixed(2)}%</td>
+                <td class="px-6 py-4 text-neutral-400 font-mono">${weight.toFixed(1)}%</td>
+            `;
+
+            tr.addEventListener("click", () => openAssetDrawer(holding.symbol, holding.name, val, pl, pctReturn));
+            tbody.appendChild(tr);
+        });
+    }
+
+    // --- Chart Engines ---
+    function renderMainChart(chartData, scaleFactor) {
+        const ctx = document.getElementById("mainChart").getContext("2d");
+        if (mainChartInstance) mainChartInstance.destroy();
+
+        const labels = chartData.map(d => d.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+        const dataValues = chartData.map(d => d.value / scaleFactor);
+
+        mainChartInstance = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Ecosystem Value",
+                    data: dataValues,
+                    borderColor: "#f59e0b",
+                    borderWidth: 2.5,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: "#f59e0b",
+                    tension: 0.1,
+                    fill: true,
+                    backgroundColor: (context) => {
+                        const chart = context.chart;
+                        const {ctx, chartArea} = chart;
+                        if (!chartArea) return null;
+                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                        gradient.addColorStop(0, "rgba(245, 158, 11, 0.15)");
+                        gradient.addColorStop(1, "rgba(245, 158, 11, 0)");
+                        return gradient;
+                    }
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: "#737373", font: { family: "Inter", size: 10 } } },
+                    y: { grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#737373", font: { family: "Inter", size: 10 } } }
+                },
+                interaction: { intersect: false, mode: 'index' }
+            }
+        });
+    }
+
+    // --- Drawer / Detail View Sub-modules ---
+    function openAssetDrawer(symbol, name, currentVal, pl, pctReturn) {
+        const drawer = document.getElementById("drawer");
+        const overlay = document.getElementById("drawer-overlay");
+        
+        if (!drawer || !overlay) return;
+
+        document.getElementById("drawer-symbol").innerText = symbol;
+        document.getElementById("drawer-name").innerText = name;
+        document.getElementById("drawer-value").innerText = formatCurrency(currentVal);
+        
+        const returnEl = document.getElementById("drawer-return");
+        returnEl.innerText = `${pl >= 0 ? "+" : ""}${formatCurrency(pl)} (${pctReturn.toFixed(2)}%)`;
+        returnEl.className = `text-2xl font-black ${pl >= 0 ? 'text-emerald-400' : 'text-red-500'}`;
+
+        // Render dynamic asset historic metrics context inside drawer container
+        const assetHistory = rawHistoryData.filter(item => item.symbol === symbol);
+        const cleanAssetHistory = filterAnomalies(assetHistory);
+        
+        drawer.classList.add("open");
+        overlay.classList.remove("opacity-0", "pointer-events-none");
+
+        renderDrawerChart(cleanAssetHistory);
+    }
+
+    function renderDrawerChart(historyPoints) {
+        const ctx = document.getElementById("drawerChart").getContext("2d");
+        if (drawerChartInstance) drawerChartInstance.destroy();
+
+        const scaleFactor = isDividedScale ? 11 : 1;
+        const labels = historyPoints.map(p => p.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+        const values = historyPoints.map(p => p.value / scaleFactor);
+
+        drawerChartInstance = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    borderColor: "#ffffff",
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.1,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: "#525252" } },
+                    y: { grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#525252" } }
                 }
             }
-        },
-        scales: {
-            x: { display: showScales, grid: { display: false }, ticks: { color: '#555', font: { size: 10, weight: '700' }, maxTicksLimit: 8 } },
-            y: { display: showScales, grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#555', font: { size: 10, weight: '700' }, callback: v => fmtMoney(v) } }
-        }
-    };
-}
+        });
+    }
 
-document.getElementById("divideToggle").addEventListener('change', renderUI);
-document.getElementById("btnSignOut").onclick = async () => { await window.supabase.auth.signOut(); location.href = "login.html"; };
-document.getElementById("btnCloseDrawer").onclick = closeDrawer;
-document.getElementById("btnCloseDrawerFooter").onclick = closeDrawer;
-document.getElementById("drawer-overlay").onclick = closeDrawer;
-document.querySelectorAll("#mainRangeSelector button").forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        globalRange = e.target.dataset.range;
-        localStorage.setItem("pfRange", globalRange);
-        document.querySelectorAll("#mainRangeSelector button").forEach(b => b.classList.toggle("active", b.dataset.range === globalRange));
-        renderUI();
-    });
-});
-document.querySelectorAll("#mainRangeSelector button").forEach(b => b.classList.toggle("active", b.dataset.range === globalRange));
+    function closeDrawer() {
+        const drawer = document.getElementById("drawer");
+        const overlay = document.getElementById("drawer-overlay");
+        if (drawer) drawer.classList.remove("open");
+        if (overlay) overlay.classList.add("opacity-0", "pointer-events-none");
+    }
 
-(async () => {
-    if(!window.supabase) return console.error("Supabase lib not loaded");
-    window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const { data: { session } } = await window.supabase.auth.getSession();
-    if (!session) location.href = "login.html";
-    loadData();
+    // --- Helper Utilities ---
+    function formatCurrency(num) {
+        return "$" + num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // Global hook inside page scope
+    window.addEventListener("load", init);
 })();
-setInterval(loadData, 60000);
