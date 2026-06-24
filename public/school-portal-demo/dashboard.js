@@ -8,6 +8,9 @@ let tradesHistory = [];
 let chartRegistry = {};
 let globalRange = localStorage.getItem("pfRange") || "DAY";
 let tickerRangeMode = {};
+let currentSortCol = 'value'; // Default sorting parameter
+let isSortAsc = false;
+
 try { tickerRangeMode = JSON.parse(localStorage.getItem("tickerRanges") || "{}"); } catch(_) {}
 
 // --- 3. UTILS ---
@@ -130,19 +133,15 @@ async function loadData() {
         rawCost.sort((a, b) => new Date(a[0]) - new Date(b[0]));
         Object.keys(rawSym).forEach(k => rawSym[k].sort((a, b) => new Date(a[0]) - new Date(b[0])));
 
-        // Lookahead Filter: Ignores an entry if it dips down but the next entry goes right back up
+        // Lookahead filter logic to prevent negative/zero data drop errors
         const filterSpikes = (arr) => {
             if (!arr || arr.length < 3) return arr;
             const clean = [arr[0]];
             for (let i = 1; i < arr.length - 1; i++) {
-                const prev = clean[clean.length - 1][1]; // Compare against last known good accepted reading
+                const prev = clean[clean.length - 1][1]; 
                 const curr = arr[i][1];
                 const next = arr[i + 1][1];
-                
-                // If current reading is a clear downward dip from previous (e.g. >5% lower),
-                // AND the next reading bounces back up significantly (recovering back near or above previous level)
                 if (curr < prev * 0.95 && next > curr * 1.05 && next >= prev * 0.92) {
-                    // Ignore this single anomalous reading completely
                     continue;
                 }
                 clean.push(arr[i]);
@@ -167,42 +166,86 @@ async function loadData() {
 }
 
 // --- 5. RENDER UI ---
+window.setSort = (col) => {
+    if (currentSortCol === col) {
+        isSortAsc = !isSortAsc;
+    } else {
+        currentSortCol = col;
+        isSortAsc = false;
+    }
+    if (summary) renderUI();
+};
+
 function renderUI() {
-    const factor = document.getElementById("divideToggle").checked ? 11 : 1;
+    const splitActive = document.getElementById("divideToggle").checked;
+    const factor = splitActive ? 11 : 1;
+    
+    // Update Header Labels context dynamically based on toggle state
+    document.getElementById("scaleLabelMain").textContent = splitActive ? "Per Member View" : "Total Pool View";
+    document.getElementById("scaleLabelSub").textContent = splitActive ? "1/11th Split Sub-Value" : "100% Fund Valuation";
+    document.getElementById("yieldDescriptionLabel").textContent = splitActive ? "Per Member Growth Yield" : "Net Growth Allocation";
+
     const t = summary.totals;
     const v = (t.value || 0) / factor;
     const p = (t.profit || 0) / factor;
     const c = (t.cost || 0) / factor;
     const unrealized = v - c; 
-    const titleEl = document.querySelector("h1");
+
+    // Performance Adaptive Dynamic UI Accent Engine
+    const isProfitable = p >= 0;
+    const themeColor = isProfitable ? '#10b981' : '#ef4444';
+    const themeBgTailwind = isProfitable ? 'bg-emerald-500/10' : 'bg-red-500/10';
+    const themeBorderTailwind = isProfitable ? 'border-emerald-500/20' : 'border-red-500/20';
+    const themeTextTailwind = isProfitable ? 'text-emerald-500' : 'text-red-500';
+
+    const titleEl = document.getElementById("mainDashboardTitle");
     if(titleEl) {
-        titleEl.textContent = p >= 0 ? "WINNERLAND" : "LOSERLAND";
-        titleEl.className = `text-2xl font-black tracking-tighter uppercase ${p >= 0 ? 'text-emerald-500' : 'text-red-500'}`;
+        titleEl.textContent = isProfitable ? "WINNERLAND OS" : "LOSERLAND OS";
+        titleEl.className = `text-xl font-black tracking-tighter uppercase ${themeTextTailwind}`;
     }
+    
+    const brandIcon = document.getElementById("brandIconContainer");
+    if(brandIcon) brandIcon.className = `p-3 ${themeBgTailwind} rounded-2xl border ${themeBorderTailwind} shadow-xl`;
+    
+    const logoSvg = document.getElementById("headerLogoSvg");
+    if(logoSvg) logoSvg.className = themeTextTailwind;
+
     document.getElementById("totalValueDisplay").textContent = fmtMoney(v, true);
+    
     const disp = document.getElementById("totalChangeDisplay");
-    disp.className = `text-sm font-bold ${p >= 0 ? 'text-accent-green' : 'text-accent-red'}`;
-    disp.textContent = `${p >= 0 ? '+' : ''}${fmtPct(t.pct)}%`;
+    disp.className = `text-xs font-bold px-2 py-0.5 rounded ${isProfitable ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`;
+    disp.textContent = `${isProfitable ? '▲ +' : '▼ '}${fmtPct(t.pct)}%`;
+    
     const unEl = document.getElementById("unrealizedDisplay");
     if(unEl) {
         unEl.textContent = `${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}`;
-        unEl.className = `text-lg font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+        unEl.className = `text-3xl font-black tracking-tighter ${unrealized >= 0 ? 'text-emerald-400' : 'text-rose-500'}`;
     }
+    
+    const yieldIconContainer = document.getElementById("yieldIconContainer");
+    if(yieldIconContainer) {
+        yieldIconContainer.className = `p-3.5 bg-zinc-800/40 rounded-2xl border border-zinc-800 ${unrealized >= 0 ? 'text-emerald-400' : 'text-rose-500'}`;
+    }
+
     const costEl = document.getElementById("costDisplay");
     if(costEl) { costEl.textContent = fmtMoney(c, true); }
+    
     document.getElementById("lastUpdated").textContent = `Sync: ${new Date(summary.lastUpdatedDate).toLocaleTimeString()}`;
-    renderMainChart(factor);
+    
+    renderMainChart(factor, themeColor);
     renderTable(factor);
 }
 
-function renderMainChart(factor) {
+function renderMainChart(factor, accentColor) {
     const ctx = document.getElementById('mainChart').getContext('2d');
-    const grad = ctx.createLinearGradient(0, 0, 0, 450);
-    grad.addColorStop(0, 'rgba(245, 158, 11, 0.2)');
-    grad.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
+    const grad = ctx.createLinearGradient(0, 0, 0, 400);
+    grad.addColorStop(0, accentColor + '33'); // 20% opacity matching status context
+    grad.addColorStop(1, accentColor + '00'); // Fades clean to empty
+    
     const hist = simplifyData(filterRange(summary.history, globalRange));
     const costHist = simplifyCostData(filterRange(summary.costHistory || [], globalRange));
     const cd = prepareChartData(hist, costHist, factor, globalRange);
+    
     if (chartRegistry['main']) chartRegistry['main'].destroy();
     chartRegistry['main'] = new Chart(ctx, {
         type: 'line',
@@ -212,21 +255,21 @@ function renderMainChart(factor) {
                 {
                     label: 'Portfolio Value',
                     data: cd.data, 
-                    borderColor: '#f59e0b', 
+                    borderColor: accentColor, 
                     borderWidth: 3, 
                     backgroundColor: grad, 
                     fill: true, 
-                    tension: 0.15,
+                    tension: 0.2,
                     pointRadius: 0, 
                     pointHoverRadius: 6,
                     order: 1
                 },
                 {
-                    label: 'Cost Basis',
+                    label: 'Cost Basis Baseline',
                     data: cd.costData, 
-                    borderColor: 'rgba(255, 255, 255, 0.3)', 
-                    borderWidth: 2, 
-                    borderDash: [4, 4], 
+                    borderColor: 'rgba(255, 255, 255, 0.15)', 
+                    borderWidth: 1.5, 
+                    borderDash: [5, 5], 
                     backgroundColor: 'transparent',
                     fill: false, 
                     tension: 0, 
@@ -244,30 +287,64 @@ function renderMainChart(factor) {
 function renderTable(factor) {
     const body = document.getElementById("holdingsBody");
     body.innerHTML = "";
-    summary.positions.forEach(p => {
+    
+    // Update structural table header layout arrows to guide the sorting parameter
+    ['symbol', 'value', 'cost', 'profit', 'pct'].forEach(c => {
+        const el = document.getElementById(`sort-${c}`);
+        if(el) {
+            if(currentSortCol === c) {
+                el.innerText = isSortAsc ? " ▴" : " ▾";
+                el.className = "text-amber-500 font-black";
+            } else {
+                el.innerText = "";
+            }
+        }
+    });
+
+    // Handle interactive sorting computation pipeline
+    const sortedPositions = [...summary.positions].sort((a, b) => {
+        let valA = a[currentSortCol];
+        let valB = b[currentSortCol];
+        if (currentSortCol === 'profit') {
+            valA = a.value - a.cost;
+            valB = b.value - b.cost;
+        }
+        if (typeof valA === 'string') {
+            return isSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        return isSortAsc ? valA - valB : valB - valA;
+    });
+
+    sortedPositions.forEach(p => {
         const row = document.createElement("tr");
-        row.className = "block md:table-row hover:bg-white/[0.04] cursor-pointer transition-all group border-b border-white/5 p-4 mb-4 md:mb-0 bg-white/[0.03] md:bg-transparent rounded-2xl md:rounded-none";
+        row.className = "hover:bg-white/[0.02] cursor-pointer transition-all border-b border-zinc-900/40 text-xs font-semibold text-zinc-300";
         row.onclick = () => openDrawer(p.symbol);
+        
         const weight = ((p.value / summary.totals.value) * 100);
         const unrealized = (p.value - p.cost) / factor;
+        const assetReturnPct = p.pct || 0;
+        
         row.innerHTML = `
-            <td class="block md:table-cell px-4 py-3 md:px-6 md:py-5">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center font-black text-xs text-amber-500 group-hover:bg-amber-500 group-hover:text-black transition-all">${p.symbol}</div>
-                    <span class="font-black text-white text-sm">${p.symbol}</span>
+            <td class="px-6 py-4 font-bold text-white">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center font-black text-[11px] text-amber-500">${p.symbol}</span>
+                    <span>${p.symbol}</span>
                 </div>
             </td>
-            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center"><span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Equity</span><span class="font-bold text-neutral-200">${fmtMoney(p.value / factor, true)}</span></td>
-            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center"><span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Cost</span><span class="text-neutral-400 text-sm">${fmtMoney(p.cost / factor, true)}</span></td>
-            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center"><span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Unrealized</span><span class="font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-red-400'}">${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}</span></td>
-            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center"><span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Return</span><span class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-sm ${p.pct >= 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}">${p.pct >= 0 ? '▲' : '▼'} ${fmtPct(Math.abs(p.pct))}%</span></td>
-            <td class="block md:table-cell px-4 py-1 md:px-6 md:py-5 flex justify-between items-center">
-                <span class="md:hidden text-neutral-500 text-xs font-bold uppercase tracking-wider">Weight</span>
-                <div class="flex items-center gap-3 justify-end md:justify-start w-full md:w-32">
-                    <div class="relative flex-1 h-5 bg-neutral-800 rounded-md overflow-hidden border border-white/5">
-                        <div class="h-full bg-neutral-600 group-hover:bg-amber-500 transition-all border border-white/20" style="width: ${weight}%"></div>
-                        <span class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white mix-blend-difference">${weight.toFixed(1)}%</span>
+            <td class="px-6 py-4 text-white font-medium">${fmtMoney(p.value / factor, true)}</td>
+            <td class="px-6 py-4 text-zinc-400 font-medium">${fmtMoney(p.cost / factor, true)}</td>
+            <td class="px-6 py-4 font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-rose-500'}">${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}</td>
+            <td class="px-6 py-4">
+                <span class="px-2 py-1 rounded font-black text-[10px] ${assetReturnPct >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}">
+                    ${assetReturnPct >= 0 ? '▲' : '▼'} ${fmtPct(Math.abs(assetReturnPct))}%
+                </span>
+            </td>
+            <td class="px-6 py-4">
+                <div class="flex items-center gap-3 w-28">
+                    <div class="relative flex-1 h-3.5 bg-zinc-900 rounded border border-zinc-800/60 overflow-hidden">
+                        <div class="h-full bg-amber-500/80 transition-all border-r border-white/10" style="width: ${weight}%"></div>
                     </div>
+                    <span class="text-[10px] font-black text-zinc-400">${weight.toFixed(1)}%</span>
                 </div>
             </td>
         `;
@@ -281,11 +358,15 @@ function openDrawer(sym) {
     const factor = document.getElementById("divideToggle").checked ? 11 : 1;
     document.getElementById("drawer-symbol").innerText = sym;
     document.getElementById("drawer-value").innerText = fmtMoney(p.value / factor, true);
-    document.getElementById("drawer-return").innerText = (p.profit >= 0 ? '+' : '') + fmtMoney(p.profit / factor, true);
-    document.getElementById("drawer-return").className = `text-2xl font-black ${p.profit >= 0 ? 'text-accent-green' : 'text-accent-red'}`;
+    
+    const positionProfit = p.profit || (p.value - p.cost);
+    document.getElementById("drawer-return").innerText = (positionProfit >= 0 ? '+' : '') + fmtMoney(positionProfit / factor, true);
+    document.getElementById("drawer-return").className = `text-2xl font-black ${positionProfit >= 0 ? 'text-emerald-400' : 'text-rose-500'}`;
+    
     document.getElementById("drawer-overlay").style.opacity = "1";
     document.getElementById("drawer-overlay").style.pointerEvents = "auto";
     document.getElementById("drawer").classList.add("open");
+    
     renderDrawerChart(sym, factor);
     renderDrawerRanges(sym);
 }
@@ -303,14 +384,23 @@ function renderDrawerChart(sym, factor) {
     const rawHist = filterRange(summary.symbolHistory[sym] || [], range);
     const hist = simplifyData(rawHist);
     const cd = prepareChartData(hist, [], factor, range); 
+    
     if (chartRegistry['drawer']) chartRegistry['drawer'].destroy();
     chartRegistry['drawer'] = new Chart(ctx, {
         type: 'line',
         data: {
             labels: cd.labels,
             datasets: [{
-                data: cd.data, borderColor: '#f59e0b', borderWidth: 2.5, backgroundColor: 'rgba(245, 158, 11, 0.05)', fill: true, tension: 0.1,
-                pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: '#f59e0b', details: cd.details
+                data: cd.data, 
+                borderColor: '#f59e0b', 
+                borderWidth: 2, 
+                backgroundColor: 'rgba(245, 158, 11, 0.03)', 
+                fill: true, 
+                tension: 0.15,
+                pointRadius: 0, 
+                pointHoverRadius: 5, 
+                pointBackgroundColor: '#f59e0b', 
+                details: cd.details
             }]
         },
         options: getChartOptions(false)
@@ -321,7 +411,7 @@ function renderDrawerRanges(sym) {
     const container = document.getElementById("drawer-ranges");
     const current = tickerRangeMode[sym] || "YEAR";
     container.innerHTML = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(k => `
-        <button onclick="window.updateTickerRange('${sym}', '${k}')" class="px-3 py-1.5 text-[10px] font-black rounded-lg transition-all border border-transparent ${current === k ? 'bg-amber-500 text-black' : 'text-neutral-500 hover:text-white hover:bg-white/5'}">${k === 'DAY' ? '1D' : k === 'WEEK' ? '1W' : k === 'MONTH' ? '1M' : k === 'YEAR' ? '1Y' : 'ALL'}</button>
+        <button onclick="window.updateTickerRange('${sym}', '${k}')" class="px-2 py-1 text-[9px] font-black rounded transition-all border ${current === k ? 'bg-amber-500 text-black border-amber-500' : 'text-zinc-500 hover:text-white border-zinc-800 bg-zinc-900/60'}">${k === 'DAY' ? '1D' : k === 'WEEK' ? '1W' : k === 'MONTH' ? '1M' : k === 'YEAR' ? '1Y' : 'ALL'}</button>
     `).join('');
 }
 
@@ -335,22 +425,30 @@ window.updateTickerRange = (sym, k) => {
 
 function getChartOptions(showScales = true) {
     return {
-        responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        responsive: true, 
+        maintainAspectRatio: false, 
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
         plugins: {
             legend: { display: false },
             tooltip: {
-                backgroundColor: 'rgba(10, 10, 10, 0.95)', titleColor: '#888', bodyColor: '#fff', borderColor: '#333', borderWidth: 1, padding: 12, cornerRadius: 12,
-                titleFont: { size: 10, weight: 'bold' }, bodyFont: { size: 12, weight: '900' }, displayColors: false,
+                backgroundColor: '#09090b', 
+                titleColor: '#71717a', 
+                bodyColor: '#fff', 
+                borderColor: '#27272a', 
+                borderWidth: 1, 
+                padding: 10, 
+                cornerRadius: 10,
+                titleFont: { size: 10, weight: 'bold', family: "'Inter'" }, 
+                bodyFont: { size: 11, weight: '900', family: "'Inter'" }, 
+                displayColors: false,
                 callbacks: { 
-                    label: (ctx) => { 
-                        return ctx.dataset.label ? ctx.dataset.label + ': ' + fmtMoney(ctx.raw, true) : fmtMoney(ctx.raw, true);
-                    } 
+                    label: (ctx) => ctx.dataset.label ? ctx.dataset.label + ': ' + fmtMoney(ctx.raw, true) : fmtMoney(ctx.raw, true)
                 }
             }
         },
         scales: {
-            x: { display: showScales, grid: { display: false }, ticks: { color: '#555', font: { size: 10, weight: '700' }, maxTicksLimit: 8 } },
-            y: { display: showScales, grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#555', font: { size: 10, weight: '700' }, callback: v => fmtMoney(v) } }
+            x: { display: showScales, grid: { display: false }, ticks: { color: '#52525b', font: { size: 9, weight: '700', family: "'Inter'" }, maxTicksLimit: 7 } },
+            y: { display: showScales, grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#52525b', font: { size: 9, weight: '700', family: "'Inter'" }, callback: v => fmtMoney(v) } }
         }
     };
 }
@@ -360,6 +458,7 @@ document.getElementById("btnSignOut").onclick = async () => { await window.supab
 document.getElementById("btnCloseDrawer").onclick = closeDrawer;
 document.getElementById("btnCloseDrawerFooter").onclick = closeDrawer;
 document.getElementById("drawer-overlay").onclick = closeDrawer;
+
 document.querySelectorAll("#mainRangeSelector button").forEach(btn => {
     btn.addEventListener('click', (e) => {
         globalRange = e.target.dataset.range;
@@ -371,7 +470,7 @@ document.querySelectorAll("#mainRangeSelector button").forEach(btn => {
 document.querySelectorAll("#mainRangeSelector button").forEach(b => b.classList.toggle("active", b.dataset.range === globalRange));
 
 (async () => {
-    if(!window.supabase) return console.error("Supabase lib not loaded");
+    if(!window.supabase) return console.error("Supabase engine connection pipeline missing");
     window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const { data: { session } } = await window.supabase.auth.getSession();
     if (!session) location.href = "login.html";
