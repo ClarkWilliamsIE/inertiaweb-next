@@ -113,11 +113,8 @@ async function loadData() {
             seenDates.add(timeKey);
             const val = Number(r.data.totals?.value || 0);
             const cost = Number(r.data.totals?.cost || 0);
-            
-            // Fix negative and zero spikes caused by database or API synchronization timeouts
             if (isFinite(val) && val > 0) rawPf.push([dt, val]);
             if (isFinite(cost) && cost > 0) rawCost.push([dt, cost]);
-            
             (r.data.positions || []).forEach(p => {
                 if (p?.symbol) {
                     const pVal = Number(p.value || 0);
@@ -128,12 +125,36 @@ async function loadData() {
                 }
             });
         });
+        
         rawPf.sort((a, b) => new Date(a[0]) - new Date(b[0]));
         rawCost.sort((a, b) => new Date(a[0]) - new Date(b[0]));
         Object.keys(rawSym).forEach(k => rawSym[k].sort((a, b) => new Date(a[0]) - new Date(b[0])));
-        summary.history = rawPf;
-        summary.costHistory = rawCost;
-        summary.symbolHistory = rawSym;
+
+        // Robust time-series spike filter to eliminate sharp V-shaped market data glitches
+        const filterSpikes = (arr) => {
+            if (!arr || arr.length < 3) return arr;
+            const clean = [arr[0]];
+            for (let i = 1; i < arr.length - 1; i++) {
+                const prev = arr[i - 1][1];
+                const curr = arr[i][1];
+                const next = arr[i + 1][1];
+                // Skip temporary downward anomalies where a single data tick drops by more than 40% and immediately bounces back
+                if (curr < prev * 0.6 && curr < next * 0.6) {
+                    continue;
+                }
+                clean.push(arr[i]);
+            }
+            clean.push(arr[arr.length - 1]);
+            return clean;
+        };
+
+        summary.history = filterSpikes(rawPf);
+        summary.costHistory = filterSpikes(rawCost);
+        summary.symbolHistory = {};
+        Object.keys(rawSym).forEach(k => {
+            summary.symbolHistory[k] = filterSpikes(rawSym[k]);
+        });
+
         renderUI();
     } catch (e) {
         console.error(e);
