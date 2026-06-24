@@ -130,16 +130,19 @@ async function loadData() {
         rawCost.sort((a, b) => new Date(a[0]) - new Date(b[0]));
         Object.keys(rawSym).forEach(k => rawSym[k].sort((a, b) => new Date(a[0]) - new Date(b[0])));
 
-        // Robust time-series spike filter to eliminate sharp V-shaped market data glitches
+        // Lookahead Filter: Ignores an entry if it dips down but the next entry goes right back up
         const filterSpikes = (arr) => {
             if (!arr || arr.length < 3) return arr;
             const clean = [arr[0]];
             for (let i = 1; i < arr.length - 1; i++) {
-                const prev = arr[i - 1][1];
+                const prev = clean[clean.length - 1][1]; // Compare against last known good accepted reading
                 const curr = arr[i][1];
                 const next = arr[i + 1][1];
-                // Skip temporary downward anomalies where a single data tick drops by more than 40% and immediately bounces back
-                if (curr < prev * 0.6 && curr < next * 0.6) {
+                
+                // If current reading is a clear downward dip from previous (e.g. >5% lower),
+                // AND the next reading bounces back up significantly (recovering back near or above previous level)
+                if (curr < prev * 0.95 && next > curr * 1.05 && next >= prev * 0.92) {
+                    // Ignore this single anomalous reading completely
                     continue;
                 }
                 clean.push(arr[i]);
