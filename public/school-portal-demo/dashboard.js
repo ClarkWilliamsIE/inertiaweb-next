@@ -286,6 +286,14 @@ function renderTable(factor) {
     const body = document.getElementById("holdingsBody");
     body.innerHTML = "";
     
+    // Clean up old micro sparkline chart instances to keep document heap clean
+    Object.keys(chartRegistry).forEach(key => {
+        if (key.startsWith('spark-')) {
+            chartRegistry[key].destroy();
+            delete chartRegistry[key];
+        }
+    });
+    
     ['symbol', 'value', 'cost', 'profit', 'pct'].forEach(c => {
         const el = document.getElementById(`sort-${c}`);
         if(el) {
@@ -322,7 +330,10 @@ function renderTable(factor) {
         
         row.innerHTML = `
             <td class="px-2 py-2.5 md:px-4 md:py-3.5 font-bold text-white">
-                <span class="px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 font-black text-[10px] md:text-[11px] text-amber-500 inline-block uppercase tracking-wider shadow-sm">${p.symbol}</span>
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 font-black text-[10px] md:text-[11px] text-amber-500 inline-block uppercase tracking-wider shadow-sm select-none">${p.symbol}</span>
+                    <div class="w-10 h-5 md:w-14 md:h-6 relative"><canvas id="sparkline-${p.symbol}"></canvas></div>
+                </div>
             </td>
             
             <td class="px-2 py-2.5 md:px-4 md:py-3.5 text-right md:text-left">
@@ -343,7 +354,47 @@ function renderTable(factor) {
                 <span>${weight.toFixed(1)}%</span>
             </td>
         `;
+        
         body.appendChild(row);
+        
+        // Dynamically instantiate micro sparkline data matrix onto current template canvas frame
+        const sparkCanvas = document.getElementById(`sparkline-${p.symbol}`);
+        if (sparkCanvas) {
+            const rawHist = filterRange(summary.symbolHistory[p.symbol] || [], globalRange);
+            const hist = simplifyData(rawHist);
+            const sparkData = hist.map(x => x[1] / factor);
+            const sparkLabels = hist.map(x => x[0]);
+            
+            let strokeColor = 'rgba(161, 161, 170, 0.4)'; // Neutral baseline color fallback
+            if (sparkData.length >= 2) {
+                strokeColor = sparkData[sparkData.length - 1] >= sparkData[0] ? '#10b981' : '#ef4444';
+            }
+            
+            const sparkCtx = sparkCanvas.getContext('2d');
+            chartRegistry[`spark-${p.symbol}`] = new Chart(sparkCtx, {
+                type: 'line',
+                data: {
+                    labels: sparkLabels,
+                    datasets: [{
+                        data: sparkData,
+                        borderColor: strokeColor,
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        fill: false,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: { x: { display: false }, y: { display: false } },
+                    animation: false,
+                    events: [] // Complete event cancellation to guarantee seamless click-through performance on mobile rows
+                }
+            });
+        }
     });
 }
 
