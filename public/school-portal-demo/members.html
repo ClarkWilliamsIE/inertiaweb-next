@@ -164,15 +164,15 @@
             <div class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest bg-zinc-900 px-2.5 py-1 rounded-md border border-zinc-800" id="lastUpdated">Syncing Engine...</div>
         </div>
         <div class="w-full overflow-x-auto">
-            <table class="w-full text-left border-collapse min-w-[700px]">
+            <table class="w-full text-left border-collapse table-auto md:min-w-[700px]">
                 <thead>
                     <tr class="text-[10px] text-zinc-500 uppercase font-black tracking-widest bg-white/[0.01] border-b border-zinc-950 select-none">
-                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('symbol')">Asset <span id="sort-symbol" class="text-xs"></span></th>
-                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('value')">Total Equity <span id="sort-value" class="text-xs"></span></th>
-                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('cost')">Cost Basis <span id="sort-cost" class="text-xs"></span></th>
-                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('profit')">Unrealized P/L <span id="sort-profit" class="text-xs"></span></th>
-                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('pct')">Total Return <span id="sort-pct" class="text-xs"></span></th>
-                        <th class="px-6 py-4">Weight %</th>
+                        <th class="px-3 py-3 md:px-6 md:py-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('symbol')">Asset <span id="sort-symbol" class="text-xs"></span></th>
+                        <th class="px-3 py-3 md:px-6 md:py-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('value')">Equity <span id="sort-value" class="text-xs"></span></th>
+                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors hidden md:table-cell" onclick="window.setSort('cost')">Cost Basis <span id="sort-cost" class="text-xs"></span></th>
+                        <th class="px-3 py-3 md:px-6 md:py-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('profit')">P/L <span class="hidden md:inline">& Return</span> <span id="sort-profit" class="text-xs"></span></th>
+                        <th class="px-6 py-4 cursor-pointer hover:text-white transition-colors hidden md:table-cell" onclick="window.setSort('pct')">Total Return <span id="sort-pct" class="text-xs"></span></th>
+                        <th class="px-3 py-3 md:px-6 md:py-4">Weight</th>
                     </tr>
                 </thead>
                 <tbody id="holdingsBody" class="divide-y divide-zinc-900/60">
