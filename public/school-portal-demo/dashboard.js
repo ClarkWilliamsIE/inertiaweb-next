@@ -180,7 +180,6 @@ function renderUI() {
     const splitActive = document.getElementById("divideToggle").checked;
     const factor = splitActive ? 11 : 1;
     
-    // Update Header Labels context dynamically based on toggle state
     document.getElementById("scaleLabelMain").textContent = splitActive ? "Per Member View" : "Total Pool View";
     document.getElementById("scaleLabelSub").textContent = splitActive ? "1/11th Split Sub-Value" : "100% Fund Valuation";
     document.getElementById("yieldDescriptionLabel").textContent = splitActive ? "Per Member Growth Yield" : "Net Growth Allocation";
@@ -191,7 +190,6 @@ function renderUI() {
     const c = (t.cost || 0) / factor;
     const unrealized = v - c; 
 
-    // Performance Adaptive Dynamic UI Accent Engine
     const isProfitable = p >= 0;
     const themeColor = isProfitable ? '#10b981' : '#ef4444';
     const themeBgTailwind = isProfitable ? 'bg-emerald-500/10' : 'bg-red-500/10';
@@ -239,8 +237,8 @@ function renderUI() {
 function renderMainChart(factor, accentColor) {
     const ctx = document.getElementById('mainChart').getContext('2d');
     const grad = ctx.createLinearGradient(0, 0, 0, 400);
-    grad.addColorStop(0, accentColor + '33'); // 20% opacity matching status context
-    grad.addColorStop(1, accentColor + '00'); // Fades clean to empty
+    grad.addColorStop(0, accentColor + '33'); 
+    grad.addColorStop(1, accentColor + '00'); 
     
     const hist = simplifyData(filterRange(summary.history, globalRange));
     const costHist = simplifyCostData(filterRange(summary.costHistory || [], globalRange));
@@ -288,7 +286,6 @@ function renderTable(factor) {
     const body = document.getElementById("holdingsBody");
     body.innerHTML = "";
     
-    // Update structural table header layout arrows to guide the sorting parameter
     ['symbol', 'value', 'cost', 'profit', 'pct'].forEach(c => {
         const el = document.getElementById(`sort-${c}`);
         if(el) {
@@ -301,7 +298,6 @@ function renderTable(factor) {
         }
     });
 
-    // Handle interactive sorting computation pipeline
     const sortedPositions = [...summary.positions].sort((a, b) => {
         let valA = a[currentSortCol];
         let valB = b[currentSortCol];
@@ -317,7 +313,7 @@ function renderTable(factor) {
 
     sortedPositions.forEach(p => {
         const row = document.createElement("tr");
-        row.className = "hover:bg-white/[0.02] cursor-pointer transition-all border-b border-zinc-900/40 text-xs font-semibold text-zinc-300";
+        row.className = "hover:bg-white/[0.02] cursor-pointer transition-all border-b border-zinc-900/40 text-[11px] md:text-xs font-semibold text-zinc-300";
         row.onclick = () => openDrawer(p.symbol);
         
         const weight = ((p.value / summary.totals.value) * 100);
@@ -325,27 +321,26 @@ function renderTable(factor) {
         const assetReturnPct = p.pct || 0;
         
         row.innerHTML = `
-            <td class="px-6 py-4 font-bold text-white">
-                <div class="flex items-center gap-2.5">
-                    <span class="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center font-black text-[11px] text-amber-500">${p.symbol}</span>
-                    <span>${p.symbol}</span>
-                </div>
+            <td class="px-2 py-2.5 md:px-4 md:py-3.5 font-bold text-white">
+                <span class="px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 font-black text-[10px] md:text-[11px] text-amber-500 inline-block uppercase tracking-wider shadow-sm">${p.symbol}</span>
             </td>
-            <td class="px-6 py-4 text-white font-medium">${fmtMoney(p.value / factor, true)}</td>
-            <td class="px-6 py-4 text-zinc-400 font-medium">${fmtMoney(p.cost / factor, true)}</td>
-            <td class="px-6 py-4 font-bold ${unrealized >= 0 ? 'text-emerald-400' : 'text-rose-500'}">${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}</td>
-            <td class="px-6 py-4">
-                <span class="px-2 py-1 rounded font-black text-[10px] ${assetReturnPct >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}">
+            
+            <td class="px-2 py-2.5 md:px-4 md:py-3.5 text-right md:text-left">
+                <span class="font-bold block ${unrealized >= 0 ? 'text-emerald-400' : 'text-rose-500'}">${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}</span>
+                <span class="text-[9px] md:text-[10px] font-black tracking-tight ${assetReturnPct >= 0 ? 'text-emerald-500' : 'text-red-400'}">
                     ${assetReturnPct >= 0 ? '▲' : '▼'} ${fmtPct(Math.abs(assetReturnPct))}%
                 </span>
             </td>
-            <td class="px-6 py-4">
-                <div class="flex items-center gap-3 w-28">
-                    <div class="relative flex-1 h-3.5 bg-zinc-900 rounded border border-zinc-800/60 overflow-hidden">
-                        <div class="h-full bg-amber-500/80 transition-all border-r border-white/10" style="width: ${weight}%"></div>
-                    </div>
-                    <span class="text-[10px] font-black text-zinc-400">${weight.toFixed(1)}%</span>
-                </div>
+            
+            <td class="px-2 py-2.5 md:px-4 md:py-3.5 text-right md:text-left text-white font-medium">
+                <span class="block text-zinc-100">${fmtMoney(p.value / factor, true)}</span>
+                <span class="text-[9px] text-zinc-500 block md:hidden font-normal">Cost: ${fmtMoney(p.cost / factor, true)}</span>
+            </td>
+            
+            <td class="px-4 py-3.5 text-zinc-400 font-medium hidden md:table-cell">${fmtMoney(p.cost / factor, true)}</td>
+            
+            <td class="px-2 py-2.5 md:px-4 md:py-3.5 text-right md:text-left font-black text-zinc-400">
+                <span>${weight.toFixed(1)}%</span>
             </td>
         `;
         body.appendChild(row);
