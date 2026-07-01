@@ -24,7 +24,8 @@
         .live-pulse::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent-green); animation: pulse 2s infinite; opacity: 0; }
         @keyframes pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
         
-        #drawer { transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        #drawer, #watchlist-modal { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease; }
+        #drawer { transform: translateX(100%); }
         #drawer.open { transform: translateX(0); }
         
         .range-btn { border-radius: 10px; border: 1px solid transparent; }
@@ -54,7 +55,7 @@
 
         <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 w-full lg:w-auto">
             <nav class="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-zinc-800">
-                <button onclick="window.openWatchlist()" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Watchlist</button>
+                <button onclick="window.openWatchlistModal()" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Watchlist</button>
                 <a href="polls.html" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Polls</a>
                 <a href="admin.html" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Admin</a>
             </nav>
@@ -130,7 +131,7 @@
     </section>
 
     <section class="glass-card p-5 relative overflow-hidden group cursor-pointer border border-amber-500/10 hover:border-amber-500/40" onclick="openEtfLeaderboard()">
-        <div class="absolute -right-12 -top-12 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-all"></div>
+        <div class="absolute -right-12 -top-12 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/10 transition-all"></div>
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
             <div class="flex items-center gap-4">
                 <div class="p-3.5 bg-amber-500 rounded-2xl shadow-lg shadow-amber-500/10 text-black">
@@ -181,23 +182,65 @@
         </div>
     </section>
 
-    <div id="watchlist-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 opacity-0 pointer-events-none transition-opacity duration-300" onclick="window.closeWatchlist()"></div>
-    <div id="watchlist-modal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-md bg-zinc-950/95 border border-zinc-800/80 rounded-3xl p-5 shadow-2xl flex flex-col gap-4 transform scale-95 opacity-0 transition-all duration-300 pointer-events-none z-50 backdrop-blur-2xl">
+    <div id="watchlist-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-40 opacity-0 pointer-events-none transition-opacity duration-300" onclick="window.closeWatchlistModal()"></div>
+    <div id="watchlist-modal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-5xl h-[88vh] bg-zinc-950 border border-zinc-800 rounded-3xl p-4 md:p-6 shadow-2xl flex flex-col gap-4 transform scale-95 opacity-0 transition-all duration-300 pointer-events-none z-50 overflow-y-auto">
+        
         <div class="flex items-center justify-between border-b border-zinc-900 pb-3">
             <div>
-                <h3 class="text-lg font-black text-white tracking-tight uppercase">Custom Watchlist</h3>
-                <p class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">Monitor Secondary Market Assets</p>
+                <h3 class="text-xl font-black text-white tracking-tighter uppercase">Watchlist Terminal</h3>
+                <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">Crowdsourced Secondary Market Intelligence Matrix</p>
             </div>
-            <button onclick="window.closeWatchlist()" class="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full transition-all border border-zinc-800"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button onclick="window.closeWatchlistModal()" class="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full transition-all border border-zinc-800"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
-        
-        <div class="flex gap-2 bg-zinc-900/40 p-1.5 rounded-xl border border-zinc-800/80">
-            <input type="text" id="watchlistInput" placeholder="Enter Asset Ticker (e.g. BTC)..." class="flex-1 bg-transparent border-0 px-3 text-xs text-white uppercase font-black tracking-wider placeholder-zinc-600 focus:outline-none focus:ring-0">
-            <button onclick="window.addToWatchlist()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-[10px] rounded-lg transition-all uppercase tracking-tight shadow-md shadow-amber-500/10">Add</button>
-        </div>
-        
-        <div class="flex flex-col divide-y divide-zinc-900/60 max-h-[280px] overflow-y-auto pr-1" id="watchlistContentRows">
+
+        <div class="bg-zinc-900/40 p-4 rounded-2xl border border-zinc-900 flex flex-col gap-3">
+            <h4 class="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Propose Market Token Node</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div class="flex gap-1 bg-black/40 p-1 rounded-xl border border-zinc-800">
+                    <input id="watchlist_ticker" placeholder="SYMBOL" style="text-transform:uppercase;" class="w-20 bg-transparent text-center border-0 px-2 text-xs font-black tracking-wider text-amber-500 placeholder-zinc-600 focus:outline-none">
+                    <select id="watchlist_market" class="flex-1 bg-transparent border-0 px-1 text-xs text-zinc-400 font-bold focus:outline-none">
+                        <option value="AUTO">Market (Auto)</option>
+                        <option value="NASDAQ">NASDAQ</option>
+                        <option value="NYSE">NYSE</option>
+                        <option value="CRYPTO">Crypto</option>
+                        <option value="NZE">NZX</option>
+                        <option value="ASX">ASX</option>
+                    </select>
+                </div>
+                <input id="watchlist_notes" placeholder="Why is this position interesting?" class="bg-black/40 text-xs px-3 py-2 rounded-xl border border-zinc-800 focus:outline-none focus:border-amber-500 text-zinc-200">
+                <button id="watchlist_addBtn" onclick="window.addWatchlistItemNode()" class="py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition-all uppercase tracking-tight">Deploy Node</button>
             </div>
+            <div id="watchlist_msg" class="text-xs font-bold min-h-[1.2em]"></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0 flex-1">
+            <div class="lg:col-span-2 flex flex-col min-h-0">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Active Watch Tickers</h4>
+                    <input id="watchlist_search" placeholder="Filter..." class="bg-zinc-900/60 text-xs px-2.5 py-1 rounded-lg border border-zinc-800 w-28 focus:outline-none focus:border-amber-500">
+                </div>
+                <div id="watchlist_list" class="flex flex-col gap-2 overflow-y-auto pr-1 flex-1 max-h-[400px]">
+                    </div>
+            </div>
+
+            <div class="flex flex-col gap-4">
+                <div class="bg-zinc-900/20 rounded-2xl border border-zinc-900 p-3 flex flex-col">
+                    <h4 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 border-b border-zinc-900 pb-1.5">Top Suggesters</h4>
+                    <div id="watchlist_leaderWrap" class="flex flex-col gap-1 overflow-y-auto max-h-[180px]">
+                        <div class="text-zinc-600 text-[10px] font-black uppercase">Loading Stats...</div>
+                    </div>
+                </div>
+
+                <div class="bg-zinc-900/20 rounded-2xl border border-zinc-900 p-3 flex flex-col">
+                    <div class="flex items-center justify-between mb-2 border-b border-zinc-900 pb-1.5">
+                        <h4 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Archive</h4>
+                        <input id="watchlist_archSearch" placeholder="Search..." class="bg-zinc-900/60 text-[9px] px-1.5 py-0.5 rounded border border-zinc-800 w-16 focus:outline-none">
+                    </div>
+                    <div id="watchlist_archList" class="flex flex-col gap-1 overflow-y-auto max-h-[160px]">
+                        </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="drawer-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 opacity-0 pointer-events-none transition-opacity duration-300"></div>
