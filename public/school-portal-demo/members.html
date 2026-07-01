@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <style>
-        :root { --bg-deep: #070708; --accent-green: #10b981; --accent-red: #ef4444; --accent-winner: #f59e0b; }
+        :root { --bg-deep: #070708; --accent-green: #10b981; --accent-red: #ef4444; --accent-winner: #f59e0b; color-scheme: dark; }
         body { background-color: var(--bg-deep); color: #e5e5e5; font-family: 'Inter', sans-serif; overflow-x: hidden; }
         
         .glass-card { background: rgba(15, 15, 17, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 24px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -24,13 +24,50 @@
         .live-pulse::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent-green); animation: pulse 2s infinite; opacity: 0; }
         @keyframes pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
         
-        #drawer, #watchlist-modal { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease; }
-        #drawer { transform: translateX(100%); }
+        #drawer { transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
         #drawer.open { transform: translateX(0); }
         
         .range-btn { border-radius: 10px; border: 1px solid transparent; }
         .range-btn.active { background: #f59e0b; color: #000; font-weight: 900; }
         
+        /* --- LEGACY COMPATIBILITY STYLES FOR EMBEDDED WATCHLIST MODAL --- */
+        .ticker-list { display:flex; flex-direction:column; gap:0.75rem; width: 100%; }
+        .ticker-card { background:#0f0f0f; border:1px solid #27272a; border-radius:12px; overflow:hidden; width: 100%; display: flex; flex-direction: column; transition: border-color 0.2s; }
+        .ticker-header { display: flex; align-items: stretch; gap: 0.75rem; width: 100%; position: relative; z-index: 2; background: #0f0f0f; }
+        .ticker-card.up .ticker-header { border-left: 4px solid #22c55e; }
+        .ticker-card.down .ticker-header { border-left: 4px solid #ef4444; }
+        .ticker-card.neutral .ticker-header { border-left: 4px solid #555; }
+        .ticker-body { display: none; padding: 1rem; background: #131313; border-top: 1px solid #222; font-size: 0.9rem; color: #ccc; line-height: 1.5; animation: slideDown 0.2s ease-out; }
+        .ticker-card.expanded .ticker-body { display: block; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        .vote-box { display:flex; flex-direction:column; align-items:center; justify-content:center; width:60px; min-width:60px; background:#141414; border-right:1px solid #27272a; cursor:pointer; }
+        .vote-box.active { background:rgba(34, 197, 94, 0.15); color:#4ade80; }
+        .vote-count { font-size:1.1rem; font-weight:700; }
+        .vote-lbl { font-size:0.6rem; text-transform:uppercase; color:#71717a; }
+        .ticker-content { flex: 1; min-width: 0; padding: 10px 0; display:flex; flex-direction:column; justify-content:center; cursor: pointer; }
+        .ticker-symbol { font-size:1rem; font-weight:700; letter-spacing:0.5px; display:flex; align-items:center; gap:0.5rem; white-space: nowrap; color: #fff; }
+        .market-badge { font-size:0.6rem; padding:1px 4px; border-radius:4px; border:1px solid #333; color:#888; }
+        .ticker-note { font-size:0.8rem; color:#a1a1aa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;}
+        .suggester { font-size:0.7rem; color:#555; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .price-box { padding:10px; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; min-width:80px; }
+        .pct-lg { font-size:1.1rem; font-weight:700; white-space: nowrap; }
+        .pct-lg.up { color:#4ade80; } .pct-lg.down { color:#f87171; }
+        .price-sm { font-size:0.75rem; color:#71717a; white-space: nowrap; }
+        .actions { padding:0 5px; display:flex; align-items:center; border-left:1px solid #27272a; gap: 2px; }
+        .btn-icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border:none; background:transparent; color:#555; cursor:pointer; border-radius: 6px; }
+        .btn-icon:hover { background: #222; color: #fff; }
+        .btn-icon svg { width: 20px; height: 20px; fill: currentColor; }
+        .btn-expand { transition: transform 0.2s; }
+        .ticker-card.expanded .btn-expand { transform: rotate(180deg); }
+        .leader-row { display:flex; align-items:center; gap:0.75rem; padding:0.75rem 0; border-bottom:1px solid #27272a; }
+        .rank { font-weight:700; color:#555; width:20px; }
+        .avatar { width:28px; height:28px; border-radius:50%; background:#333; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700; color:#fff; }
+        .player-info { flex:1; min-width: 0; }
+        .player-name { font-size:0.9rem; font-weight:600; color: #fff; }
+        .perf-badge { font-size:0.8rem; font-weight:700; padding:2px 6px; border-radius:6px; background:#111; border:1px solid #333; }
+        .perf-badge.up { color:#4ade80; border-color:rgba(34, 197, 94, 0.3); }
+        .perf-badge.down { color:#f87171; border-color:rgba(239, 68, 68, 0.3); }
+
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #070708; }
         ::-webkit-scrollbar-thumb { background: #26262b; border-radius: 20px; }
@@ -183,60 +220,61 @@
     </section>
 
     <div id="watchlist-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-40 opacity-0 pointer-events-none transition-opacity duration-300" onclick="window.closeWatchlistModal()"></div>
-    <div id="watchlist-modal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-5xl h-[88vh] bg-zinc-950 border border-zinc-800 rounded-3xl p-4 md:p-6 shadow-2xl flex flex-col gap-4 transform scale-95 opacity-0 transition-all duration-300 pointer-events-none z-50 overflow-y-auto">
+    <div id="watchlist-modal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-1.5rem)] max-w-5xl h-[90vh] bg-[#121214] border border-zinc-800 rounded-3xl p-4 md:p-6 shadow-2xl flex flex-col gap-4 transform scale-95 opacity-0 transition-all duration-300 pointer-events-none z-50">
         
-        <div class="flex items-center justify-between border-b border-zinc-900 pb-3">
+        <div class="flex items-center justify-between border-b border-zinc-900 pb-3 flex-shrink-0">
             <div>
-                <h3 class="text-xl font-black text-white tracking-tighter uppercase">Watchlist Terminal</h3>
+                <h3 class="text-lg font-black text-white tracking-tighter uppercase">Watchlist Terminal</h3>
                 <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">Crowdsourced Secondary Market Intelligence Matrix</p>
             </div>
-            <button onclick="window.closeWatchlistModal()" class="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full transition-all border border-zinc-800"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button onclick="window.closeWatchlistModal()" class="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full transition-all border border-zinc-800"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
 
-        <div class="bg-zinc-900/40 p-4 rounded-2xl border border-zinc-900 flex flex-col gap-3">
-            <h4 class="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Propose Market Token Node</h4>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <div class="flex gap-1 bg-black/40 p-1 rounded-xl border border-zinc-800">
-                    <input id="watchlist_ticker" placeholder="SYMBOL" style="text-transform:uppercase;" class="w-20 bg-transparent text-center border-0 px-2 text-xs font-black tracking-wider text-amber-500 placeholder-zinc-600 focus:outline-none">
-                    <select id="watchlist_market" class="flex-1 bg-transparent border-0 px-1 text-xs text-zinc-400 font-bold focus:outline-none">
-                        <option value="AUTO">Market (Auto)</option>
-                        <option value="NASDAQ">NASDAQ</option>
-                        <option value="NYSE">NYSE</option>
-                        <option value="CRYPTO">Crypto</option>
-                        <option value="NZE">NZX</option>
-                        <option value="ASX">ASX</option>
-                    </select>
-                </div>
-                <input id="watchlist_notes" placeholder="Why is this position interesting?" class="bg-black/40 text-xs px-3 py-2 rounded-xl border border-zinc-800 focus:outline-none focus:border-amber-500 text-zinc-200">
-                <button id="watchlist_addBtn" onclick="window.addWatchlistItemNode()" class="py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition-all uppercase tracking-tight">Deploy Node</button>
-            </div>
-            <div id="watchlist_msg" class="text-xs font-bold min-h-[1.2em]"></div>
+        <div id="watchlist_loading" class="hidden items-center justify-center py-4 bg-zinc-900/40 border border-zinc-800 rounded-xl">
+            <div class="w-5 h-5 border-2 border-zinc-700 border-t-amber-500 rounded-full animate-spin"></div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0 flex-1">
-            <div class="lg:col-span-2 flex flex-col min-h-0">
-                <div class="flex items-center justify-between mb-2">
-                    <h4 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Active Watch Tickers</h4>
-                    <input id="watchlist_search" placeholder="Filter..." class="bg-zinc-900/60 text-xs px-2.5 py-1 rounded-lg border border-zinc-800 w-28 focus:outline-none focus:border-amber-500">
+        <section class="bg-zinc-900/40 p-3.5 rounded-2xl border border-zinc-900 flex-shrink-0">
+            <h4 class="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-2">Add Asset Propositon Node</h4>
+            <div class="flex flex-col sm:flex-row gap-2">
+                <input id="watchlist_ticker" placeholder="SYMBOL (E.G. BTC)" style="text-transform:uppercase;" class="bg-black/60 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500 max-w-none sm:max-w-[120px]">
+                <select id="watchlist_market" class="bg-black/60 border border-zinc-800 rounded-xl px-2 py-2 text-xs text-zinc-400 font-bold focus:outline-none focus:border-amber-500 max-w-none sm:max-w-[140px]">
+                    <option value="AUTO">Market (Auto)</option>
+                    <option value="NASDAQ">NASDAQ</option>
+                    <option value="NYSE">NYSE</option>
+                    <option value="CRYPTO">Crypto</option>
+                    <option value="NZE">NZX</option>
+                    <option value="ASX">ASX</option>
+                </select>
+                <input id="watchlist_notes" placeholder="Why is this asset interesting?" class="flex-1 bg-black/60 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500">
+                <button id="watchlist_addBtn" onclick="window.addWatchlistItemNode()" class="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition-all uppercase tracking-tight shadow-md">Add Node</button>
+            </div>
+            <div id="watchlist_msg" class="text-[10px] font-bold mt-1.5 min-h-[1.2em]"></div>
+        </section>
+
+        <div class="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 overflow-hidden">
+            <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
+                <div class="flex items-center justify-between mb-2 flex-shrink-0">
+                    <h4 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Active Tickers Matrix</h4>
+                    <input id="watchlist_search" placeholder="Filter List..." class="bg-zinc-900/60 text-[10px] px-2.5 py-1 rounded-lg border border-zinc-800 w-32 focus:outline-none focus:border-amber-500 text-zinc-200">
                 </div>
-                <div id="watchlist_list" class="flex flex-col gap-2 overflow-y-auto pr-1 flex-1 max-h-[400px]">
+                <div id="watchlist_list" class="ticker-list overflow-y-auto pr-1 flex-1">
                     </div>
             </div>
 
-            <div class="flex flex-col gap-4">
-                <div class="bg-zinc-900/20 rounded-2xl border border-zinc-900 p-3 flex flex-col">
-                    <h4 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 border-b border-zinc-900 pb-1.5">Top Suggesters</h4>
-                    <div id="watchlist_leaderWrap" class="flex flex-col gap-1 overflow-y-auto max-h-[180px]">
-                        <div class="text-zinc-600 text-[10px] font-black uppercase">Loading Stats...</div>
-                    </div>
+            <div class="w-full lg:w-[280px] flex flex-col gap-4 flex-shrink-0 overflow-y-auto pr-1">
+                <div class="bg-zinc-900/20 rounded-2xl border border-zinc-900 p-3.5 flex flex-col flex-shrink-0">
+                    <h4 class="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 border-b border-zinc-900/60 pb-1.5">Top Suggesters</h4>
+                    <div id="watchlist_leaderWrap" class="flex flex-col gap-0.5">
+                        </div>
                 </div>
 
-                <div class="bg-zinc-900/20 rounded-2xl border border-zinc-900 p-3 flex flex-col">
-                    <div class="flex items-center justify-between mb-2 border-b border-zinc-900 pb-1.5">
-                        <h4 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Archive</h4>
-                        <input id="watchlist_archSearch" placeholder="Search..." class="bg-zinc-900/60 text-[9px] px-1.5 py-0.5 rounded border border-zinc-800 w-16 focus:outline-none">
+                <div class="bg-zinc-900/20 rounded-2xl border border-zinc-900 p-3.5 flex flex-col flex-shrink-0">
+                    <div class="flex items-center justify-between mb-2 border-b border-zinc-900/60 pb-1.5">
+                        <h4 class="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Archive Box</h4>
+                        <input id="watchlist_archSearch" placeholder="Search..." class="bg-zinc-900/40 text-[9px] px-1.5 py-0.5 rounded border border-zinc-800 w-16 focus:outline-none text-zinc-300">
                     </div>
-                    <div id="watchlist_archList" class="flex flex-col gap-1 overflow-y-auto max-h-[160px]">
+                    <div id="watchlist_archList" class="flex flex-col gap-1.5 max-h-[140px] overflow-y-auto">
                         </div>
                 </div>
             </div>
