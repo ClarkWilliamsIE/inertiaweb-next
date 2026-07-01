@@ -12,7 +12,7 @@ let tickerRangeMode = {};
 let currentSortCol = 'value'; // Default sorting parameter
 let isSortAsc = false;
 
-// Watchlist Database State Parameters
+// Watchlist Embedded Relational Data Pipeline State Objects
 let currentUser = null;
 let wlItems = [], wlVotes = [], wlMyVotes = [];
 let wlPctMap = {};
@@ -173,7 +173,7 @@ async function loadData() {
     }
 }
 
-// --- 5. RENDER MAIN TERMINAL UI ---
+// --- 5. RENDER MAIN PORTFOLIO UI ---
 window.setSort = (col) => {
     if (currentSortCol === col) {
         isSortAsc = !isSortAsc;
@@ -404,15 +404,17 @@ function renderTable(factor) {
     });
 }
 
-// --- 6. NATIVE WATCHLIST MODULE SYSTEM ---
+// --- 6. EMBEDDED MODAL WATCHLIST PIPELINE METHODS ---
 window.openWatchlistModal = async () => {
     document.getElementById("watchlist-modal-overlay").classList.remove("opacity-0", "pointer-events-none");
     const modal = document.getElementById("watchlist-modal");
     modal.classList.remove("scale-95", "opacity-0", "pointer-events-none");
     modal.classList.add("scale-100", "opacity-100", "pointer-events-auto");
     
+    window.setWatchlistLoading(true);
     await fetchWatchlistBasicData();
     renderWatchlistWorkspace();
+    window.setWatchlistLoading(false);
     fetchWatchlistPrices();
 };
 
@@ -423,18 +425,34 @@ window.closeWatchlistModal = () => {
     modal.classList.add("scale-95", "opacity-0", "pointer-events-none");
 };
 
+window.setWatchlistLoading = (on) => {
+    const loader = document.getElementById('watchlist_loading');
+    if (loader) loader.style.display = on ? 'flex' : 'none';
+};
+
+window.showWatchlistMsg = (txt, ok=true) => {
+    const m = document.getElementById('watchlist_msg');
+    if (!m) return;
+    m.textContent = txt;
+    m.className = ok ? 'text-green-400 text-xs font-bold' : 'text-rose-500 text-xs font-bold';
+    setTimeout(() => m.textContent = '', 2000);
+};
+
 function loadWatchlistPctJSONP(tickers) {
     return new Promise(resolve => {
         const cb = "CB_" + Math.random().toString(36).slice(2);
         window[cb] = (raw) => {
-            delete window[cb]; document.getElementById(cb)?.remove();
-            const map = {}; const data = raw?.data || {};
+            delete window[cb]; 
+            document.getElementById(cb)?.remove();
+            const map = {}; 
+            const data = raw?.data || {};
             for(let k in data) map[String(k).toUpperCase()] = data[k];
             resolve(map);
         };
         const s = document.createElement("script");
         s.id = cb;
         s.src = `${SHEET_WEBAPP_URL}?tickers=${encodeURIComponent(tickers)}&callback=${cb}&ts=${Date.now()}`;
+        s.onerror = () => resolve({});
         document.body.appendChild(s);
     });
 }
@@ -451,7 +469,7 @@ async function fetchWatchlistBasicData() {
             wlMyVotes = wlVotes.filter(v => v.user_id === currentUser.id);
         }
     } catch (err) {
-        console.error("Watchlist core retrieval failure", err);
+        console.error("Watchlist relational synchronization failure", err);
     }
 }
 
@@ -482,7 +500,7 @@ function renderWatchlistWorkspace() {
     listContainer.innerHTML = "";
     
     if(active.length === 0) {
-        listContainer.innerHTML = `<div class="text-zinc-600 text-[10px] font-bold uppercase py-8 text-center bg-zinc-900/10 rounded-xl border border-zinc-900">No active matrix frames</div>`;
+        listContainer.innerHTML = `<div class="text-zinc-600 text-[10px] font-black uppercase py-8 text-center">No matching tickers found</div>`;
     }
 
     active.forEach(i => {
@@ -491,103 +509,102 @@ function renderWatchlistWorkspace() {
         const pctTxt = data ? (data.pct * 100).toFixed(2) + "%" : "n/a";
         const priceTxt = data && data.price ? "$" + Number(data.price).toFixed(2) : "-";
         
-        let borderCls = "border-zinc-800", pctCls = "text-zinc-500";
+        let stCls = "neutral", pctCls = "muted";
         if(data) { 
-            if(data.pct >= 0) { borderCls = "border-l-4 border-l-emerald-500 border-zinc-900"; pctCls = "text-emerald-400"; } 
-            else { borderCls = "border-l-4 border-l-red-500 border-zinc-900"; pctCls = "text-rose-500"; } 
+            if(data.pct >= 0) { stCls = "up"; pctCls = "up"; } 
+            else { stCls = "down"; pctCls = "down"; } 
         }
         
         const isExpanded = wlExpandedItems.has(i.id);
-        const itemRow = document.createElement('div');
-        itemRow.className = `bg-zinc-950 rounded-xl border ${borderCls} p-3 flex flex-col gap-2 transition-all hover:bg-zinc-900/30`;
+        const card = document.createElement('div');
+        card.className = `ticker-card ${stCls} ${isExpanded ? 'expanded' : ''}`;
         
-        itemRow.innerHTML = `
-            <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-3">
-                    <div onclick="window.toggleWatchlistVote('${i.id}')" class="flex flex-col items-center justify-center min-w-[36px] p-1 rounded-lg border ${i.myVote === 1 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-zinc-900 border-zinc-800 text-zinc-400'} cursor-pointer hover:scale-105 transition-all">
-                        <span class="text-xs font-black">${i.score}</span>
-                        <span class="text-[7px] uppercase font-bold tracking-tight">Vote</span>
-                    </div>
-                    <div onclick="window.toggleWatchlistExpand('${i.id}')" class="cursor-pointer">
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-xs font-black text-white uppercase tracking-wider">${escapeHtml(i.ticker)}</span>
-                            <span class="text-[8px] px-1 bg-zinc-900 rounded text-zinc-500 border border-zinc-800">${i.ticker.length > 4 ? 'CRYPTO' : 'STOCK'}</span>
-                        </div>
-                        <p class="text-[10px] text-zinc-400 font-medium truncate max-w-[140px] sm:max-w-[280px] mt-0.5">${escapeHtml(i.notes || "No contextual metadata")}</p>
-                    </div>
+        card.innerHTML = `
+            <div class="ticker-header">
+                <div class="vote-box ${i.myVote === 1 ? 'active' : ''}" onclick="window.toggleWatchlistVote('${i.id}')">
+                    <div class="vote-count">${i.score}</div>
+                    <div class="vote-lbl">Vote</div>
                 </div>
-                
-                <div class="flex items-center gap-4">
-                    <div class="text-right">
-                        <span class="text-xs font-black tracking-tight ${pctCls} block">${pctTxt}</span>
-                        <span class="text-[9px] text-zinc-500 font-medium">${priceTxt}</span>
+                <div class="ticker-content" onclick="window.toggleWatchlistExpand('${i.id}')">
+                    <div class="ticker-symbol">
+                        ${escapeHtml(i.ticker)} <span class="market-badge">${i.ticker.length > 4 ? 'CRYPTO' : 'STOCK'}</span>
                     </div>
-                    <div class="flex items-center gap-1">
-                        <button onclick="window.toggleWatchlistExpand('${i.id}')" class="p-1 text-zinc-600 hover:text-white transition-transform ${isExpanded ? 'rotate-180' : ''}"><svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"></path></svg></button>
-                        <button onclick="window.toggleWatchlistArchive('${i.id}', true)" class="p-1 text-zinc-600 hover:text-rose-500 transition-colors">&times;</button>
-                    </div>
+                    <div class="ticker-note">${escapeHtml(i.notes || "No notes available")}</div>
+                    <div class="suggester">By ${escapeHtml(i.suggested_by_name || "Member")}</div>
+                </div>
+                <div class="price-box">
+                    <div class="pct-lg ${pctCls}">${pctTxt}</div>
+                    <div class="price-sm">${priceTxt}</div>
+                </div>
+                <div class="actions">
+                    <button class="btn-icon btn-expand" onclick="window.toggleWatchlistExpand('${i.id}')">
+                         <svg viewBox="0 0 24 24"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"></path></svg>
+                    </button>
+                    <button class="btn-icon" onclick="window.toggleWatchlistArchive('${i.id}', true)">
+                        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+                    </button>
                 </div>
             </div>
-            <div class="${isExpanded ? 'block' : 'hidden'} text-[10px] text-zinc-400 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-900/80 mt-1 leading-relaxed">
-                <span class="text-zinc-500 font-black uppercase text-[8px] block mb-1">Extended Analysis Brief</span>
-                ${escapeHtml(i.notes || "No additional brief logged.")}
-                <div class="text-[8px] text-zinc-600 font-bold mt-2 uppercase">Proposed by: ${escapeHtml(i.suggested_by_name || "Network Node")}</div>
+            <div class="ticker-body">
+                <strong style="color:#fff;">Full Analysis Brief:</strong><br/>
+                ${escapeHtml(i.notes || "No additional notes logged.")}
             </div>
         `;
-        listContainer.appendChild(itemRow);
+        listContainer.appendChild(card);
     });
 
     // Compute User Metrics Leaderboard Matrix
     const uStats = {};
     wlItems.forEach(i => {
-        const nameKey = i.suggested_by_name || "Anon Pool";
+        const n = i.suggested_by_name || "Anon";
         const d = getWatchlistPctData(i.ticker);
         if(d) {
-            if(!uStats[nameKey]) uStats[nameKey] = { count: 0, sum: 0 };
-            uStats[nameKey].count++; 
-            uStats[nameKey].sum += d.pct;
+            if(!uStats[n]) uStats[n] = { c: 0, s: 0 };
+            uStats[n].c++; 
+            uStats[n].s += d.pct;
         }
     });
     
     const leaders = Object.keys(uStats).map(n => ({ 
         name: n, 
-        count: uStats[n].count, 
-        avg: uStats[n].sum / uStats[n].count 
+        count: uStats[n].c, 
+        avg: uStats[n].s / uStats[n].c 
     })).sort((a,b) => b.avg - a.avg);
 
     const leaderWrap = document.getElementById('watchlist_leaderWrap'); 
     leaderWrap.innerHTML = "";
-    if(leaders.length === 0) leaderWrap.innerHTML = `<div class="text-zinc-600 text-[9px] font-bold uppercase">No records</div>`;
+    if(leaders.length === 0) leaderWrap.innerHTML = `<div class="muted">No suggester data frames logged</div>`;
     
     leaders.forEach((l, idx) => {
-        const badgeCls = l.avg >= 0 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-rose-500 border-red-500/20";
+        const ab = l.avg >= 0 ? "up" : "down";
         leaderWrap.innerHTML += `
-            <div class="flex items-center justify-between py-1.5 border-b border-zinc-900/40 text-[10px]">
-                <div class="flex items-center gap-2">
-                    <span class="font-black text-zinc-600 text-[9px] w-3">${idx+1}</span>
-                    <div class="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center font-black text-[8px] text-zinc-400">${l.name.substring(0,2).toUpperCase()}</div>
-                    <span class="font-bold text-zinc-300">${escapeHtml(l.name)}</span>
+            <div class="leader-row">
+                <div class="rank">${idx+1}</div>
+                <div class="avatar">${l.name.substring(0,2).toUpperCase()}</div>
+                <div class="player-info">
+                    <div class="player-name">${escapeHtml(l.name)}</div>
+                    <div class="suggester">${l.count} picks</div>
                 </div>
-                <span class="px-1.5 py-0.5 rounded font-black text-[9px] border ${badgeCls}">${(l.avg*100).toFixed(1)}%</span>
+                <div class="perf-badge ${ab}">${(l.avg * 100).toFixed(2)}%</div>
             </div>`;
     });
 
-    // Render Archive Framework Listing
+    // Populate Archive Framework Listings
     const archContainer = document.getElementById('watchlist_archList'); 
     archContainer.innerHTML = "";
-    const archivedItems = items = wlItems.filter(i => i.archived);
-    if(archItems = archivedItems.length === 0) archContainer = archItems = [];
+    const archived = wlItems.filter(i => i.archived);
+    if(archived.length === 0) archived.innerHTML = `<div class="muted">Archive box clean</div>`;
     
-    items.filter(i => i.archived).forEach(i => {
+    archived.forEach(i => {
         if(archTerm && !i.ticker.toUpperCase().includes(archTerm)) return;
-        const d = getPctData(i.ticker);
-        const col = d ? (d.pct >= 0 ? 'text-emerald-400' : 'text-rose-500') : 'text-zinc-600';
-        const txt = d ? (d.pct * 100).toFixed(1) + "%" : "n/a";
+        const d = getWatchlistPctData(i.ticker);
+        const col = d ? (d.pct >= 0 ? 'text-green' : 'text-red') : 'muted';
+        const txt = d ? (d.pct * 100).toFixed(2) + "%" : "n/a";
         
         archContainer.innerHTML += `
-            <div class="flex items-center justify-between py-1 text-[10px] text-zinc-400 border-b border-zinc-900/40">
-                <div><span class="font-black text-zinc-200 uppercase">${i.ticker}</span> <span class="font-bold ${col} ml-1">${txt}</span></div>
-                <button class="text-[9px] font-black text-amber-500 hover:text-white uppercase transition-colors" onclick="window.toggleWatchlistArchive('${i.id}', false)">Restore</button>
+            <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid #27272a; font-size:0.85rem;">
+                <div><strong class="text-white">${i.ticker}</strong> <span class="${col}">${txt}</span></div>
+                <button class="text-[10px] font-black text-amber-500 uppercase hover:text-white" onclick="window.toggleWatchlistArchive('${i.id}', false)">Restore</button>
             </div>`;
     });
 }
@@ -595,12 +612,11 @@ function renderWatchlistWorkspace() {
 window.addWatchlistItemNode = async () => {
     const t = document.getElementById('watchlist_ticker').value.trim().toUpperCase();
     const notesInput = document.getElementById('watchlist_notes');
-    const msgEl = document.getElementById('watchlist_watchlist_msg'); // handles safe clear out fallback
+    if(!t) return window.showWatchlistMsg("Enter symbol", false);
     
-    if(!t) return;
     document.getElementById('watchlist_addBtn').disabled = true;
     try {
-        const name = (currentUser?.user_metadata?.first_name) || currentUser?.email?.split('@')[0] || "Terminal Member";
+        const name = (currentUser?.user_metadata?.first_name) || currentUser?.email?.split('@')[0] || "Network Node";
         const { error } = await window.supabase.from("watchlist_items").insert({
             ticker: t, notes: notesInput.value.trim(), created_by: currentUser.id, suggested_by_name: name, archived: false
         });
@@ -609,12 +625,13 @@ window.addWatchlistItemNode = async () => {
         fetch(SHEET_WEBAPP_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ticker: t, notes: notesInput.value, user_id: currentUser.id }) });
         document.getElementById('watchlist_ticker').value = ""; 
         notesInput.value = "";
+        window.showWatchlistMsg("Added Node successfully!");
         
         await fetchWatchlistBasicData(); 
         renderWatchlistWorkspace(); 
         fetchWatchlistPrices();
     } catch(err) {
-        console.error(err);
+        window.showWatchlistMsg("Failed deployment insertion", false);
     }
     document.getElementById('watchlist_addBtn').disabled = false;
 };
@@ -781,5 +798,12 @@ document.getElementById('watchlist_archSearch').oninput = renderWatchlistWorkspa
         .subscribe();
         
     loadData();
+    
+    setInterval(async () => { 
+        if (document.getElementById("watchlist-modal").classList.contains("opacity-100")) {
+            const t = Array.from(new Set(wlItems.map(i=>(i.ticker||"").toUpperCase()).filter(Boolean))).join(",");
+            if(t) { wlPctMap = await loadWatchlistPctJSONP(t); renderWatchlistWorkspace(); }
+        }
+    }, 60000);
 })();
 setInterval(loadData, 60000);
