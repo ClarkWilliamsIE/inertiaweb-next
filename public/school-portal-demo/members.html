@@ -54,7 +54,7 @@
 
         <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 w-full lg:w-auto">
             <nav class="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-zinc-800">
-                <a href="watchlist.html" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Watchlist</a>
+                <button onclick="window.openWatchlist()" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Watchlist</button>
                 <a href="polls.html" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Polls</a>
                 <a href="admin.html" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Admin</a>
             </nav>
@@ -130,7 +130,7 @@
     </section>
 
     <section class="glass-card p-5 relative overflow-hidden group cursor-pointer border border-amber-500/10 hover:border-amber-500/40" onclick="openEtfLeaderboard()">
-        <div class="absolute -right-12 -top-12 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/10 transition-all"></div>
+        <div class="absolute -right-12 -top-12 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-all"></div>
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
             <div class="flex items-center gap-4">
                 <div class="p-3.5 bg-amber-500 rounded-2xl shadow-lg shadow-amber-500/10 text-black">
@@ -180,6 +180,25 @@
             </table>
         </div>
     </section>
+
+    <div id="watchlist-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 opacity-0 pointer-events-none transition-opacity duration-300" onclick="window.closeWatchlist()"></div>
+    <div id="watchlist-modal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-md bg-zinc-950/95 border border-zinc-800/80 rounded-3xl p-5 shadow-2xl flex flex-col gap-4 transform scale-95 opacity-0 transition-all duration-300 pointer-events-none z-50 backdrop-blur-2xl">
+        <div class="flex items-center justify-between border-b border-zinc-900 pb-3">
+            <div>
+                <h3 class="text-lg font-black text-white tracking-tight uppercase">Custom Watchlist</h3>
+                <p class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">Monitor Secondary Market Assets</p>
+            </div>
+            <button onclick="window.closeWatchlist()" class="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full transition-all border border-zinc-800"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        </div>
+        
+        <div class="flex gap-2 bg-zinc-900/40 p-1.5 rounded-xl border border-zinc-800/80">
+            <input type="text" id="watchlistInput" placeholder="Enter Asset Ticker (e.g. BTC)..." class="flex-1 bg-transparent border-0 px-3 text-xs text-white uppercase font-black tracking-wider placeholder-zinc-600 focus:outline-none focus:ring-0">
+            <button onclick="window.addToWatchlist()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-[10px] rounded-lg transition-all uppercase tracking-tight shadow-md shadow-amber-500/10">Add</button>
+        </div>
+        
+        <div class="flex flex-col divide-y divide-zinc-900/60 max-h-[280px] overflow-y-auto pr-1" id="watchlistContentRows">
+            </div>
+    </div>
 
     <div id="drawer-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 opacity-0 pointer-events-none transition-opacity duration-300"></div>
     <div id="drawer" class="fixed top-0 right-0 h-full w-full md:w-[560px] bg-zinc-950 border-l border-zinc-800/80 z-50 p-6 md:p-8 flex flex-col shadow-2xl overflow-y-auto">
