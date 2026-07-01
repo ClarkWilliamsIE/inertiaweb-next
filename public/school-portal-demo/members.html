@@ -30,7 +30,7 @@
         .range-btn { border-radius: 10px; border: 1px solid transparent; }
         .range-btn.active { background: #f59e0b; color: #000; font-weight: 900; }
         
-        /* --- NATIVE EMBEDDED WATCHLIST STYLE TEMPLATES --- */
+        /* --- EMBEDDED REAL-TIME WATCHLIST MODAL STYLES --- */
         .ticker-list { display:flex; flex-direction:column; gap:0.75rem; width: 100%; }
         .ticker-card { background:#0f0f0f; border:1px solid #27272a; border-radius:12px; overflow:hidden; width: 100%; display: flex; flex-direction: column; transition: border-color 0.2s; }
         .ticker-header { display: flex; align-items: stretch; gap: 0.75rem; width: 100%; position: relative; z-index: 2; background: #0f0f0f; }
@@ -40,7 +40,9 @@
         .ticker-body { display: none; padding: 1rem; background: #131313; border-top: 1px solid #222; font-size: 0.9rem; color: #ccc; line-height: 1.5; animation: slideDown 0.2s ease-out; }
         .ticker-card.expanded .ticker-body { display: block; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-        .vote-box { display:flex; flex-direction:column; align-items:center; justify-content:center; width:60px; min-width:60px; background:#141414; border-right:1px solid #27272a; cursor:pointer; }
+        
+        /* Fixed mobile squashing layout with flex-shrink limits */
+        .vote-box { flex-shrink: 0; display:flex; flex-direction:column; align-items:center; justify-content:center; width:60px; min-width:60px; background:#141414; border-right:1px solid #27272a; cursor:pointer; }
         .vote-box.active { background:rgba(34, 197, 94, 0.15); color:#4ade80; }
         .vote-count { font-size:1.1rem; font-weight:700; }
         .vote-lbl { font-size:0.6rem; text-transform:uppercase; color:#71717a; }
@@ -72,6 +74,64 @@
         ::-webkit-scrollbar-track { background: #070708; }
         ::-webkit-scrollbar-thumb { background: #26262b; border-radius: 20px; }
         ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+        /* --- MOBILE WATCHLIST OPTIMIZATION OVERRIDES --- */
+        @media (max-width: 1023px) {
+            #watchlist-modal { overflow-y: auto !important; }
+            #watchlist_list { max-height: none !important; overflow: visible !important; }
+        }
+        @media (max-width: 640px) {
+            .ticker-header {
+                display: grid !important;
+                grid-template-columns: 55px 1fr 85px !important;
+                grid-template-rows: auto auto !important;
+                align-items: center !important;
+                gap: 0 0.5rem !important;
+                padding: 4px 0 !important;
+            }
+            .vote-box {
+                grid-column: 1 !important;
+                grid-row: 1 / span 2 !important;
+                width: 55px !important;
+                min-width: 55px !important;
+                height: 100% !important;
+                min-height: 68px !important;
+                border-right: 1px solid #27272a !important;
+            }
+            .ticker-content {
+                grid-column: 2 !important;
+                grid-row: 1 / span 2 !important;
+                padding: 4px 0 !important;
+                min-width: 0 !important;
+            }
+            .ticker-note {
+                white-space: normal !important;
+                display: -webkit-box !important;
+                -webkit-line-clamp: 1 !important;
+                -webkit-box-orient: vertical !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+            .price-box {
+                grid-column: 3 !important;
+                grid-row: 1 !important;
+                padding: 6px 8px 0 0 !important;
+                min-width: unset !important;
+                align-items: flex-end !important;
+            }
+            .pct-lg { font-size: 0.95rem !important; }
+            .price-sm { font-size: 0.7rem !important; }
+            .actions {
+                grid-column: 3 !important;
+                grid-row: 2 !important;
+                border-left: none !important;
+                padding: 0 8px 6px 0 !important;
+                justify-content: flex-end !important;
+                gap: 2px !important;
+            }
+            .btn-icon { width: 30px !important; height: 30px !important; }
+            .btn-icon svg { width: 16px !important; height: 16px !important; }
+        }
     </style>
 </head>
 <body class="p-4 md:p-8 max-w-[1600px] mx-auto min-h-screen flex flex-col justify-between gap-6">
@@ -223,9 +283,9 @@
     <div id="watchlist-modal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-1.5rem)] max-w-5xl h-[88vh] bg-[#121214] border border-zinc-800 rounded-3xl p-4 md:p-6 shadow-2xl flex flex-col gap-4 transform scale-95 opacity-0 transition-all duration-300 pointer-events-none z-50 overflow-y-auto lg:overflow-hidden">
         
         <div class="flex items-center justify-between border-b border-zinc-900 pb-3 flex-shrink-0">
-            <div class="flex flex-wrap items-center gap-x-3">
+            <div class="flex flex-wrap items-baseline gap-x-3">
                 <h3 class="text-lg font-black text-white tracking-tighter uppercase">Watchlist Terminal</h3>
-                <select id="watchlist_fy_selector" onchange="window.handleWatchlistFyChange(this.value)" class="bg-zinc-900 border border-zinc-800 text-[10px] font-black text-amber-500 rounded px-2 py-0.5 focus:outline-none uppercase tracking-wider cursor-pointer"></select>
+                <select id="watchlist_fy_selector" onchange="window.handleWatchlistFyChange(this.value)" class="bg-zinc-900 border border-zinc-800 text-[10px] font-black text-amber-500 rounded px-2 py-0.5 focus:outline-none uppercase tracking-wider"></select>
             </div>
             <button onclick="window.closeWatchlistModal()" class="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full transition-all border border-zinc-800"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
@@ -252,17 +312,17 @@
             <div id="watchlist_msg" class="text-[10px] font-bold mt-1.5 min-h-[1.2em]"></div>
         </section>
 
-        <div class="flex-1 flex flex-col lg:flex-row gap-4 overflow-visible lg:overflow-hidden min-h-0">
-            <div class="flex-1 flex flex-col overflow-visible lg:overflow-hidden min-h-0">
+        <div class="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 overflow-visible lg:overflow-hidden">
+            <div class="flex-1 min-h-0 flex flex-col overflow-visible lg:overflow-hidden">
                 <div class="flex items-center justify-between mb-2 flex-shrink-0">
                     <h4 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Active Tickers Matrix</h4>
                     <input id="watchlist_search" placeholder="Filter List..." class="bg-zinc-900/60 text-[10px] px-2.5 py-1 rounded-lg border border-zinc-800 w-32 focus:outline-none focus:border-amber-500 text-zinc-200">
                 </div>
-                <div id="watchlist_list" class="ticker-list overflow-y-auto pr-1 flex-1 min-h-[240px] lg:min-h-0">
+                <div id="watchlist_list" class="ticker-list overflow-y-auto pr-1 flex-1 lg:max-h-none max-h-[400px]">
                     </div>
             </div>
 
-            <div class="w-full lg:w-[320px] flex flex-col gap-4 flex-shrink-0 pb-4 overflow-visible lg:overflow-y-auto pr-1">
+            <div class="w-full lg:w-[320px] flex flex-col gap-4 flex-shrink-0 lg:overflow-y-auto pr-1 pb-4">
                 <div class="bg-zinc-900/20 rounded-2xl border border-zinc-900 p-3.5 flex flex-col flex-shrink-0">
                     <h4 class="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-2 border-b border-zinc-900/60 pb-1.5">Top Suggesters</h4>
                     <div id="watchlist_leaderWrap" class="flex flex-col gap-0.5">
