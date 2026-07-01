@@ -106,7 +106,6 @@ const getFinancialYearString = (dateStr) => {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return null;
     const y = d.getFullYear();
-    // July 1 is month index 6 (0-indexed JavaScript months)
     return d.getMonth() >= 6 ? `FY${y}-${String(y+1).substring(2)}` : `FY${y-1}-${String(y).substring(2)}`;
 };
 
@@ -257,7 +256,7 @@ function renderUI() {
     renderMainChart(factor, themeColor);
     renderTable(factor);
     
-    if (document.getElementById("watchlist-modal").classList.contains("scale-100")) {
+    if (document.getElementById("watchlist-modal").classList.contains("opacity-100")) {
         renderWatchlistWorkspace();
     }
 }
@@ -323,14 +322,14 @@ function renderTable(factor) {
     
     ['sort-symbol', 'sort-value', 'sort-cost', 'sort-profit', 'sort-pct'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.innerText = "";
+        if(el) el.innerText = "";
     });
 
-    const mapping = { symbol: 'sort-symbol', value: 'sort-value', cost: 'sort-cost', profit: 'sort-profit', pct: 'sort-pct' };
-    const targetedIndicator = document.getElementById(mapping[currentSortCol]);
-    if (targetedIndicator) {
-        targetedIndicator.innerText = isSortAsc ? " ▴" : " ▾";
-        targetedIndicator.className = "text-amber-500 font-black";
+    const sortIndicatorId = currentSortCol === 'profit' ? 'sort-profit' : `sort-${currentSortCol}`;
+    const elIndicator = document.getElementById(sortIndicatorId);
+    if(elIndicator) {
+        elIndicator.innerText = isSortAsc ? " ▴" : " ▾";
+        elIndicator.className = "text-amber-500 font-black";
     }
 
     const sortedPositions = [...summary.positions].sort((a, b) => {
@@ -430,7 +429,6 @@ window.openWatchlistModal = async () => {
     window.setWatchlistLoading(true);
     await fetchWatchlistBasicData();
     
-    // Set default financial year context if not chosen
     if (!selectedWatchlistFY) {
         selectedWatchlistFY = getCurrentFinancialYearString();
     }
@@ -516,7 +514,6 @@ function renderWatchlistWorkspace() {
     const term = document.getElementById('watchlist_search').value.toUpperCase();
     const archTerm = document.getElementById('watchlist_archSearch').value.toUpperCase();
     
-    // Dynamic generation of available financial options inside dropdown select element
     const fySelector = document.getElementById("watchlist_fy_selector");
     if (fySelector) {
         const uniqueFYs = new Set();
@@ -532,7 +529,6 @@ function renderWatchlistWorkspace() {
         }
     }
 
-    // Filter active assets strictly based on the selection parameters
     const active = wlItems.filter(i => !i.archived && getFinancialYearString(i.created_at) === selectedWatchlistFY).map(i => ({ 
         ...i, 
         score: getWatchlistScore(i.id), 
@@ -594,9 +590,9 @@ function renderWatchlistWorkspace() {
         listContainer.appendChild(card);
     });
 
-    // Compute active leader array statistics matching current season parameters
+    // Compute User Metrics Leaderboard Matrix
     const uStats = {};
-    wlItems.filter(item => getFinancialYearString(item.created_at) === selectedWatchlistFY).forEach(i => {
+    wlItems.forEach(i => {
         const n = i.suggested_by_name || "Anon";
         const d = getWatchlistPctData(i.ticker);
         if(d) {
@@ -614,7 +610,7 @@ function renderWatchlistWorkspace() {
 
     const leaderWrap = document.getElementById('watchlist_leaderWrap'); 
     leaderWrap.innerHTML = "";
-    if(leaders.length === 0) leaderWrap.innerHTML = `<div class="text-zinc-600 text-[10px] font-black uppercase py-4">No picks for season</div>`;
+    if(leaders.length === 0) leaderWrap.innerHTML = `<div class="text-zinc-500 text-[10px] font-black uppercase py-2">No leaderboard nodes</div>`;
     
     leaders.forEach((l, idx) => {
         const ab = l.avg >= 0 ? "up" : "down";
@@ -630,24 +626,28 @@ function renderWatchlistWorkspace() {
             </div>`;
     });
 
-    // Populate Archive Framework Listings
+    // Populate Archive Box List View safely without breaking loop pointers
     const archContainer = document.getElementById('watchlist_archList'); 
-    archContainer.innerHTML = "";
-    const archived = wlItems.filter(i => i.archived && getFinancialYearString(i.created_at) === selectedWatchlistFY);
-    if(archived.length === 0) archContainer.innerHTML = `<div class="text-zinc-600 text-[10px] font-black uppercase py-2">Archive box empty</div>`;
-    
-    archived.forEach(i => {
-        if(archTerm && !i.ticker.toUpperCase().includes(archTerm)) return;
-        const d = getWatchlistPctData(i.ticker);
-        const col = d ? (d.pct >= 0 ? 'text-emerald-400' : 'text-rose-500') : 'text-zinc-500';
-        const txt = d ? (d.pct * 100).toFixed(2) + "%" : "n/a";
-        
-        archContainer.innerHTML += `
-            <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid #27272a; font-size:0.85rem;">
-                <div><strong class="text-white">${i.ticker}</strong> <span class="${col}">${txt}</span></div>
-                <button class="text-[10px] font-black text-amber-500 uppercase hover:text-white" onclick="window.toggleWatchlistArchive('${i.id}', false)">Restore</button>
-            </div>`;
-    });
+    if (archContainer) {
+        archContainer.innerHTML = "";
+        const archived = wlItems.filter(i => i.archived && getFinancialYearString(i.created_at) === selectedWatchlistFY);
+        if(archived.length === 0) {
+            archContainer.innerHTML = `<div class="text-zinc-600 text-[10px] font-black uppercase py-2">Archive box empty</div>`;
+        } else {
+            archived.forEach(i => {
+                if(archTerm && !i.ticker.toUpperCase().includes(archTerm)) return;
+                const d = getWatchlistPctData(i.ticker);
+                const col = d ? (d.pct >= 0 ? 'text-emerald-400' : 'text-rose-500') : 'text-zinc-500';
+                const txt = d ? (d.pct * 100).toFixed(2) + "%" : "n/a";
+                
+                archContainer.innerHTML += `
+                    <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid #27272a; font-size:0.85rem;">
+                        <div><strong class="text-white">${escapeHtml(i.ticker)}</strong> <span class="${col}">${txt}</span></div>
+                        <button class="text-[10px] font-black text-amber-500 uppercase hover:text-white" onclick="window.toggleWatchlistArchive('${i.id}', false)">Restore</button>
+                    </div>`;
+            });
+        }
+    }
 }
 
 window.addWatchlistItemNode = async () => {
@@ -668,7 +668,6 @@ window.addWatchlistItemNode = async () => {
         notesInput.value = "";
         window.showWatchlistMsg("Added Node successfully!");
         
-        // Force evaluation view to reset onto current season framework context when node deploys
         selectedWatchlistFY = getCurrentFinancialYearString();
         await fetchWatchlistBasicData(); 
         renderWatchlistWorkspace(); 
