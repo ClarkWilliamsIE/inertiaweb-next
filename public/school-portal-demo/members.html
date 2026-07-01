@@ -320,17 +320,17 @@
             <div id="watchlist_msg" class="text-[10px] font-bold mt-1.5 min-h-[1.2em]"></div>
         </section>
 
-        <div class="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 overflow-visible lg:overflow-hidden">
-            <div class="flex-1 min-h-0 flex flex-col overflow-visible lg:overflow-hidden">
+        <div class="flex flex-col lg:flex-row gap-4 lg:flex-1 lg:min-h-0 overflow-visible lg:overflow-hidden">
+            <div class="flex flex-col lg:flex-1 lg:min-h-0 overflow-visible lg:overflow-hidden">
                 <div class="flex items-center justify-between mb-2 flex-shrink-0">
                     <h4 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Active Tickers Matrix</h4>
                     <input id="watchlist_search" placeholder="Filter List..." class="bg-zinc-900/60 text-[10px] px-2.5 py-1 rounded-lg border border-zinc-800 w-32 focus:outline-none focus:border-amber-500 text-zinc-200">
                 </div>
-                <div id="watchlist_list" class="ticker-list overflow-y-auto pr-1 flex-1 lg:max-h-none max-h-[400px]">
+                <div id="watchlist_list" class="ticker-list pr-1 lg:overflow-y-auto lg:flex-1">
                 </div>
             </div>
 
-            <div class="w-full lg:w-[320px] flex flex-col gap-4 flex-shrink-0 lg:overflow-y-auto pr-1 pb-4">
+            <div class="w-full lg:w-[320px] flex flex-col gap-4 lg:flex-shrink-0 lg:overflow-y-auto pr-1 pb-4">
                 <div class="bg-zinc-900/20 rounded-2xl border border-zinc-900 p-3.5 flex flex-col flex-shrink-0">
                     <h4 class="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-2 border-b border-zinc-900/60 pb-1.5">Top Suggesters</h4>
                     <div id="watchlist_leaderWrap" class="flex flex-col gap-0.5">
@@ -384,15 +384,14 @@
     let chartRegistry = {};
     let globalRange = localStorage.getItem("pfRange") || "DAY";
     let tickerRangeMode = {};
-    let currentSortCol = 'value'; // Default sorting parameter
+    let currentSortCol = 'value'; 
     let isSortAsc = false;
 
-    // Watchlist Embedded Relational Data Pipeline State Objects
     let currentUser = null;
     let wlItems = [], wlVotes = [], wlMyVotes = [];
     let wlPctMap = {};
     let wlExpandedItems = new Set();
-    let selectedWatchlistFY = null; // Currently evaluated financial year segment
+    let selectedWatchlistFY = null; 
 
     try { tickerRangeMode = JSON.parse(localStorage.getItem("tickerRanges") || "{}"); } catch(_) {}
 
@@ -476,7 +475,6 @@
         return { labels, data, costData };
     };
 
-    // --- Financial Year (FY) Date Calculation Helpers ---
     const getFinancialYearString = (dateStr) => {
         const d = new Date(dateStr);
         if (isNaN(d.getTime())) return null;
