@@ -1,373 +1,609 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Winnerland | Portfolio OS</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    
-    <style>
-        :root { --bg-deep: #070708; --accent-green: #10b981; --accent-red: #ef4444; --accent-winner: #f59e0b; }
-        body { background-color: var(--bg-deep); color: #e5e5e5; font-family: 'Inter', sans-serif; overflow-x: hidden; }
-        
-        .glass-card { background: rgba(15, 15, 17, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 24px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .glass-card:hover { border-color: rgba(255, 255, 255, 0.1); background: rgba(20, 20, 23, 0.85); box-shadow: 0 20px 40px -15px rgba(0,0,0,0.7); }
-        
-        .live-pulse { width: 8px; height: 8px; background-color: var(--accent-green); border-radius: 50%; position: relative; }
-        .live-pulse::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent-green); animation: pulse 2s infinite; opacity: 0; }
-        @keyframes pulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
-        
-        #drawer { transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        #drawer.open { transform: translateX(0); }
-        
-        .range-btn { border-radius: 10px; border: 1px solid transparent; }
-        .range-btn.active { background: #f59e0b; color: #000; font-weight: 900; }
-        
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #070708; }
-        ::-webkit-scrollbar-thumb { background: #26262b; border-radius: 20px; }
-        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
-    </style>
-</head>
-<body class="p-4 md:p-8 max-w-[1600px] mx-auto min-h-screen flex flex-col justify-between gap-6">
+// --- 1. CONFIG ---
+const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
 
-    <header class="flex flex-col lg:flex-row items-center justify-between gap-6 bg-zinc-900/40 p-4 rounded-3xl border border-zinc-800/60 backdrop-blur-md">
-        <div class="flex items-center gap-4">
-            <div class="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 shadow-xl" id="brandIconContainer">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-amber-500" id="headerLogoSvg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-            </div>
-            <div>
-                <h1 class="text-xl font-black tracking-tighter text-white uppercase" id="mainDashboardTitle">Portfolio OS</h1>
-                <div class="flex items-center gap-2 mt-0.5">
-                    <div class="live-pulse"></div>
-                    <span class="text-[9px] uppercase font-bold text-zinc-500 tracking-[0.2em]">Aggregated Historical Terminal</span>
-                </div>
-            </div>
-        </div>
+// --- 2. STATE ---
+let summary = null;
+let tradesHistory = [];
+let chartRegistry = {};
+let globalRange = localStorage.getItem("pfRange") || "DAY";
+let tickerRangeMode = {};
+let currentSortCol = 'value'; // Default sorting parameter
+let isSortAsc = false;
 
-        <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 w-full lg:w-auto">
-            <nav class="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-zinc-800">
-                <button onclick="window.openWatchlist()" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Watchlist</button>
-                <a href="polls.html" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Polls</a>
-                <a href="admin.html" class="px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-white rounded-lg transition-all">Admin</a>
-            </nav>
-            
-            <div class="flex items-center gap-3 bg-black/40 px-3 py-2 rounded-xl border border-zinc-800">
-                <div class="flex flex-col text-right">
-                    <span class="text-[10px] font-black text-white uppercase tracking-tight" id="scaleLabelMain">Total Pool View</span>
-                    <span class="text-[8px] text-zinc-500 font-bold uppercase tracking-wider" id="scaleLabelSub">100% Fund Valuation</span>
-                </div>
-                <label class="relative inline-flex items-center cursor-pointer select-none">
-                    <input type="checkbox" id="divideToggle" class="sr-only peer">
-                    <div class="w-10 h-6 bg-zinc-800 rounded-full peer peer-checked:bg-amber-500 after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-zinc-400 peer-checked:after:bg-black after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
-                </label>
-            </div>
+try { tickerRangeMode = JSON.parse(localStorage.getItem("tickerRanges") || "{}"); } catch(_) {}
 
-            <button id="btnSignOut" class="px-4 py-2 bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-700 text-xs font-black rounded-xl transition-all uppercase tracking-tight border border-zinc-700/50">Sign Out</button>
-        </div>
-    </header>
-
-    <main class="grid grid-cols-1 md:grid-cols-3 gap-4" id="kpiDashboardGrid">
-        <div class="glass-card p-6 flex items-center justify-between relative overflow-hidden">
-            <div>
-                <h2 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Portfolio Asset Equity</h2>
-                <p class="text-3xl font-black text-white tracking-tighter" id="totalValueDisplay">---</p>
-                <div class="flex items-center gap-1.5 mt-1">
-                    <span class="text-xs font-bold" id="totalChangeDisplay">---</span>
-                    <span class="text-[9px] text-zinc-500 font-medium uppercase tracking-tight">Net Shift</span>
-                </div>
-            </div>
-            <div class="p-3.5 bg-zinc-800/40 rounded-2xl border border-zinc-800 text-zinc-400">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-            </div>
-        </div>
-
-        <div class="glass-card p-6 flex items-center justify-between relative overflow-hidden">
-            <div>
-                <h2 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Acquisition Cost Basis</h2>
-                <p class="text-3xl font-black text-zinc-200 tracking-tighter" id="costDisplay">---</p>
-                <p class="text-[9px] text-zinc-500 font-semibold uppercase tracking-wider mt-2">Total Contributed Principal</p>
-            </div>
-            <div class="p-3.5 bg-zinc-800/40 rounded-2xl border border-zinc-800 text-zinc-400">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-            </div>
-        </div>
-
-        <div class="glass-card p-6 flex items-center justify-between relative overflow-hidden">
-            <div>
-                <h2 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Net Unrealized Yield</h2>
-                <p class="text-3xl font-black tracking-tighter" id="unrealizedDisplay">---</p>
-                <p class="text-[9px] text-zinc-500 font-semibold uppercase tracking-wider mt-2" id="yieldDescriptionLabel">Net Growth Allocation</p>
-            </div>
-            <div class="p-3.5 bg-zinc-800/40 rounded-2xl border border-zinc-800 text-zinc-400" id="yieldIconContainer">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-            </div>
-        </div>
-    </main>
-
-    <section class="glass-card p-4 md:p-6 flex flex-col gap-4">
-        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800/60 pb-4">
-            <div>
-                <h3 class="text-sm font-black text-white uppercase tracking-wider">Fund Performance Index</h3>
-                <p class="text-[10px] text-zinc-500 font-semibold uppercase tracking-tight mt-0.5">Historical portfolio value and structural baseline changes</p>
-            </div>
-            <div class="flex bg-black/60 p-1 rounded-xl border border-zinc-800 overflow-x-auto max-w-full" id="mainRangeSelector">
-                <button data-range="DAY" class="range-btn px-3 py-1.5 text-[10px] font-black text-zinc-400 hover:text-white transition-all uppercase">1D</button>
-                <button data-range="WEEK" class="range-btn px-3 py-1.5 text-[10px] font-black text-zinc-400 hover:text-white transition-all uppercase">1W</button>
-                <button data-range="MONTH" class="range-btn px-3 py-1.5 text-[10px] font-black text-zinc-400 hover:text-white transition-all uppercase">1M</button>
-                <button data-range="YEAR" class="range-btn px-3 py-1.5 text-[10px] font-black text-zinc-400 hover:text-white transition-all uppercase">1Y</button>
-                <button data-range="ALL" class="range-btn px-3 py-1.5 text-[10px] font-black text-zinc-400 hover:text-white transition-all uppercase">ALL</button>
-            </div>
-        </div>
-        <div class="h-[360px] md:h-[420px] w-full relative"><canvas id="mainChart"></canvas></div>
-    </section>
-
-    <section class="glass-card p-5 relative overflow-hidden group cursor-pointer border border-amber-500/10 hover:border-amber-500/40" onclick="openEtfLeaderboard()">
-        <div class="absolute -right-12 -top-12 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-all"></div>
-        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
-            <div class="flex items-center gap-4">
-                <div class="p-3.5 bg-amber-500 rounded-2xl shadow-lg shadow-amber-500/10 text-black">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-                </div>
-                <div>
-                    <h3 class="text-base font-black text-white tracking-tight uppercase">Winnerland <span class="text-amber-500">ETF</span> Competition</h3>
-                    <p class="text-[11px] text-zinc-400 font-medium mt-0.5">Internal Challenge • $1,000 Starting Alloc • <span id="etf-leader-preview" class="text-white font-bold">Syncing Leaderboard...</span></p>
-                </div>
-            </div>
-            <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end bg-black/20 md:bg-transparent p-3 md:p-0 rounded-xl border border-zinc-800/40 md:border-0">
-                <div>
-                    <p class="text-[9px] uppercase font-bold text-zinc-500 tracking-wider text-right">Aggregate Pot</p>
-                    <p class="text-xl font-black text-white tracking-tight text-right" id="etf-total-value">---</p>
-                </div>
-                <div class="w-px h-6 bg-zinc-800"></div>
-                <div>
-                    <p class="text-[9px] uppercase font-bold text-zinc-500 tracking-wider text-right">Fund Run-Rate</p>
-                    <p class="text-xl font-black text-zinc-500 tracking-tight text-right" id="etf-total-return">---</p>
-                </div>
-                <div class="hidden md:flex items-center justify-center w-8 h-8 rounded-full border border-zinc-800 text-zinc-400 group-hover:bg-white group-hover:text-black transition-all">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="glass-card overflow-hidden">
-        <div class="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800/80">
-            <h2 class="text-xs font-black text-white uppercase tracking-wider">Asset Allocation Distribution <span class="text-zinc-500 text-[9px] font-normal lowercase tracking-normal ml-1">(Click headers to sort or row for historical chart)</span></h2>
-            <div class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800" id="lastUpdated">Syncing Engine...</div>
-        </div>
-        <div class="w-full overflow-x-auto">
-            <table class="w-full text-left border-collapse table-auto">
-                <thead>
-                    <tr class="text-[9px] text-zinc-500 uppercase font-black tracking-widest bg-white/[0.01] border-b border-zinc-950 select-none">
-                        <th class="px-2 py-3 md:px-4 cursor-pointer hover:text-white transition-colors" onclick="window.setSort('symbol')">Asset <span id="sort-symbol" class="text-xs"></span></th>
-                        <th class="px-2 py-3 md:px-4 cursor-pointer hover:text-white transition-colors text-right md:text-left" onclick="window.setSort('profit')">Return & P/L <span id="sort-profit" class="text-xs"></span></th>
-                        <th class="px-2 py-3 md:px-4 cursor-pointer hover:text-white transition-colors text-right md:text-left" onclick="window.setSort('value')">Equity <span id="sort-value" class="text-xs"></span></th>
-                        <th class="px-4 py-3 cursor-pointer hover:text-white transition-colors hidden md:table-cell" onclick="window.setSort('cost')">Cost Basis <span id="sort-cost" class="text-xs"></span></th>
-                        <th class="px-2 py-3 md:px-4 text-right md:text-left">Weight</th>
-                    </tr>
-                </thead>
-                <tbody id="holdingsBody" class="divide-y divide-zinc-900/60">
-                    <tr><td colspan="5" class="px-4 py-12 text-center text-zinc-500 text-[10px] font-bold uppercase tracking-widest bg-zinc-900/10">Initializing Connection Pipeline...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <div id="watchlist-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 opacity-0 pointer-events-none transition-opacity duration-300" onclick="window.closeWatchlist()"></div>
-    <div id="watchlist-modal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-md bg-zinc-950/95 border border-zinc-800/80 rounded-3xl p-5 shadow-2xl flex flex-col gap-4 transform scale-95 opacity-0 transition-all duration-300 pointer-events-none z-50 backdrop-blur-2xl">
-        <div class="flex items-center justify-between border-b border-zinc-900 pb-3">
-            <div>
-                <h3 class="text-lg font-black text-white tracking-tight uppercase">Custom Watchlist</h3>
-                <p class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">Monitor Secondary Market Assets</p>
-            </div>
-            <button onclick="window.closeWatchlist()" class="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full transition-all border border-zinc-800"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-        </div>
-        
-        <div class="flex gap-2 bg-zinc-900/40 p-1.5 rounded-xl border border-zinc-800/80">
-            <input type="text" id="watchlistInput" placeholder="Enter Asset Ticker (e.g. BTC)..." class="flex-1 bg-transparent border-0 px-3 text-xs text-white uppercase font-black tracking-wider placeholder-zinc-600 focus:outline-none focus:ring-0">
-            <button onclick="window.addToWatchlist()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-[10px] rounded-lg transition-all uppercase tracking-tight shadow-md shadow-amber-500/10">Add</button>
-        </div>
-        
-        <div class="flex flex-col divide-y divide-zinc-900/60 max-h-[280px] overflow-y-auto pr-1" id="watchlistContentRows">
-            </div>
-    </div>
-
-    <div id="drawer-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 opacity-0 pointer-events-none transition-opacity duration-300"></div>
-    <div id="drawer" class="fixed top-0 right-0 h-full w-full md:w-[560px] bg-zinc-950 border-l border-zinc-800/80 z-50 p-6 md:p-8 flex flex-col shadow-2xl overflow-y-auto">
-        <div class="flex items-center justify-between mb-6 border-b border-zinc-900 pb-4">
-            <div>
-                <h3 class="text-3xl font-black text-white tracking-tighter" id="drawer-symbol">---</h3>
-                <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5" id="drawer-name">Asset Metrics Audit</p>
-            </div>
-            <button id="btnCloseDrawer" class="p-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full transition-all border border-zinc-800"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-        </div>
-        <div class="grid grid-cols-2 gap-4 mb-6">
-            <div class="p-4 bg-zinc-900/50 rounded-2xl border border-zinc-900"><p class="text-[9px] uppercase font-black text-zinc-500 mb-1 tracking-wider">Position Market Equity</p><p class="text-xl font-black text-white tracking-tight" id="drawer-value">---</p></div>
-            <div class="p-4 bg-zinc-900/50 rounded-2xl border border-zinc-900"><p class="text-[9px] uppercase font-black text-zinc-500 mb-1 tracking-wider">Yield Return</p><p class="text-xl font-black tracking-tight" id="drawer-return">---</p></div>
-        </div>
-        <div class="flex-1 flex flex-col min-h-0">
-            <div class="flex items-center justify-between mb-3">
-                <h4 class="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Growth Timeline Delta</h4>
-                <div class="flex gap-1" id="drawer-ranges"></div>
-            </div>
-            <div class="flex-1 min-h-[260px] w-full bg-zinc-900/20 rounded-2xl border border-zinc-900 p-3 relative"><canvas id="drawerChart"></canvas></div>
-        </div>
-        <button id="btnCloseDrawerFooter" class="mt-6 w-full py-3.5 bg-white hover:bg-zinc-200 text-black font-black text-xs rounded-xl transition-all uppercase tracking-tight">Close Inspection View</button>
-    </div>
-
-    <script src="dashboard.js"></script>
-
-<script>
-(function() {
-    const ETF_CONFIG = {
-        URL: "https://acdlgvcxzxjvcwiqlydj.supabase.co",
-        KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI",
-        CAPITAL: 1000
-    };
-
-    let etfMembers = [];
-
-    function getSupabase() {
-        if (window.supabase && typeof window.supabase.from === 'function') return window.supabase;
-        if (window.supabaseClient && typeof window.supabaseClient.from === 'function') return window.supabaseClient;
-        if (window.supabase && typeof window.supabase.createClient === 'function') return window.supabase.createClient(ETF_CONFIG.URL, ETF_CONFIG.KEY);
-        return null;
+// --- 3. UTILS ---
+const fmtMoney = (v, sign = false) => {
+    if (v == null) return "0";
+    const s = Math.round(v).toLocaleString();
+    return sign ? "$" + s : s;
+};
+const fmtPct = (v) => (v == null) ? "0.00" : Number(v).toFixed(2);
+const getLocalYMD = (iso) => {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+const smartDate = (iso, range) => {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    if (range === 'DAY') return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    if (range === 'ALL' || range === 'YEAR') return `${months[d.getMonth()]} ${d.getFullYear().toString().substr(-2)}`;
+    return `${d.getDate()} ${months[d.getMonth()]}`;
+};
+const simplifyData = (arr) => {
+    if (!arr || arr.length < 2) return arr;
+    const clean = [arr[0]];
+    for (let i = 1; i < arr.length; i++) {
+        const lastVal = clean[clean.length - 1][1];
+        const currVal = arr[i][1];
+        const pctChange = lastVal === 0 ? 1 : Math.abs((currVal - lastVal) / lastVal);
+        if (i === arr.length - 1 || pctChange > 0.0005) clean.push(arr[i]);
     }
-
-    async function initEtf() {
-        try {
-            const db = getSupabase();
-            if (!db) return;
-            const { data } = await db.from('etf_members').select('*');
-            etfMembers = data || [];
-            updateBanner();
-        } catch (err) { console.error(err); }
+    return clean;
+};
+const simplifyCostData = (arr) => {
+    if (!arr || arr.length < 2) return arr;
+    const clean = [arr[0]];
+    for (let i = 1; i < arr.length; i++) {
+        const lastVal = clean[clean.length - 1][1];
+        const currVal = arr[i][1];
+        const pctChange = lastVal === 0 ? 1 : Math.abs((currVal - lastVal) / lastVal);
+        if (i === arr.length - 1 || pctChange > 0.05) clean.push(arr[i]);
     }
-
-    function updateBanner() {
-        if (!etfMembers.length) {
-            document.getElementById('etf-leader-preview').innerText = "No Members Linked";
-            return;
+    return clean;
+};
+const filterRange = (hist, rng) => {
+    if (!hist?.length) return [];
+    const ms = { DAY: 86400000, WEEK: 604800000, MONTH: 2592000000, SIX_MONTHS: 15552000000, YEAR: 31536000000 };
+    let data = ms[rng] ? hist.filter(p => new Date(p[0]).getTime() >= (Date.now() - ms[rng])) : hist;
+    if (['MONTH', 'YEAR', 'ALL'].includes(rng)) {
+        const dailyMap = new Map();
+        data.forEach(pt => { 
+            const dateKey = getLocalYMD(pt[0]);
+            dailyMap.set(dateKey, pt); 
+        });
+        data = Array.from(dailyMap.values());
+    }
+    return data;
+};
+const prepareChartData = (hist, costHist = [], factor = 1, currentRange = 'MONTH') => {
+    const labels = [];
+    const data = [];
+    const costData = [];
+    const safeCostHist = Array.isArray(costHist) ? costHist : [];
+    const sortedCost = [...safeCostHist].sort((a,b) => new Date(a[0]) - new Date(b[0]));
+    let lastKnownCost = 0;
+    let costIdx = 0;
+    hist.forEach((pt) => { 
+        const timestamp = new Date(pt[0]).getTime();
+        labels.push(smartDate(pt[0], currentRange)); 
+        data.push((pt[1] || 0) / factor);
+        while(costIdx < sortedCost.length && new Date(sortedCost[costIdx][0]).getTime() <= timestamp) {
+            lastKnownCost = sortedCost[costIdx][1];
+            costIdx++;
         }
-        const stats = calculateStats();
-        let totalReturn = stats.totalInitial > 0 ? ((stats.totalValue - stats.totalInitial) / stats.totalInitial) * 100 : 0;
-        document.getElementById('etf-total-value').innerText = '$' + stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2});
-        const returnEl = document.getElementById('etf-total-return');
-        returnEl.innerText = (totalReturn > 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
-        returnEl.className = `text-xl font-black tracking-tight text-right ${totalReturn >= 0 ? 'text-emerald-400' : 'text-rose-500'}`;
-        if (stats.leaderboard.length > 0) {
-            const leader = stats.leaderboard[0];
-            document.getElementById('etf-leader-preview').innerHTML = `Leader: <span class="text-amber-500 font-black">${leader.name} (${leader.ticker})</span>`;
+        if (lastKnownCost === 0 && sortedCost.length > 0 && costIdx === 0) {
+             if(sortedCost[0]) lastKnownCost = sortedCost[0][1]; 
         }
-    }
+        costData.push(lastKnownCost / factor);
+    });
+    return { labels, data, costData };
+};
 
-    function calculateStats() {
-        let totalValue = 0;
-        let totalInitial = etfMembers.length * ETF_CONFIG.CAPITAL;
-        const leaderboard = etfMembers.map(m => {
-            const start = parseFloat(m.start_price) || 1;
-            const current = parseFloat(m.current_price) || start;
-            const performance = (current - start) / start;
-            const currentValue = ETF_CONFIG.CAPITAL * (1 + performance);
-            totalValue += currentValue;
-            return { name: m.name, ticker: m.ticker, value: currentValue, isPos: performance >= 0, pct: performance * 100 };
-        }).sort((a, b) => b.value - a.value);
-        return { leaderboard, totalValue, totalInitial };
-    }
-
-    function killExistingChart() {
-        const chartInstance = Chart.getChart("drawerChart");
-        if (chartInstance) chartInstance.destroy();
-    }
-
-    window.openEtfLeaderboard = function() {
-        if (!etfMembers.length) return;
-        killExistingChart();
-        const drawer = document.getElementById('drawer');
-        const overlay = document.getElementById('drawer-overlay');
-        const stats = calculateStats();
-        drawer.classList.add('open');
-        overlay.classList.remove('opacity-0', 'pointer-events-none');
-        document.getElementById('drawer-symbol').innerText = "WINNERLAND ETF";
-        document.getElementById('drawer-name').innerText = "Leaderboard Standings Matrix";
-        document.getElementById('drawer-value').innerText = '$' + stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2});
-        let totalReturn = stats.totalInitial > 0 ? ((stats.totalValue - stats.totalInitial) / stats.totalInitial) * 100 : 0;
-        const retEl = document.getElementById('drawer-return');
-        retEl.innerText = (totalReturn >= 0 ? "+" : "") + totalReturn.toFixed(2) + "%";
-        retEl.className = `text-2xl font-black ${totalReturn >= 0 ? 'text-emerald-400' : 'text-rose-500'}`;
-        document.getElementById('drawer-ranges').innerHTML = '<span class="text-[9px] text-emerald-400 font-bold uppercase tracking-wider bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">LIVE METRICS</span>';
-
-        const ctx = document.getElementById('drawerChart').getContext('2d');
-        window.myDrawerChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: stats.leaderboard.map(i => `${i.name} (${i.ticker})`),
-                datasets: [{
-                    data: stats.leaderboard.map(i => i.value),
-                    backgroundColor: stats.leaderboard.map(i => i.isPos ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)'),
-                    borderRadius: 8,
-                    barThickness: 24,
-                    borderColor: 'rgba(255, 255, 255, 0.08)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: { padding: { right: 60 } },
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { display: false } },
-                    y: { grid: { display: false }, ticks: { color: '#a1a1aa', font: { weight: 'bold', size: 10 } } }
-                },
-                animation: {
-                    onComplete: function() {
-                        const chart = this;
-                        const ctx = chart.ctx;
-                        ctx.font = "bold 10px 'Inter'";
-                        ctx.textAlign = 'left';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillStyle = "#fff";
-                        chart.data.datasets.forEach((dataset, i) => {
-                            const meta = chart.getDatasetMeta(i);
-                            meta.data.forEach((bar, index) => {
-                                const rawPct = stats.leaderboard[index].pct;
-                                const label = (rawPct >= 0 ? '+' : '') + rawPct.toFixed(1) + '%';
-                                ctx.fillText(label, bar.x + 8, bar.y);
-                            });
-                        });
+// --- 4. DATA ENGINE ---
+async function loadData() {
+    try {
+        const { data: trData } = await window.supabase.from("trades").select("*").order("date", { ascending: true });
+        if (trData) tradesHistory = trData;
+        const { data: sumRows } = await window.supabase.from("flex_summary").select("*").order("last_updated", { ascending: false }).limit(1);
+        if (!sumRows?.length) return;
+        summary = sumRows[0].data;
+        summary.lastUpdatedDate = sumRows[0].last_updated;
+        const { data: highRes } = await window.supabase.from("flex_summary").select("data,last_updated").order("last_updated", { ascending: false }).limit(500);
+        const { data: lowRes } = await window.supabase.rpc('get_daily_history');
+        const combined = [...(highRes || []), ...(lowRes || [])];
+        const seenDates = new Set();
+        const rawPf = [];
+        const rawCost = [];
+        const rawSym = {};
+        combined.forEach(r => {
+            const dt = r.data.lastUpdated || r.last_updated;
+            if (!dt) return;
+            const timeKey = new Date(dt).getTime();
+            if (seenDates.has(timeKey)) return;
+            seenDates.add(timeKey);
+            const val = Number(r.data.totals?.value || 0);
+            const cost = Number(r.data.totals?.cost || 0);
+            if (isFinite(val) && val > 0) rawPf.push([dt, val]);
+            if (isFinite(cost) && cost > 0) rawCost.push([dt, cost]);
+            (r.data.positions || []).forEach(p => {
+                if (p?.symbol) {
+                    const pVal = Number(p.value || 0);
+                    if (isFinite(pVal) && pVal > 0) {
+                        if (!rawSym[p.symbol]) rawSym[p.symbol] = [];
+                        rawSym[p.symbol].push([dt, pVal]);
                     }
                 }
-            }
+            });
         });
-    };
+        
+        rawPf.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+        rawCost.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+        Object.keys(rawSym).forEach(k => rawSym[k].sort((a, b) => new Date(a[0]) - new Date(b[0])));
 
-    window.addEventListener('load', () => {
-        initEtf();
-        const holdingsTable = document.getElementById('holdingsBody');
-        if(holdingsTable) {
-            holdingsTable.addEventListener('click', () => { killExistingChart(); }, true);
+        const filterSpikes = (arr) => {
+            if (!arr || arr.length < 3) return arr;
+            const clean = [arr[0]];
+            for (let i = 1; i < arr.length - 1; i++) {
+                const prev = clean[clean.length - 1][1]; 
+                const curr = arr[i][1];
+                const next = arr[i + 1][1];
+                if (curr < prev * 0.95 && next > curr * 1.05 && next >= prev * 0.92) {
+                    continue;
+                }
+                clean.push(arr[i]);
+            }
+            clean.push(arr[arr.length - 1]);
+            return clean;
+        };
+
+        summary.history = filterSpikes(rawPf);
+        summary.costHistory = filterSpikes(rawCost);
+        summary.symbolHistory = {};
+        Object.keys(rawSym).forEach(k => {
+            summary.symbolHistory[k] = filterSpikes(rawSym[k]);
+        });
+
+        renderUI();
+    } catch (e) {
+        console.error(e);
+        const el = document.getElementById("lastUpdated");
+        if(el) el.textContent = "Connection Failed";
+    }
+}
+
+// --- 5. RENDER UI ---
+window.setSort = (col) => {
+    if (currentSortCol === col) {
+        isSortAsc = !isSortAsc;
+    } else {
+        currentSortCol = col;
+        isSortAsc = false;
+    }
+    if (summary) renderUI();
+};
+
+function renderUI() {
+    const splitActive = document.getElementById("divideToggle").checked;
+    const factor = splitActive ? 11 : 1;
+    
+    document.getElementById("scaleLabelMain").textContent = splitActive ? "Per Member View" : "Total Pool View";
+    document.getElementById("scaleLabelSub").textContent = splitActive ? "1/11th Split Sub-Value" : "100% Fund Valuation";
+    document.getElementById("yieldDescriptionLabel").textContent = splitActive ? "Per Member Growth Yield" : "Net Growth Allocation";
+
+    const t = summary.totals;
+    const v = (t.value || 0) / factor;
+    const p = (t.profit || 0) / factor;
+    const c = (t.cost || 0) / factor;
+    const unrealized = v - c; 
+
+    const isProfitable = p >= 0;
+    const themeColor = isProfitable ? '#10b981' : '#ef4444';
+    const themeBgTailwind = isProfitable ? 'bg-emerald-500/10' : 'bg-red-500/10';
+    const themeBorderTailwind = isProfitable ? 'border-emerald-500/20' : 'border-red-500/20';
+    const themeTextTailwind = isProfitable ? 'text-emerald-500' : 'text-red-500';
+
+    const titleEl = document.getElementById("mainDashboardTitle");
+    if(titleEl) {
+        titleEl.textContent = isProfitable ? "WINNERLAND OS" : "LOSERLAND OS";
+        titleEl.className = `text-xl font-black tracking-tighter uppercase ${themeTextTailwind}`;
+    }
+    
+    const brandIcon = document.getElementById("brandIconContainer");
+    if(brandIcon) brandIcon.className = `p-3 ${themeBgTailwind} rounded-2xl border ${themeBorderTailwind} shadow-xl`;
+    
+    const logoSvg = document.getElementById("headerLogoSvg");
+    if(logoSvg) logoSvg.className = themeTextTailwind;
+
+    document.getElementById("totalValueDisplay").textContent = fmtMoney(v, true);
+    
+    const disp = document.getElementById("totalChangeDisplay");
+    disp.className = `text-xs font-bold px-2 py-0.5 rounded ${isProfitable ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`;
+    disp.textContent = `${isProfitable ? '▲ +' : '▼ '}${fmtPct(t.pct)}%`;
+    
+    const unEl = document.getElementById("unrealizedDisplay");
+    if(unEl) {
+        unEl.textContent = `${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}`;
+        unEl.className = `text-3xl font-black tracking-tighter ${unrealized >= 0 ? 'text-emerald-400' : 'text-rose-500'}`;
+    }
+    
+    const yieldIconContainer = document.getElementById("yieldIconContainer");
+    if(yieldIconContainer) {
+        yieldIconContainer.className = `p-3.5 bg-zinc-800/40 rounded-2xl border border-zinc-800 ${unrealized >= 0 ? 'text-emerald-400' : 'text-rose-500'}`;
+    }
+
+    const costEl = document.getElementById("costDisplay");
+    if(costEl) { costEl.textContent = fmtMoney(c, true); }
+    
+    document.getElementById("lastUpdated").textContent = `Sync: ${new Date(summary.lastUpdatedDate).toLocaleTimeString()}`;
+    
+    renderMainChart(factor, themeColor);
+    renderTable(factor);
+    if (document.getElementById("watchlist-modal").classList.contains("scale-100")) {
+        renderWatchlistContent(factor);
+    }
+}
+
+function renderMainChart(factor, accentColor) {
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 400);
+    grad.addColorStop(0, accentColor + '33'); 
+    grad.addColorStop(1, accentColor + '00'); 
+    
+    const hist = simplifyData(filterRange(summary.history, globalRange));
+    const costHist = simplifyCostData(filterRange(summary.costHistory || [], globalRange));
+    const cd = prepareChartData(hist, costHist, factor, globalRange);
+    
+    if (chartRegistry['main']) chartRegistry['main'].destroy();
+    chartRegistry['main'] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: cd.labels,
+            datasets: [
+                {
+                    label: 'Portfolio Value',
+                    data: cd.data, 
+                    borderColor: accentColor, 
+                    borderWidth: 3, 
+                    backgroundColor: grad, 
+                    fill: true, 
+                    tension: 0.2,
+                    pointRadius: 0, 
+                    pointHoverRadius: 6,
+                    order: 1
+                },
+                {
+                    label: 'Cost Basis Baseline',
+                    data: cd.costData, 
+                    borderColor: 'rgba(255, 255, 255, 0.15)', 
+                    borderWidth: 1.5, 
+                    borderDash: [5, 5], 
+                    backgroundColor: 'transparent',
+                    fill: false, 
+                    tension: 0, 
+                    stepped: 'before',
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    order: 2
+                }
+            ]
+        },
+        options: getChartOptions()
+    });
+}
+
+function renderTable(factor) {
+    const body = document.getElementById("holdingsBody");
+    body.innerHTML = "";
+    
+    Object.keys(chartRegistry).forEach(key => {
+        if (key.startsWith('spark-')) {
+            chartRegistry[key].destroy();
+            delete chartRegistry[key];
+        }
+    });
+    
+    ['symbol', 'value', 'cost', 'profit', 'pct'].forEach(c => {
+        const el = document.getElementById(`sort-${c}`);
+        if(el) {
+            if(currentSortCol === c) {
+                el.innerText = isSortAsc ? " ▴" : " ▾";
+                el.className = "text-amber-500 font-black";
+            } else {
+                el.innerText = "";
+            }
         }
     });
 
-    function closeDrawer() {
-        document.getElementById('drawer').classList.remove('open');
-        document.getElementById('drawer-overlay').classList.add('opacity-0', 'pointer-events-none');
-        setTimeout(killExistingChart, 300); 
+    const sortedPositions = [...summary.positions].sort((a, b) => {
+        let valA = a[currentSortCol];
+        let valB = b[currentSortCol];
+        if (currentSortCol === 'profit') {
+            valA = a.value - a.cost;
+            valB = b.value - b.cost;
+        }
+        if (typeof valA === 'string') {
+            return isSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        return isSortAsc ? valA - valB : valB - valA;
+    });
+
+    sortedPositions.forEach(p => {
+        const row = document.createElement("tr");
+        row.className = "hover:bg-white/[0.02] cursor-pointer transition-all border-b border-zinc-900/40 text-[11px] md:text-xs font-semibold text-zinc-300";
+        row.onclick = () => openDrawer(p.symbol);
+        
+        const weight = ((p.value / summary.totals.value) * 100);
+        const unrealized = (p.value - p.cost) / factor;
+        const assetReturnPct = p.pct || 0;
+        
+        row.innerHTML = `
+            <td class="px-2 py-2.5 md:px-4 md:py-3.5 font-bold text-white">
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 font-black text-[10px] md:text-[11px] text-amber-500 inline-block uppercase tracking-wider shadow-sm select-none">${p.symbol}</span>
+                    <div class="w-10 h-5 md:w-14 md:h-6 relative"><canvas id="sparkline-${p.symbol}"></canvas></div>
+                </div>
+            </td>
+            <td class="px-2 py-2.5 md:px-4 md:py-3.5 text-right md:text-left">
+                <span class="font-bold block ${unrealized >= 0 ? 'text-emerald-400' : 'text-rose-500'}">${unrealized >= 0 ? '+' : ''}${fmtMoney(unrealized, true)}</span>
+                <span class="text-[9px] md:text-[10px] font-black tracking-tight ${assetReturnPct >= 0 ? 'text-emerald-500' : 'text-red-400'}">
+                    ${assetReturnPct >= 0 ? '▲' : '▼'} ${fmtPct(Math.abs(assetReturnPct))}%
+                </span>
+            </td>
+            <td class="px-2 py-2.5 md:px-4 md:py-3.5 text-right md:text-left text-white font-medium">
+                <span class="block text-zinc-100">${fmtMoney(p.value / factor, true)}</span>
+                <span class="text-[9px] text-zinc-500 block md:hidden font-normal">Cost: ${fmtMoney(p.cost / factor, true)}</span>
+            </td>
+            <td class="px-4 py-3.5 text-zinc-400 font-medium hidden md:table-cell">${fmtMoney(p.cost / factor, true)}</td>
+            <td class="px-2 py-2.5 md:px-4 md:py-3.5 text-right md:text-left font-black text-zinc-400">
+                <span>${weight.toFixed(1)}%</span>
+            </td>
+        `;
+        
+        body.appendChild(row);
+        
+        const sparkCanvas = document.getElementById(`sparkline-${p.symbol}`);
+        if (sparkCanvas) {
+            const rawHist = filterRange(summary.symbolHistory[p.symbol] || [], globalRange);
+            const hist = simplifyData(rawHist);
+            const sparkData = hist.map(x => x[1] / factor);
+            const sparkLabels = hist.map(x => x[0]);
+            
+            let strokeColor = 'rgba(161, 161, 170, 0.4)'; 
+            if (sparkData.length >= 2) {
+                strokeColor = sparkData[sparkData.length - 1] >= sparkData[0] ? '#10b981' : '#ef4444';
+            }
+            
+            const sparkCtx = sparkCanvas.getContext('2d');
+            chartRegistry[`spark-${p.symbol}`] = new Chart(sparkCtx, {
+                type: 'line',
+                data: {
+                    labels: sparkLabels,
+                    datasets: [{
+                        data: sparkData,
+                        borderColor: strokeColor,
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        fill: false,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: { x: { display: false }, y: { display: false } },
+                    animation: false,
+                    events: [] 
+                }
+            });
+        }
+    });
+}
+
+// --- 6. POPUP WATCHLIST SYSTEM INTERFACES ---
+window.openWatchlist = () => {
+    const splitActive = document.getElementById("divideToggle").checked;
+    const factor = splitActive ? 11 : 1;
+    
+    document.getElementById("watchlist-overlay").classList.remove("opacity-0", "pointer-events-none");
+    const modal = document.getElementById("watchlist-modal");
+    modal.classList.remove("scale-95", "opacity-0", "pointer-events-none");
+    modal.classList.add("scale-100", "opacity-100", "pointer-events-auto");
+    renderWatchlistContent(factor);
+};
+
+window.closeWatchlist = () => {
+    document.getElementById("watchlist-overlay").classList.add("opacity-0", "pointer-events-none");
+    const modal = document.getElementById("watchlist-modal");
+    modal.classList.remove("scale-100", "opacity-100", "pointer-events-auto");
+    modal.classList.add("scale-95", "opacity-0", "pointer-events-none");
+};
+
+window.addToWatchlist = () => {
+    const input = document.getElementById("watchlistInput");
+    const sym = input.value.trim().toUpperCase();
+    if (!sym) return;
+    
+    let list = JSON.parse(localStorage.getItem("winnerland_watchlist") || "[\"BTC\",\"ETH\",\"AAPL\"]");
+    if (!list.includes(sym)) {
+        list.push(sym);
+        localStorage.setItem("winnerland_watchlist", JSON.stringify(list));
     }
-    document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
-    document.getElementById('btnCloseDrawer').addEventListener('click', closeDrawer);
-    document.getElementById('btnCloseDrawerFooter').addEventListener('click', closeDrawer);
-})(); 
-</script>
-</body>
-</html>
+    input.value = "";
+    const factor = document.getElementById("divideToggle").checked ? 11 : 1;
+    renderWatchlistContent(factor);
+};
+
+window.removeFromWatchlist = (sym) => {
+    let list = JSON.parse(localStorage.getItem("winnerland_watchlist") || "[\"BTC\",\"ETH\",\"AAPL\"]");
+    list = list.filter(x => x !== sym);
+    localStorage.setItem("winnerland_watchlist", JSON.stringify(list));
+    const factor = document.getElementById("divideToggle").checked ? 11 : 1;
+    renderWatchlistContent(factor);
+};
+
+function renderWatchlistContent(factor) {
+    const container = document.getElementById("watchlistContentRows");
+    container.innerHTML = "";
+    
+    const list = JSON.parse(localStorage.getItem("winnerland_watchlist") || "[\"BTC\",\"ETH\",\"AAPL\"]");
+    
+    if (list.length === 0) {
+        container.innerHTML = `<div class="text-center text-zinc-600 text-[10px] font-bold uppercase py-8 tracking-wider">Watchlist Empty</div>`;
+        return;
+    }
+    
+    list.forEach(sym => {
+        const p = summary?.positions?.find(x => x.symbol === sym);
+        let valuationString = `<span class="text-zinc-500 font-normal">Tracking Baseline</span>`;
+        
+        if (p) {
+            const equityVal = p.value / factor;
+            valuationString = `
+                <div class="text-right">
+                    <span class="text-white font-bold block">${fmtMoney(equityVal, true)}</span>
+                    <span class="text-[9px] font-black ${p.pct >= 0 ? 'text-emerald-400' : 'text-red-400'}">${p.pct >= 0 ? '▲' : '▼'} ${fmtPct(p.pct)}%</span>
+                </div>`;
+        }
+        
+        const item = document.createElement("div");
+        item.className = "flex items-center justify-between py-2.5 text-xs font-semibold";
+        item.innerHTML = `
+            <div class="flex items-center gap-3">
+                <span class="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 font-black text-[10px] text-amber-500 tracking-wider">${sym}</span>
+            </div>
+            <div class="flex items-center gap-4">
+                ${valuationString}
+                <button onclick="window.removeFromWatchlist('${sym}')" class="text-zinc-600 hover:text-red-400 transition-colors text-base font-black px-1">&times;</button>
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function openDrawer(sym) {
+    const p = summary.positions.find(x => x.symbol === sym);
+    if (!p) return;
+    const factor = document.getElementById("divideToggle").checked ? 11 : 1;
+    document.getElementById("drawer-symbol").innerText = sym;
+    document.getElementById("drawer-value").innerText = fmtMoney(p.value / factor, true);
+    
+    const positionProfit = p.profit || (p.value - p.cost);
+    document.getElementById("drawer-return").innerText = (positionProfit >= 0 ? '+' : '') + fmtMoney(positionProfit / factor, true);
+    document.getElementById("drawer-return").className = `text-2xl font-black ${positionProfit >= 0 ? 'text-emerald-400' : 'text-rose-500'}`;
+    
+    document.getElementById("drawer-overlay").style.opacity = "1";
+    document.getElementById("drawer-overlay").style.pointerEvents = "auto";
+    document.getElementById("drawer").classList.add("open");
+    
+    renderDrawerChart(sym, factor);
+    renderDrawerRanges(sym);
+}
+
+function closeDrawer() {
+    document.getElementById("drawer-overlay").style.opacity = "0";
+    document.getElementById("drawer-overlay").style.pointerEvents = "none";
+    document.getElementById("drawer").classList.remove("open");
+}
+
+function renderDrawerChart(sym, factor) {
+    const ctx = document.getElementById('drawerChart').getContext('2d');
+    const range = tickerRangeMode[sym] || "YEAR";
+    chartRegistry.symbol = sym;
+    const rawHist = filterRange(summary.symbolHistory[sym] || [], range);
+    const hist = simplifyData(rawHist);
+    const cd = prepareChartData(hist, [], factor, range); 
+    
+    if (chartRegistry['drawer']) chartRegistry['drawer'].destroy();
+    chartRegistry['drawer'] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: cd.labels,
+            datasets: [{
+                data: cd.data, 
+                borderColor: '#f59e0b', 
+                borderWidth: 2, 
+                backgroundColor: 'rgba(245, 158, 11, 0.03)', 
+                fill: true, 
+                tension: 0.15,
+                pointRadius: 0, 
+                pointHoverRadius: 5, 
+                pointBackgroundColor: '#f59e0b', 
+                details: cd.details
+            }]
+        },
+        options: getChartOptions(false)
+    });
+}
+
+function renderDrawerRanges(sym) {
+    const container = document.getElementById("drawer-ranges");
+    const current = tickerRangeMode[sym] || "YEAR";
+    container.innerHTML = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'ALL'].map(k => `
+        <button onclick="window.updateTickerRange('${sym}', '${k}')" class="px-2 py-1 text-[9px] font-black rounded transition-all border ${current === k ? 'bg-amber-500 text-black border-amber-500' : 'text-zinc-500 hover:text-white border-zinc-800 bg-zinc-900/60'}">${k === 'DAY' ? '1D' : k === 'WEEK' ? '1W' : k === 'MONTH' ? '1M' : k === 'YEAR' ? '1Y' : 'ALL'}</button>
+    `).join('');
+}
+
+window.updateTickerRange = (sym, k) => {
+    tickerRangeMode[sym] = k;
+    localStorage.setItem("tickerRanges", JSON.stringify(tickerRangeMode));
+    const factor = document.getElementById("divideToggle").checked ? 11 : 1;
+    renderDrawerRanges(sym);
+    renderDrawerChart(sym, factor);
+};
+
+function getChartOptions(showScales = true) {
+    return {
+        responsive: true, 
+        maintainAspectRatio: false, 
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#09090b', 
+                titleColor: '#71717a', 
+                bodyColor: '#fff', 
+                borderColor: '#27272a', 
+                borderWidth: 1, 
+                padding: 10, 
+                cornerRadius: 10,
+                titleFont: { size: 10, weight: 'bold', family: "'Inter'" }, 
+                bodyFont: { size: 11, weight: '900', family: "'Inter'" }, 
+                displayColors: false,
+                callbacks: { 
+                    label: (ctx) => ctx.dataset.label ? ctx.dataset.label + ': ' + fmtMoney(ctx.raw, true) : fmtMoney(ctx.raw, true)
+                }
+            }
+        },
+        scales: {
+            x: { display: showScales, grid: { display: false }, ticks: { color: '#52525b', font: { size: 9, weight: '700', family: "'Inter'" }, maxTicksLimit: 7 } },
+            y: { display: showScales, grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#52525b', font: { size: 9, weight: '700', family: "'Inter'" }, callback: v => fmtMoney(v) } }
+        }
+    };
+}
+
+document.getElementById("divideToggle").addEventListener('change', renderUI);
+document.getElementById("btnSignOut").onclick = async () => { await window.supabase.auth.signOut(); location.href = "login.html"; };
+document.getElementById("btnCloseDrawer").onclick = closeDrawer;
+document.getElementById("btnCloseDrawerFooter").onclick = closeDrawer;
+document.getElementById("drawer-overlay").onclick = closeDrawer;
+
+document.querySelectorAll("#mainRangeSelector button").forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        globalRange = e.target.dataset.range;
+        localStorage.setItem("pfRange", globalRange);
+        document.querySelectorAll("#mainRangeSelector button").forEach(b => b.classList.toggle("active", b.dataset.range === globalRange));
+        renderUI();
+    });
+});
+document.querySelectorAll("#mainRangeSelector button").forEach(b => b.classList.toggle("active", b.dataset.range === globalRange));
+
+// Form processing element intercept keybinds
+document.getElementById("watchlistInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        window.addToWatchlist();
+    }
+});
+
+(async () => {
+    if(!window.supabase) return console.error("Supabase engine connection pipeline missing");
+    window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { data: { session } } = await window.supabase.auth.getSession();
+    if (!session) location.href = "login.html";
+    loadData();
+})();
+setInterval(loadData, 60000);
