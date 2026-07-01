@@ -1,6 +1,7 @@
 // --- 1. CONFIG ---
 const SUPABASE_URL = "https://acdlgvcxzxjvcwiqlydj.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjZGxndmN4enhqdmN3aXFseWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2Mjc5NzksImV4cCI6MjA3MjIwMzk3OX0.9ZUURjJT73Igd2tAOv8aSZUmlkEf7DIzmOAGBSjWqCI";
+const SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby9-PQORBC7L27BItmvRVowsut2KAgcPyJxeDszODyouSxYB59pOf1TrIGm1SLQEIiccQ/exec";
 
 // --- 2. STATE ---
 let summary = null;
@@ -10,6 +11,12 @@ let globalRange = localStorage.getItem("pfRange") || "DAY";
 let tickerRangeMode = {};
 let currentSortCol = 'value'; // Default sorting parameter
 let isSortAsc = false;
+
+// Watchlist Database State Parameters
+let currentUser = null;
+let wlItems = [], wlVotes = [], wlMyVotes = [];
+let wlPctMap = {};
+let wlExpandedItems = new Set();
 
 try { tickerRangeMode = JSON.parse(localStorage.getItem("tickerRanges") || "{}"); } catch(_) {}
 
@@ -24,6 +31,7 @@ const getLocalYMD = (iso) => {
     const d = new Date(iso);
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 };
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&gt;","</":"&lt;/","'":"&#39;","\"":"&quot;" }[c] || c));
 const smartDate = (iso, range) => {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;
@@ -133,6 +141,7 @@ async function loadData() {
         rawCost.sort((a, b) => new Date(a[0]) - new Date(b[0]));
         Object.keys(rawSym).forEach(k => rawSym[k].sort((a, b) => new Date(a[0]) - new Date(b[0])));
 
+        // Lookahead filter logic to prevent negative/zero data drop errors
         const filterSpikes = (arr) => {
             if (!arr || arr.length < 3) return arr;
             const clean = [arr[0]];
@@ -164,7 +173,7 @@ async function loadData() {
     }
 }
 
-// --- 5. RENDER UI ---
+// --- 5. RENDER MAIN TERMINAL UI ---
 window.setSort = (col) => {
     if (currentSortCol === col) {
         isSortAsc = !isSortAsc;
@@ -231,8 +240,9 @@ function renderUI() {
     
     renderMainChart(factor, themeColor);
     renderTable(factor);
-    if (document.getElementById("watchlist-modal").classList.contains("scale-100")) {
-        renderWatchlistContent(factor);
+    
+    if (document.getElementById("watchlist-modal").classList.contains("opacity-100")) {
+        renderWatchlistWorkspace();
     }
 }
 
@@ -394,86 +404,247 @@ function renderTable(factor) {
     });
 }
 
-// --- 6. POPUP WATCHLIST SYSTEM INTERFACES ---
-window.openWatchlist = () => {
-    const splitActive = document.getElementById("divideToggle").checked;
-    const factor = splitActive ? 11 : 1;
-    
-    document.getElementById("watchlist-overlay").classList.remove("opacity-0", "pointer-events-none");
+// --- 6. NATIVE WATCHLIST MODULE SYSTEM ---
+window.openWatchlistModal = async () => {
+    document.getElementById("watchlist-modal-overlay").classList.remove("opacity-0", "pointer-events-none");
     const modal = document.getElementById("watchlist-modal");
     modal.classList.remove("scale-95", "opacity-0", "pointer-events-none");
     modal.classList.add("scale-100", "opacity-100", "pointer-events-auto");
-    renderWatchlistContent(factor);
+    
+    await fetchWatchlistBasicData();
+    renderWatchlistWorkspace();
+    fetchWatchlistPrices();
 };
 
-window.closeWatchlist = () => {
-    document.getElementById("watchlist-overlay").classList.add("opacity-0", "pointer-events-none");
+window.closeWatchlistModal = () => {
+    document.getElementById("watchlist-modal-overlay").classList.add("opacity-0", "pointer-events-none");
     const modal = document.getElementById("watchlist-modal");
     modal.classList.remove("scale-100", "opacity-100", "pointer-events-auto");
     modal.classList.add("scale-95", "opacity-0", "pointer-events-none");
 };
 
-window.addToWatchlist = () => {
-    const input = document.getElementById("watchlistInput");
-    const sym = input.value.trim().toUpperCase();
-    if (!sym) return;
-    
-    let list = JSON.parse(localStorage.getItem("winnerland_watchlist") || "[\"BTC\",\"ETH\",\"AAPL\"]");
-    if (!list.includes(sym)) {
-        list.push(sym);
-        localStorage.setItem("winnerland_watchlist", JSON.stringify(list));
-    }
-    input.value = "";
-    const factor = document.getElementById("divideToggle").checked ? 11 : 1;
-    renderWatchlistContent(factor);
-};
-
-window.removeFromWatchlist = (sym) => {
-    let list = JSON.parse(localStorage.getItem("winnerland_watchlist") || "[\"BTC\",\"ETH\",\"AAPL\"]");
-    list = list.filter(x => x !== sym);
-    localStorage.setItem("winnerland_watchlist", JSON.stringify(list));
-    const factor = document.getElementById("divideToggle").checked ? 11 : 1;
-    renderWatchlistContent(factor);
-};
-
-function renderWatchlistContent(factor) {
-    const container = document.getElementById("watchlistContentRows");
-    container.innerHTML = "";
-    
-    const list = JSON.parse(localStorage.getItem("winnerland_watchlist") || "[\"BTC\",\"ETH\",\"AAPL\"]");
-    
-    if (list.length === 0) {
-        container.innerHTML = `<div class="text-center text-zinc-600 text-[10px] font-bold uppercase py-8 tracking-wider">Watchlist Empty</div>`;
-        return;
-    }
-    
-    list.forEach(sym => {
-        const p = summary?.positions?.find(x => x.symbol === sym);
-        let valuationString = `<span class="text-zinc-500 font-normal">Tracking Baseline</span>`;
-        
-        if (p) {
-            const equityVal = p.value / factor;
-            valuationString = `
-                <div class="text-right">
-                    <span class="text-white font-bold block">${fmtMoney(equityVal, true)}</span>
-                    <span class="text-[9px] font-black ${p.pct >= 0 ? 'text-emerald-400' : 'text-red-400'}">${p.pct >= 0 ? '▲' : '▼'} ${fmtPct(p.pct)}%</span>
-                </div>`;
-        }
-        
-        const item = document.createElement("div");
-        item.className = "flex items-center justify-between py-2.5 text-xs font-semibold";
-        item.innerHTML = `
-            <div class="flex items-center gap-3">
-                <span class="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 font-black text-[10px] text-amber-500 tracking-wider">${sym}</span>
-            </div>
-            <div class="flex items-center gap-4">
-                ${valuationString}
-                <button onclick="window.removeFromWatchlist('${sym}')" class="text-zinc-600 hover:text-red-400 transition-colors text-base font-black px-1">&times;</button>
-            </div>
-        `;
-        container.appendChild(item);
+function loadWatchlistPctJSONP(tickers) {
+    return new Promise(resolve => {
+        const cb = "CB_" + Math.random().toString(36).slice(2);
+        window[cb] = (raw) => {
+            delete window[cb]; document.getElementById(cb)?.remove();
+            const map = {}; const data = raw?.data || {};
+            for(let k in data) map[String(k).toUpperCase()] = data[k];
+            resolve(map);
+        };
+        const s = document.createElement("script");
+        s.id = cb;
+        s.src = `${SHEET_WEBAPP_URL}?tickers=${encodeURIComponent(tickers)}&callback=${cb}&ts=${Date.now()}`;
+        document.body.appendChild(s);
     });
 }
+
+async function fetchWatchlistBasicData() {
+    try {
+        const [r1, r2] = await Promise.all([
+            window.supabase.from("watchlist_items").select("*").order("created_at", {ascending:false}),
+            window.supabase.from("watchlist_votes").select("item_id, user_id, value")
+        ]);
+        wlItems = r1.data || [];
+        wlVotes = r2.data || [];
+        if (currentUser) {
+            wlMyVotes = wlVotes.filter(v => v.user_id === currentUser.id);
+        }
+    } catch (err) {
+        console.error("Watchlist core retrieval failure", err);
+    }
+}
+
+async function fetchWatchlistPrices() {
+    const tickers = Array.from(new Set(wlItems.map(i => (i.ticker||"").toUpperCase()).filter(Boolean))).join(",");
+    if(tickers) {
+        const newMap = await loadWatchlistPctJSONP(tickers);
+        wlPctMap = newMap;
+        renderWatchlistWorkspace();
+    }
+}
+
+function getWatchlistScore(itemId) { return wlVotes.filter(v => v.item_id === itemId).reduce((a,b) => a + (b.value||0), 0); }
+function getWatchlistPctData(ticker) { return wlPctMap[(ticker||"").toUpperCase()] || null; }
+
+function renderWatchlistWorkspace() {
+    const term = document.getElementById('watchlist_search').value.toUpperCase();
+    const archTerm = document.getElementById('watchlist_archSearch').value.toUpperCase();
+    
+    const active = wlItems.filter(i => !i.archived).map(i => ({ 
+        ...i, 
+        score: getWatchlistScore(i.id), 
+        myVote: wlMyVotes.find(v => v.item_id === i.id)?.value || 0 
+    }));
+    active.sort((a,b) => b.score - a.score || a.ticker.localeCompare(b.ticker));
+
+    const listContainer = document.getElementById('watchlist_list'); 
+    listContainer.innerHTML = "";
+    
+    if(active.length === 0) {
+        listContainer.innerHTML = `<div class="text-zinc-600 text-[10px] font-bold uppercase py-8 text-center bg-zinc-900/10 rounded-xl border border-zinc-900">No active matrix frames</div>`;
+    }
+
+    active.forEach(i => {
+        if(term && !i.ticker.toUpperCase().includes(term)) return;
+        const data = getWatchlistPctData(i.ticker);
+        const pctTxt = data ? (data.pct * 100).toFixed(2) + "%" : "n/a";
+        const priceTxt = data && data.price ? "$" + Number(data.price).toFixed(2) : "-";
+        
+        let borderCls = "border-zinc-800", pctCls = "text-zinc-500";
+        if(data) { 
+            if(data.pct >= 0) { borderCls = "border-l-4 border-l-emerald-500 border-zinc-900"; pctCls = "text-emerald-400"; } 
+            else { borderCls = "border-l-4 border-l-red-500 border-zinc-900"; pctCls = "text-rose-500"; } 
+        }
+        
+        const isExpanded = wlExpandedItems.has(i.id);
+        const itemRow = document.createElement('div');
+        itemRow.className = `bg-zinc-950 rounded-xl border ${borderCls} p-3 flex flex-col gap-2 transition-all hover:bg-zinc-900/30`;
+        
+        itemRow.innerHTML = `
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div onclick="window.toggleWatchlistVote('${i.id}')" class="flex flex-col items-center justify-center min-w-[36px] p-1 rounded-lg border ${i.myVote === 1 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-zinc-900 border-zinc-800 text-zinc-400'} cursor-pointer hover:scale-105 transition-all">
+                        <span class="text-xs font-black">${i.score}</span>
+                        <span class="text-[7px] uppercase font-bold tracking-tight">Vote</span>
+                    </div>
+                    <div onclick="window.toggleWatchlistExpand('${i.id}')" class="cursor-pointer">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-xs font-black text-white uppercase tracking-wider">${escapeHtml(i.ticker)}</span>
+                            <span class="text-[8px] px-1 bg-zinc-900 rounded text-zinc-500 border border-zinc-800">${i.ticker.length > 4 ? 'CRYPTO' : 'STOCK'}</span>
+                        </div>
+                        <p class="text-[10px] text-zinc-400 font-medium truncate max-w-[140px] sm:max-w-[280px] mt-0.5">${escapeHtml(i.notes || "No contextual metadata")}</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div class="text-right">
+                        <span class="text-xs font-black tracking-tight ${pctCls} block">${pctTxt}</span>
+                        <span class="text-[9px] text-zinc-500 font-medium">${priceTxt}</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="window.toggleWatchlistExpand('${i.id}')" class="p-1 text-zinc-600 hover:text-white transition-transform ${isExpanded ? 'rotate-180' : ''}"><svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"></path></svg></button>
+                        <button onclick="window.toggleWatchlistArchive('${i.id}', true)" class="p-1 text-zinc-600 hover:text-rose-500 transition-colors">&times;</button>
+                    </div>
+                </div>
+            </div>
+            <div class="${isExpanded ? 'block' : 'hidden'} text-[10px] text-zinc-400 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-900/80 mt-1 leading-relaxed">
+                <span class="text-zinc-500 font-black uppercase text-[8px] block mb-1">Extended Analysis Brief</span>
+                ${escapeHtml(i.notes || "No additional brief logged.")}
+                <div class="text-[8px] text-zinc-600 font-bold mt-2 uppercase">Proposed by: ${escapeHtml(i.suggested_by_name || "Network Node")}</div>
+            </div>
+        `;
+        listContainer.appendChild(itemRow);
+    });
+
+    // Compute User Metrics Leaderboard Matrix
+    const uStats = {};
+    wlItems.forEach(i => {
+        const nameKey = i.suggested_by_name || "Anon Pool";
+        const d = getWatchlistPctData(i.ticker);
+        if(d) {
+            if(!uStats[nameKey]) uStats[nameKey] = { count: 0, sum: 0 };
+            uStats[nameKey].count++; 
+            uStats[nameKey].sum += d.pct;
+        }
+    });
+    
+    const leaders = Object.keys(uStats).map(n => ({ 
+        name: n, 
+        count: uStats[n].count, 
+        avg: uStats[n].sum / uStats[n].count 
+    })).sort((a,b) => b.avg - a.avg);
+
+    const leaderWrap = document.getElementById('watchlist_leaderWrap'); 
+    leaderWrap.innerHTML = "";
+    if(leaders.length === 0) leaderWrap.innerHTML = `<div class="text-zinc-600 text-[9px] font-bold uppercase">No records</div>`;
+    
+    leaders.forEach((l, idx) => {
+        const badgeCls = l.avg >= 0 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-rose-500 border-red-500/20";
+        leaderWrap.innerHTML += `
+            <div class="flex items-center justify-between py-1.5 border-b border-zinc-900/40 text-[10px]">
+                <div class="flex items-center gap-2">
+                    <span class="font-black text-zinc-600 text-[9px] w-3">${idx+1}</span>
+                    <div class="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center font-black text-[8px] text-zinc-400">${l.name.substring(0,2).toUpperCase()}</div>
+                    <span class="font-bold text-zinc-300">${escapeHtml(l.name)}</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded font-black text-[9px] border ${badgeCls}">${(l.avg*100).toFixed(1)}%</span>
+            </div>`;
+    });
+
+    // Render Archive Framework Listing
+    const archContainer = document.getElementById('watchlist_archList'); 
+    archContainer.innerHTML = "";
+    const archivedItems = items = wlItems.filter(i => i.archived);
+    if(archItems = archivedItems.length === 0) archContainer = archItems = [];
+    
+    items.filter(i => i.archived).forEach(i => {
+        if(archTerm && !i.ticker.toUpperCase().includes(archTerm)) return;
+        const d = getPctData(i.ticker);
+        const col = d ? (d.pct >= 0 ? 'text-emerald-400' : 'text-rose-500') : 'text-zinc-600';
+        const txt = d ? (d.pct * 100).toFixed(1) + "%" : "n/a";
+        
+        archContainer.innerHTML += `
+            <div class="flex items-center justify-between py-1 text-[10px] text-zinc-400 border-b border-zinc-900/40">
+                <div><span class="font-black text-zinc-200 uppercase">${i.ticker}</span> <span class="font-bold ${col} ml-1">${txt}</span></div>
+                <button class="text-[9px] font-black text-amber-500 hover:text-white uppercase transition-colors" onclick="window.toggleWatchlistArchive('${i.id}', false)">Restore</button>
+            </div>`;
+    });
+}
+
+window.addWatchlistItemNode = async () => {
+    const t = document.getElementById('watchlist_ticker').value.trim().toUpperCase();
+    const notesInput = document.getElementById('watchlist_notes');
+    const msgEl = document.getElementById('watchlist_watchlist_msg'); // handles safe clear out fallback
+    
+    if(!t) return;
+    document.getElementById('watchlist_addBtn').disabled = true;
+    try {
+        const name = (currentUser?.user_metadata?.first_name) || currentUser?.email?.split('@')[0] || "Terminal Member";
+        const { error } = await window.supabase.from("watchlist_items").insert({
+            ticker: t, notes: notesInput.value.trim(), created_by: currentUser.id, suggested_by_name: name, archived: false
+        });
+        if(error) throw error;
+        
+        fetch(SHEET_WEBAPP_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ticker: t, notes: notesInput.value, user_id: currentUser.id }) });
+        document.getElementById('watchlist_ticker').value = ""; 
+        notesInput.value = "";
+        
+        await fetchWatchlistBasicData(); 
+        renderWatchlistWorkspace(); 
+        fetchWatchlistPrices();
+    } catch(err) {
+        console.error(err);
+    }
+    document.getElementById('watchlist_addBtn').disabled = false;
+};
+
+window.toggleWatchlistExpand = (id) => {
+    if(wlExpandedItems.has(id)) wlExpandedItems.delete(id);
+    else wlExpandedItems.add(id);
+    renderWatchlistWorkspace();
+};
+
+window.toggleWatchlistVote = async (itemId) => {
+    const exists = wlMyVotes.find(v => v.item_id === itemId);
+    if(exists) {
+         wlMyVotes = wlMyVotes.filter(v => v.item_id !== itemId);
+         const idx = wlVotes.findIndex(v => v.item_id === itemId && v.user_id === currentUser.id);
+         if(idx > -1) wlVotes.splice(idx, 1);
+         window.supabase.from("watchlist_votes").delete().match({ item_id: itemId, user_id: currentUser.id }).then();
+    } else {
+         wlMyVotes.push({ item_id: itemId, user_id: currentUser.id, value: 1 });
+         wlVotes.push({ item_id: itemId, user_id: currentUser.id, value: 1 });
+         window.supabase.from("watchlist_votes").insert({ item_id: itemId, user_id: currentUser.id, value: 1 }).then();
+    }
+    renderWatchlistWorkspace();
+};
+
+window.toggleWatchlistArchive = async (id, state) => {
+    await window.supabase.from("watchlist_items").update({ archived: state }).eq("id", id);
+    await fetchWatchlistBasicData(); 
+    renderWatchlistWorkspace();
+};
 
 function openDrawer(sym) {
     const p = summary.positions.find(x => x.symbol === sym);
@@ -592,18 +763,23 @@ document.querySelectorAll("#mainRangeSelector button").forEach(btn => {
 });
 document.querySelectorAll("#mainRangeSelector button").forEach(b => b.classList.toggle("active", b.dataset.range === globalRange));
 
-// Form processing element intercept keybinds
-document.getElementById("watchlistInput").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-        window.addToWatchlist();
-    }
-});
+// Input trigger listeners for Watchlist Modal fields
+document.getElementById('watchlist_search').oninput = renderWatchlistWorkspace; 
+document.getElementById('watchlist_archSearch').oninput = renderWatchlistWorkspace;
 
 (async () => {
     if(!window.supabase) return console.error("Supabase engine connection pipeline missing");
     window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const { data: { session } } = await window.supabase.auth.getSession();
     if (!session) location.href = "login.html";
+    currentUser = session.user;
+    
+    // Wire up real-time postgres stream handlers for original tables
+    window.supabase.channel('public:watchlist')
+        .on('postgres_changes', { event:'*', schema:'public', table:'watchlist_items' }, async()=>{ await fetchWatchlistBasicData(); renderWatchlistWorkspace(); fetchWatchlistPrices(); })
+        .on('postgres_changes', { event:'*', schema:'public', table:'watchlist_votes' }, async()=>{ await fetchWatchlistBasicData(); renderWatchlistWorkspace(); })
+        .subscribe();
+        
     loadData();
 })();
 setInterval(loadData, 60000);
