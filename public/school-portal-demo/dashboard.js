@@ -17,6 +17,7 @@ let currentUser = null;
 let wlItems = [], wlVotes = [], wlMyVotes = [];
 let wlPctMap = {};
 let wlExpandedItems = new Set();
+let selectedWatchlistFY = null; // Currently evaluated financial year segment
 
 try { tickerRangeMode = JSON.parse(localStorage.getItem("tickerRanges") || "{}"); } catch(_) {}
 
@@ -98,6 +99,21 @@ const prepareChartData = (hist, costHist = [], factor = 1, currentRange = 'MONTH
         costData.push(lastKnownCost / factor);
     });
     return { labels, data, costData };
+};
+
+// --- Financial Year (FY) Date Calculation Helpers ---
+const getFinancialYearString = (dateStr) => {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    const y = d.getFullYear();
+    // July 1 is month index 6 (0-indexed JavaScript months)
+    return d.getMonth() >= 6 ? `FY${y}-${String(y+1).substring(2)}` : `FY${y-1}-${String(y).substring(2)}`;
+};
+
+const getCurrentFinancialYearString = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    return d.getMonth() >= 6 ? `FY${y}-${String(y+1).substring(2)}` : `FY${y-1}-${String(y).substring(2)}`;
 };
 
 // --- 4. DATA ENGINE ---
@@ -241,7 +257,7 @@ function renderUI() {
     renderMainChart(factor, themeColor);
     renderTable(factor);
     
-    if (document.getElementById("watchlist-modal").classList.contains("opacity-100")) {
+    if (document.getElementById("watchlist-modal").classList.contains("scale-100")) {
         renderWatchlistWorkspace();
     }
 }
@@ -305,17 +321,17 @@ function renderTable(factor) {
         }
     });
     
-    ['symbol', 'value', 'cost', 'profit', 'pct'].forEach(c => {
-        const el = document.getElementById(`sort-${c}`);
-        if(el) {
-            if(currentSortCol === c) {
-                el.innerText = isSortAsc ? " ▴" : " ▾";
-                el.className = "text-amber-500 font-black";
-            } else {
-                el.innerText = "";
-            }
-        }
+    ['sort-symbol', 'sort-value', 'sort-cost', 'sort-profit', 'sort-pct'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = "";
     });
+
+    const mapping = { symbol: 'sort-symbol', value: 'sort-value', cost: 'sort-cost', profit: 'sort-profit', pct: 'sort-pct' };
+    const targetedIndicator = document.getElementById(mapping[currentSortCol]);
+    if (targetedIndicator) {
+        targetedIndicator.innerText = isSortAsc ? " ▴" : " ▾";
+        targetedIndicator.className = "text-amber-500 font-black";
+    }
 
     const sortedPositions = [...summary.positions].sort((a, b) => {
         let valA = a[currentSortCol];
@@ -413,6 +429,12 @@ window.openWatchlistModal = async () => {
     
     window.setWatchlistLoading(true);
     await fetchWatchlistBasicData();
+    
+    // Set default financial year context if not chosen
+    if (!selectedWatchlistFY) {
+        selectedWatchlistFY = getCurrentFinancialYearString();
+    }
+    
     renderWatchlistWorkspace();
     window.setWatchlistLoading(false);
     fetchWatchlistPrices();
@@ -434,8 +456,13 @@ window.showWatchlistMsg = (txt, ok=true) => {
     const m = document.getElementById('watchlist_msg');
     if (!m) return;
     m.textContent = txt;
-    m.className = ok ? 'text-green-400 text-xs font-bold' : 'text-rose-500 text-xs font-bold';
+    m.className = ok ? 'text-emerald-400 text-xs font-bold' : 'text-rose-500 text-xs font-bold';
     setTimeout(() => m.textContent = '', 2000);
+};
+
+window.handleWatchlistFyChange = (fy) => {
+    selectedWatchlistFY = fy;
+    renderWatchlistWorkspace();
 };
 
 function loadWatchlistPctJSONP(tickers) {
@@ -489,7 +516,24 @@ function renderWatchlistWorkspace() {
     const term = document.getElementById('watchlist_search').value.toUpperCase();
     const archTerm = document.getElementById('watchlist_archSearch').value.toUpperCase();
     
-    const active = wlItems.filter(i => !i.archived).map(i => ({ 
+    // Dynamic generation of available financial options inside dropdown select element
+    const fySelector = document.getElementById("watchlist_fy_selector");
+    if (fySelector) {
+        const uniqueFYs = new Set();
+        uniqueFYs.add(getCurrentFinancialYearString());
+        wlItems.forEach(item => {
+            const fy = getFinancialYearString(item.created_at);
+            if (fy) uniqueFYs.add(fy);
+        });
+        const sortedFYs = Array.from(uniqueFYs).sort().reverse();
+        if (fySelector.options.length !== sortedFYs.length) {
+            fySelector.innerHTML = sortedFYs.map(fy => `<option value="${fy}">${fy}</option>`).join('');
+            fySelector.value = selectedWatchlistFY;
+        }
+    }
+
+    // Filter active assets strictly based on the selection parameters
+    const active = wlItems.filter(i => !i.archived && getFinancialYearString(i.created_at) === selectedWatchlistFY).map(i => ({ 
         ...i, 
         score: getWatchlistScore(i.id), 
         myVote: wlMyVotes.find(v => v.item_id === i.id)?.value || 0 
@@ -500,7 +544,7 @@ function renderWatchlistWorkspace() {
     listContainer.innerHTML = "";
     
     if(active.length === 0) {
-        listContainer.innerHTML = `<div class="text-zinc-600 text-[10px] font-black uppercase py-8 text-center">No matching tickers found</div>`;
+        listContainer.innerHTML = `<div class="text-zinc-600 text-[10px] font-black uppercase py-8 text-center bg-zinc-900/10 rounded-xl border border-zinc-900">No active entries found for ${selectedWatchlistFY}</div>`;
     }
 
     active.forEach(i => {
@@ -510,10 +554,7 @@ function renderWatchlistWorkspace() {
         const priceTxt = data && data.price ? "$" + Number(data.price).toFixed(2) : "-";
         
         let stCls = "neutral", pctCls = "muted";
-        if(data) { 
-            if(data.pct >= 0) { stCls = "up"; pctCls = "up"; } 
-            else { stCls = "down"; pctCls = "down"; } 
-        }
+        if(data) { if(data.pct >= 0) { stCls = "up"; pctCls = "up"; } else { stCls = "down"; pctCls = "down"; } }
         
         const isExpanded = wlExpandedItems.has(i.id);
         const card = document.createElement('div');
@@ -553,9 +594,9 @@ function renderWatchlistWorkspace() {
         listContainer.appendChild(card);
     });
 
-    // Compute User Metrics Leaderboard Matrix
+    // Compute active leader array statistics matching current season parameters
     const uStats = {};
-    wlItems.forEach(i => {
+    wlItems.filter(item => getFinancialYearString(item.created_at) === selectedWatchlistFY).forEach(i => {
         const n = i.suggested_by_name || "Anon";
         const d = getWatchlistPctData(i.ticker);
         if(d) {
@@ -573,7 +614,7 @@ function renderWatchlistWorkspace() {
 
     const leaderWrap = document.getElementById('watchlist_leaderWrap'); 
     leaderWrap.innerHTML = "";
-    if(leaders.length === 0) leaderWrap.innerHTML = `<div class="muted">No suggester data frames logged</div>`;
+    if(leaders.length === 0) leaderWrap.innerHTML = `<div class="text-zinc-600 text-[10px] font-black uppercase py-4">No picks for season</div>`;
     
     leaders.forEach((l, idx) => {
         const ab = l.avg >= 0 ? "up" : "down";
@@ -592,13 +633,13 @@ function renderWatchlistWorkspace() {
     // Populate Archive Framework Listings
     const archContainer = document.getElementById('watchlist_archList'); 
     archContainer.innerHTML = "";
-    const archived = wlItems.filter(i => i.archived);
-    if(archived.length === 0) archived.innerHTML = `<div class="muted">Archive box clean</div>`;
+    const archived = wlItems.filter(i => i.archived && getFinancialYearString(i.created_at) === selectedWatchlistFY);
+    if(archived.length === 0) archContainer.innerHTML = `<div class="text-zinc-600 text-[10px] font-black uppercase py-2">Archive box empty</div>`;
     
     archived.forEach(i => {
         if(archTerm && !i.ticker.toUpperCase().includes(archTerm)) return;
         const d = getWatchlistPctData(i.ticker);
-        const col = d ? (d.pct >= 0 ? 'text-green' : 'text-red') : 'muted';
+        const col = d ? (d.pct >= 0 ? 'text-emerald-400' : 'text-rose-500') : 'text-zinc-500';
         const txt = d ? (d.pct * 100).toFixed(2) + "%" : "n/a";
         
         archContainer.innerHTML += `
@@ -627,6 +668,8 @@ window.addWatchlistItemNode = async () => {
         notesInput.value = "";
         window.showWatchlistMsg("Added Node successfully!");
         
+        // Force evaluation view to reset onto current season framework context when node deploys
+        selectedWatchlistFY = getCurrentFinancialYearString();
         await fetchWatchlistBasicData(); 
         renderWatchlistWorkspace(); 
         fetchWatchlistPrices();
@@ -780,7 +823,6 @@ document.querySelectorAll("#mainRangeSelector button").forEach(btn => {
 });
 document.querySelectorAll("#mainRangeSelector button").forEach(b => b.classList.toggle("active", b.dataset.range === globalRange));
 
-// Input trigger listeners for Watchlist Modal fields
 document.getElementById('watchlist_search').oninput = renderWatchlistWorkspace; 
 document.getElementById('watchlist_archSearch').oninput = renderWatchlistWorkspace;
 
@@ -791,7 +833,6 @@ document.getElementById('watchlist_archSearch').oninput = renderWatchlistWorkspa
     if (!session) location.href = "login.html";
     currentUser = session.user;
     
-    // Wire up real-time postgres stream handlers for original tables
     window.supabase.channel('public:watchlist')
         .on('postgres_changes', { event:'*', schema:'public', table:'watchlist_items' }, async()=>{ await fetchWatchlistBasicData(); renderWatchlistWorkspace(); fetchWatchlistPrices(); })
         .on('postgres_changes', { event:'*', schema:'public', table:'watchlist_votes' }, async()=>{ await fetchWatchlistBasicData(); renderWatchlistWorkspace(); })
