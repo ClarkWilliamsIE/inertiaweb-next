@@ -10,7 +10,7 @@ const Hero: React.FC = () => {
         <img 
           src="/images/outsideview.jpg" 
           alt="Inertia Mobile Lab" 
-          className="w-full h-full object-cover opacity-35 grayscale"
+          className="w-full h-full object-cover opacity-55 grayscale"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-950/40 to-slate-950"></div>
       </div>
