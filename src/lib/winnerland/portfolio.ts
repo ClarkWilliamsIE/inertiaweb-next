@@ -22,7 +22,7 @@ async function selectAll(
   db: SupabaseClient,
   table: string,
   columns: string,
-  apply?: (q: any) => any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  apply?: (q: any) => any,
 ): Promise<Row[]> {
   const out: Row[] = [];
   for (let from = 0; ; from += 1000) {

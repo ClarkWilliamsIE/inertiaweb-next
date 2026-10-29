@@ -20,8 +20,7 @@ export async function GET(req: Request) {
     for (const t of tickers) {
       const q = quotes[map[t]];
       if (q) {
-        const { intraday: _intraday, ...rest } = q; // eslint-disable-line @typescript-eslint/no-unused-vars
-        out[t] = rest;
+        out[t] = { ...q, intraday: undefined };
       }
     }
     return Response.json({ quotes: out });
