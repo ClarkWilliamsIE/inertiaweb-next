@@ -30,7 +30,7 @@ async function selectAll(
     if (apply) q = apply(q);
     const { data, error } = await q.range(from, from + 999);
     if (error) throw new Error(`Reading ${table} failed: ${error.message}`);
-    out.push(...((data ?? []) as Row[]));
+    out.push(...((data ?? []) as unknown as Row[]));
     if (!data || data.length < 1000) break;
   }
   return out;
