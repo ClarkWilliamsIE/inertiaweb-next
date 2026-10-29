@@ -1,52 +1,30 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    dirs: ['src'],
-  },
-
   reactStrictMode: true,
-  swcMinify: true,
+  eslint: { dirs: ['src'] },
 
-  // Uncoment to add domain whitelist
-  // images: {
-  //   remotePatterns: [
-  //     {
-  //       protocol: 'https',
-  //       hostname: 'res.cloudinary.com',
-  //     },
-  //   ]
-  // },
+  // Old URLs keep working after the folder clean-up.
+  async redirects() {
+    return [
+      // Winnerland moved out of /public into a real Next.js section.
+      { source: '/winnerland.html', destination: '/winnerland', permanent: true },
+      { source: '/winnerland2.html', destination: '/winnerland', permanent: true },
+      { source: '/school-portal-demo', destination: '/winnerland', permanent: true },
+      { source: '/school-portal-demo/login.html', destination: '/winnerland/login', permanent: true },
+      { source: '/school-portal-demo/watchlist.html', destination: '/winnerland/watchlist', permanent: true },
+      { source: '/school-portal-demo/polls.html', destination: '/winnerland/polls', permanent: true },
+      { source: '/school-portal-demo/admin.html', destination: '/winnerland/admin', permanent: true },
+      { source: '/school-portal-demo/:path*', destination: '/winnerland', permanent: true },
+      { source: '/teacher-demo.html', destination: '/', permanent: true },
 
-  webpack(config) {
-    // Grab the existing rule that handles SVG imports
-    const fileLoaderRule = config.module.rules.find((rule) =>
-      rule.test?.test?.('.svg')
-    );
+      // Library display screens now live under /library.
+      { source: '/levents.html', destination: '/library/events.html', permanent: true },
+      { source: '/Libraryevents', destination: '/library/events-legacy.html', permanent: true },
+      { source: '/librarydash.html', destination: '/library/dashboard.html', permanent: true },
 
-    config.module.rules.push(
-      // Reapply the existing rule, but only for svg imports ending in ?url
-      {
-        ...fileLoaderRule,
-        test: /\.svg$/i,
-        resourceQuery: /url/, // *.svg?url
-      },
-      // Convert all other *.svg imports to React components
-      {
-        test: /\.svg$/i,
-        issuer: { not: /\.(css|scss|sass)$/ },
-        resourceQuery: { not: /url/ }, // exclude if *.svg?url
-        loader: '@svgr/webpack',
-        options: {
-          dimensions: false,
-          titleProp: true,
-        },
-      }
-    );
-
-    // Modify the file loader rule to ignore *.svg, since we have it handled now.
-    fileLoaderRule.exclude = /\.svg$/i;
-
-    return config;
+      // Proposal PDF has a tidier name.
+      { source: '/:file(Makertruck.+Proposal\\.pdf)', destination: '/docs/makertruck-proposal.pdf', permanent: true },
+    ];
   },
 };
 

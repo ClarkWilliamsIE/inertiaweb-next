@@ -3,9 +3,10 @@ import type { Config } from 'tailwindcss';
 
 const config: Config = {
   content: [
-    './src/**/*.{js,ts,jsx,tsx}',
-    './pages/**/*.{js,ts,jsx,tsx}',
-    './components/**/*.{js,ts,jsx,tsx}',
+    // The Winnerland dashboard (src/app/winnerland, src/components/winnerland)
+    // uses its own stylesheet, so Tailwind only needs to scan the public site.
+    './src/app/**/*.{js,ts,jsx,tsx}',
+    './src/components/site/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
     extend: {

@@ -1,24 +1,15 @@
-import { Metadata } from 'next';
-import * as React from 'react';
-import { RiAlarmWarningFill } from 'react-icons/ri';
+import Link from 'next/link';
 
-export const metadata: Metadata = {
-  title: 'Not Found',
-};
+export const metadata = { title: 'Page not found | Inertia Education' };
 
 export default function NotFound() {
   return (
-    <main>
-      <section className='bg-white'>
-        <div className='layout flex min-h-screen flex-col items-center justify-center text-center text-black'>
-          <RiAlarmWarningFill
-            size={60}
-            className='drop-shadow-glow animate-flicker text-red-500'
-          />
-          <h1 className='mt-8 text-4xl md:text-6xl'>Page Not Found</h1>
-          <a href='/'>Back to home</a>
-        </div>
-      </section>
+    <main className="min-h-screen flex flex-col items-center justify-center gap-6 px-6 text-center">
+      <p className="text-accent font-heading text-7xl font-black">404</p>
+      <h1 className="font-heading text-3xl font-bold text-white">We couldn&apos;t find that page.</h1>
+      <Link href="/" className="rounded-full bg-white px-6 py-3 font-bold text-slate-950 hover:bg-accent">
+        Back to the homepage
+      </Link>
     </main>
   );
 }

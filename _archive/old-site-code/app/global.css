@@ -1,0 +1,42 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --accent: #38bdf8;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100 overflow-x-hidden;
+  scroll-behavior: smooth;
+}
+
+.text-accent { color: var(--accent); }
+.bg-accent { background-color: var(--accent); }
+
+.text-glow {
+  text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+}
+
+.border-glow {
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+}
+
+::selection {
+  background: var(--accent);
+  color: #0f172a;
+}
+
+.font-heading {
+  font-family: var(--font-space-grotesk);
+}
+
+/* Custom scrollbar for chat assistant */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
