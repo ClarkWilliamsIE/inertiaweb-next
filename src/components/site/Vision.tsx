@@ -1,11 +1,13 @@
 export default function Vision() {
   return (
-    <section id="vision" className="py-40 relative">
+    <section id="vision" className="scroll-mt-24 py-40 relative">
       <div className="container mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-32 items-center mb-32">
           <div className="relative">
             <div className="aspect-[4/5] bg-slate-900 rounded-[5rem] overflow-hidden border border-white/10 group shadow-2xl relative">
-              <img 
+              <img
+                loading="lazy"
+                decoding="async"
                 src="/images/expandinside.jpg"
                 alt="Inertia in Action" 
                 className="w-full h-full object-cover grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-1000"

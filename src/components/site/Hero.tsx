@@ -1,13 +1,14 @@
-import React from 'react';
+import type React from 'react';
 
 const Hero: React.FC = () => {
   return (
     <section className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-slate-950">
       {/* Background Visual */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0" aria-hidden="true">
         <img 
           src="/images/outsideview.jpg" 
-          alt="Inertia Mobile Lab" 
+          alt=""
+          fetchPriority="high"
           className="w-full h-full object-cover opacity-55 grayscale"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-950/40 to-slate-950"></div>
@@ -41,7 +42,7 @@ const Hero: React.FC = () => {
       </div>
       
       {/* Scroll indicator */}
-      <div className="absolute bottom-10 left-10 animate-bounce opacity-20 hidden md:block">
+      <div aria-hidden="true" className="absolute bottom-10 left-10 motion-safe:animate-bounce opacity-20 hidden md:block">
         <div className="flex items-center gap-4 text-white">
           <span className="text-[10px] font-black uppercase tracking-widest rotate-90 origin-left translate-y-12">Scroll</span>
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

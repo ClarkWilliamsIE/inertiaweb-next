@@ -1,6 +1,8 @@
+import { CONTACT_EMAIL } from '@/content/site';
+
 export default function Partner() {
   return (
-    <section id="partner" className="py-40 bg-accent text-slate-950 relative overflow-hidden">
+    <section id="partner" className="scroll-mt-24 py-40 bg-accent text-slate-950 relative overflow-hidden">
       <div className="container mx-auto px-6 relative z-10">
     
         <div className="text-center mb-20">
@@ -52,13 +54,13 @@ export default function Partner() {
 
         {/* Strategic Partnerships & CTA */}
         <div className="text-center max-w-3xl mx-auto">
-          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800 mb-4">Option 3</h4>
-          <h5 className="text-3xl font-black font-heading mb-6 tracking-tight">Strategic Partnerships</h5>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-800 mb-4">Option 3</p>
+          <h4 className="text-3xl font-black font-heading mb-6 tracking-tight">Strategic Partnerships</h4>
           <p className="text-xl mb-12 opacity-80 font-medium">
             Can your organization provide technical resources, tools (like CNC or 3D printers), or professional expertise? Let's talk.
           </p>
           <div className="flex flex-col md:flex-row gap-6 justify-center items-center">
-             <a href="mailto:clark@inertiaed.org" className="px-16 py-6 bg-slate-950 text-white font-black uppercase tracking-[0.3em] text-xs rounded-full hover:scale-105 active:scale-95 transition-all shadow-2xl">
+             <a href={`mailto:${CONTACT_EMAIL}`} className="px-16 py-6 bg-slate-950 text-white font-black uppercase tracking-[0.3em] text-xs rounded-full hover:scale-105 active:scale-95 transition-all shadow-2xl">
                Contact Us
              </a>
              <a 
@@ -73,7 +75,7 @@ export default function Partner() {
         </div>
 
       </div>
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[15rem] md:text-[25rem] font-black opacity-[0.03] select-none pointer-events-none italic tracking-tighter font-heading z-0">
+      <div aria-hidden="true" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[15rem] md:text-[25rem] font-black opacity-[0.03] select-none pointer-events-none italic tracking-tighter font-heading z-0">
         INERTIA
       </div>
     </section>

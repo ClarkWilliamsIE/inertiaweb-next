@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, Space_Grotesk } from 'next/font/google';
 import type { ReactNode } from 'react';
 
@@ -30,12 +30,25 @@ export const metadata: Metadata = {
     title: 'Inertia Education | Moving Barriers',
     description: "A mobile innovation lab creating equitable STEAM pathways for Aotearoa's youth.",
     images: ['/images/og.jpg'],
+    type: 'website',
+    locale: 'en_NZ',
+    siteName: 'Inertia Education',
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Inertia Education | Moving Barriers',
+    description: "A mobile innovation lab creating equitable STEAM pathways for Aotearoa's youth.",
+    images: ['/images/og.jpg'],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#020617',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en-NZ" className="motion-safe:scroll-smooth">
       <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased`}>
         {children}
       </body>

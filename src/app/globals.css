@@ -9,7 +9,27 @@
 
 body {
   @apply bg-slate-950 text-slate-100 overflow-x-hidden;
-  scroll-behavior: smooth;
+}
+
+/* Clear keyboard focus ring on links and buttons. */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Respect visitors who have asked their device to reduce motion. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .text-accent { color: var(--accent); }
@@ -30,13 +50,4 @@ body {
 
 .font-heading {
   font-family: var(--font-space-grotesk);
-}
-
-/* Custom scrollbar for chat assistant */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
 }
