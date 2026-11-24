@@ -1,14 +1,14 @@
-import Budget from '@/components/site/Budget';
 import Footer from '@/components/site/Footer';
-import Hero from '@/components/site/Hero';
-import Impact from '@/components/site/Impact';
-import Partner from '@/components/site/Partner';
-import Projects from '@/components/site/Projects';
+import GetInvolved from '@/components/site/home/GetInvolved';
+import HomeHero from '@/components/site/home/HomeHero';
+import Mission from '@/components/site/home/Mission';
+import Programmes from '@/components/site/home/Programmes';
 import SiteNav from '@/components/site/SiteNav';
 import Team from '@/components/site/Team';
-import Vision from '@/components/site/Vision';
-import { SHOW_TRUSTEES } from '@/content/site';
+import { HOME_NAV_LINKS, SHOW_TRUSTEES } from '@/content/site';
 
+// Homepage: Inertia Education's wider social mission. Individual programmes
+// (e.g. the Maker Truck at /maker-truck) have their own pages.
 export default function Home() {
   return (
     <div className="min-h-screen relative bg-slate-950 selection:bg-accent selection:text-slate-950">
@@ -18,18 +18,16 @@ export default function Home() {
       >
         Skip to content
       </a>
-      <SiteNav />
+      <SiteNav links={HOME_NAV_LINKS} cta={{ name: 'Get Involved', href: '#get-involved' }} />
       <main id="main">
-        <Hero />
-        <Vision />
-        <Impact />
-        <Projects />
+        <HomeHero />
+        <Mission />
+        <Programmes />
         {/* Board of Trustees: switch on/off with SHOW_TRUSTEES in src/content/site.ts */}
         {SHOW_TRUSTEES && <Team />}
-        <Budget />
-        <Partner />
+        <GetInvolved />
       </main>
-      <Footer />
+      <Footer links={[...HOME_NAV_LINKS, { name: 'Maker Truck', href: '/maker-truck' }]} />
     </div>
   );
 }

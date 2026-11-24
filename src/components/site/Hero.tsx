@@ -18,24 +18,24 @@ const Hero: React.FC = () => {
         <div className="max-w-5xl">
           <div className="flex items-center gap-4 mb-10">
             <span className="h-[2px] w-12 bg-accent"></span>
-            <span className="text-accent font-bold tracking-[0.5em] text-[10px] uppercase">Momentum for Change</span>
+            <span className="text-accent font-bold tracking-[0.5em] text-[10px] uppercase">An Inertia Education Programme</span>
           </div>
           
           <h1 className="text-7xl md:text-[9rem] font-black leading-[0.85] mb-10 tracking-tighter uppercase font-heading text-white">
-            INERTIA<br/>
-            <span className="text-accent">EDUCATION</span>
+            THE MAKER<br/>
+            <span className="text-accent">TRUCK</span>
           </h1>
           
           <p className="text-2xl md:text-3xl font-light text-slate-300 mb-12 max-w-3xl leading-relaxed">
-            Moving the barriers that keep brilliance stationary. A mobile innovation lab creating <span className="text-white font-medium italic underline decoration-accent underline-offset-8">equitable STEAM pathways</span> for Aotearoa's youth.
+            A mobile innovation lab creating <span className="text-white font-medium italic underline decoration-accent underline-offset-8">equitable STEAM pathways</span> for Aotearoa's youth.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-6">
             <a href="#partner" className="px-12 py-6 bg-accent text-slate-950 font-black uppercase tracking-widest text-xs rounded-full transition-all hover:scale-105 hover:bg-sky-400 shadow-2xl shadow-sky-500/20 text-center">
               Partner with Us
             </a>
-            <a href="#impact" className="px-12 py-6 bg-white/5 text-white font-bold uppercase tracking-widest text-xs rounded-full border border-white/10 hover:bg-white/10 transition-all backdrop-blur-sm text-center">
-              The Mission
+            <a href="#vision" className="px-12 py-6 bg-white/5 text-white font-bold uppercase tracking-widest text-xs rounded-full border border-white/10 hover:bg-white/10 transition-all backdrop-blur-sm text-center">
+              How It Works
             </a>
           </div>
         </div>

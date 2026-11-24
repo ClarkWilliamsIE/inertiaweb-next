@@ -1,10 +1,19 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { NAV_LINKS } from '@/content/site';
+import type { NavLink } from '@/content/site';
 
-export default function SiteNav() {
+interface SiteNavProps {
+  links: NavLink[];
+  // The highlighted button on the right of the menu.
+  cta: NavLink;
+  // Small label after the logo, e.g. the programme name on a programme page.
+  section?: string;
+}
+
+export default function SiteNav({ links, cta, section }: SiteNavProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -32,23 +41,30 @@ export default function SiteNav() {
       className={`fixed w-full z-50 transition-all duration-500 px-6 ${solid ? 'py-4 bg-slate-950/90 backdrop-blur-xl border-b border-white/5' : 'py-6'}`}
     >
       <div className="container mx-auto flex items-center justify-between">
-        <a href="#" className="flex items-center gap-3" aria-label="Inertia Education, back to top" onClick={close}>
-          <div aria-hidden="true" className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-slate-950 font-black shadow-lg shadow-sky-500/20">I</div>
-          <span className="font-heading font-black text-2xl tracking-tighter text-white uppercase">INERTIA</span>
-        </a>
+        <div className="flex items-center gap-4 min-w-0">
+          <Link href="/" className="flex items-center gap-3" aria-label="Inertia Education home" onClick={close}>
+            <div aria-hidden="true" className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-slate-950 font-black shadow-lg shadow-sky-500/20">I</div>
+            <span className="font-heading font-black text-2xl tracking-tighter text-white uppercase">INERTIA</span>
+          </Link>
+          {section && (
+            <span className="hidden sm:inline-block truncate border-l border-white/15 pl-4 text-[10px] font-black uppercase tracking-[0.3em] text-accent">
+              {section}
+            </span>
+          )}
+        </div>
 
         <div className="hidden md:flex items-center gap-10">
-          {NAV_LINKS.map(link => (
+          {links.map(link => (
             <a
               key={link.name}
-              href={link.id}
+              href={link.href}
               className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 hover:text-accent transition-all"
             >
               {link.name}
             </a>
           ))}
-          <a href="#partner" className="px-8 py-3.5 bg-white text-slate-950 font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-accent transition-all transform hover:scale-105 active:scale-95">
-            Partner with Us
+          <a href={cta.href} className="px-8 py-3.5 bg-white text-slate-950 font-black text-[10px] uppercase tracking-widest rounded-full hover:bg-accent transition-all transform hover:scale-105 active:scale-95">
+            {cta.name}
           </a>
         </div>
 
@@ -74,10 +90,10 @@ export default function SiteNav() {
       {/* Mobile menu panel */}
       <div id="mobile-menu" hidden={!menuOpen} className="md:hidden container mx-auto pt-6 pb-4">
         <div className="flex flex-col gap-1">
-          {NAV_LINKS.map(link => (
+          {links.map(link => (
             <a
               key={link.name}
-              href={link.id}
+              href={link.href}
               onClick={close}
               className="py-3 text-xs font-black uppercase tracking-[0.4em] text-slate-300 hover:text-accent transition-colors"
             >
@@ -85,11 +101,11 @@ export default function SiteNav() {
             </a>
           ))}
           <a
-            href="#partner"
+            href={cta.href}
             onClick={close}
             className="mt-4 px-8 py-4 bg-accent text-slate-950 font-black text-[10px] uppercase tracking-widest rounded-full text-center"
           >
-            Partner with Us
+            {cta.name}
           </a>
         </div>
       </div>

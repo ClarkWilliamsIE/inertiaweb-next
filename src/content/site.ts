@@ -1,5 +1,7 @@
-// Content for the public Inertia Education site (homepage sections).
-// Edit copy, projects, team and budget figures here.
+// Content for the public Inertia Education site.
+// The homepage (/) covers the organisation as a whole; the Maker Truck
+// programme has its own page (/maker-truck). Edit copy, programmes, projects,
+// team and budget figures here.
 
 // ---------------------------------------------------------------------------
 // SECTION SWITCHES
@@ -37,16 +39,84 @@ export interface BudgetItem {
   description: string;
 }
 
-const ALL_NAV_LINKS = [
-  { name: 'Mission', id: '#vision' },
-  { name: 'Impact', id: '#impact' },
-  { name: 'Projects', id: '#projects' },
-  { name: 'Team', id: '#team' },
-  { name: 'Budget', id: '#budget' },
+export interface NavLink {
+  name: string;
+  href: string;
+}
+
+// Menu on the homepage (the organisation as a whole).
+const ALL_HOME_NAV_LINKS: NavLink[] = [
+  { name: 'Mission', href: '#mission' },
+  { name: 'Programmes', href: '#programmes' },
+  { name: 'Team', href: '#team' },
+  { name: 'Get Involved', href: '#get-involved' },
 ];
 
 // The "Team" link is dropped automatically when the trustees section is hidden.
-export const NAV_LINKS = ALL_NAV_LINKS.filter(link => SHOW_TRUSTEES || link.id !== '#team');
+export const HOME_NAV_LINKS = ALL_HOME_NAV_LINKS.filter(link => SHOW_TRUSTEES || link.href !== '#team');
+
+// Menu on the Maker Truck page (/maker-truck).
+export const MAKER_TRUCK_NAV_LINKS: NavLink[] = [
+  { name: 'Overview', href: '#vision' },
+  { name: 'Impact', href: '#impact' },
+  { name: 'Projects', href: '#projects' },
+  { name: 'Budget', href: '#budget' },
+];
+
+// ---------------------------------------------------------------------------
+// HOMEPAGE: the organisation's wider mission
+// ---------------------------------------------------------------------------
+export interface Pillar {
+  title: string;
+  description: string;
+}
+
+// What Inertia Education stands for, across every programme.
+export const PILLARS: Pillar[] = [
+  {
+    title: 'Opportunity, not postcode',
+    description:
+      "Talent is everywhere, but opportunity is often stationary. We take tools, expertise and experiences to the communities that have had the least access to them.",
+  },
+  {
+    title: 'Grounded in culture',
+    description:
+      "Innovation is in the DNA of Aotearoa. Our work weaves te ao Māori, Pasifika knowledge and local pūrakau together with modern making, so learning reflects who young people are.",
+  },
+  {
+    title: 'Capability that stays',
+    description:
+      "We don't just visit and leave. We upskill teachers, whānau and community leaders so skills and resources keep growing long after a programme moves on.",
+  },
+  {
+    title: 'Led by community',
+    description:
+      'Every project starts with the people it serves. Schools and communities shape what we build together, so the work answers real local needs.',
+  },
+];
+
+export interface Programme {
+  title: string;
+  status: string;
+  description: string;
+  image: string;
+  href: string;
+  linkLabel: string;
+}
+
+// Programmes run by Inertia Education. Add a new entry here for each new
+// initiative and it appears on the homepage automatically.
+export const PROGRAMMES: Programme[] = [
+  {
+    title: 'The Maker Truck',
+    status: 'Flagship programme',
+    description:
+      "A 62m² expandable mobile makerspace that spends a full year at a host school, bringing professional engineering, digital fabrication and design tools straight to the school gates.",
+    image: '/images/outsideview.jpg',
+    href: '/maker-truck',
+    linkLabel: 'Explore the Maker Truck',
+  },
+];
 
 export const PROJECTS: ProjectExample[] = [
   {

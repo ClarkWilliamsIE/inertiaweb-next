@@ -2,6 +2,10 @@
 const nextConfig = {
   reactStrictMode: true,
   eslint: { dirs: ['src'] },
+  // Pin the project root to this folder. Without it, Next.js can pick up a
+  // package.json/lockfile in a parent folder (e.g. the user's home folder) and
+  // load the wrong Tailwind version from there, leaving the site unstyled.
+  outputFileTracingRoot: __dirname,
 
   // Old URLs keep working after the folder clean-up.
   async redirects() {

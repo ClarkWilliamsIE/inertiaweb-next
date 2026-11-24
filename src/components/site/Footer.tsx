@@ -1,6 +1,8 @@
-import { CONTACT_EMAIL, LINKEDIN_URL, NAV_LINKS } from '@/content/site';
+import Link from 'next/link';
 
-export default function Footer() {
+import { CONTACT_EMAIL, LINKEDIN_URL, type NavLink } from '@/content/site';
+
+export default function Footer({ links }: { links: NavLink[] }) {
   return (
     <footer className="py-24 border-t border-white/5 bg-slate-950">
       <div className="container mx-auto px-6">
@@ -17,8 +19,8 @@ export default function Footer() {
           </div>
 
           <nav aria-label="Footer" className="flex flex-wrap justify-center gap-12">
-             {NAV_LINKS.map(item => (
-               <a key={item.name} href={item.id} className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 hover:text-white transition-colors">{item.name}</a>
+             {links.map(item => (
+               <Link key={item.name} href={item.href} className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 hover:text-white transition-colors">{item.name}</Link>
              ))}
           </nav>
 

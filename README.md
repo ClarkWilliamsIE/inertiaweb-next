@@ -20,7 +20,8 @@ npm run dev                  # http://localhost:3000
 ```
 src/
   app/
-    page.tsx                 Homepage (composes the sections below)
+    page.tsx                 Homepage: the organisation's wider mission + programmes
+    maker-truck/page.tsx     The Maker Truck programme page
     layout.tsx, globals.css  Site-wide shell, fonts and Tailwind
     api/
       ibkr/sync/             Pulls the IBKR Flex Query (Vercel Cron + "Sync now")
@@ -35,9 +36,11 @@ src/
       (members)/             Pages behind the login: Fund, Watchlist,
                              Competition, Polls, Admin
   components/
-    site/                    Homepage sections (Hero, Vision, Impact, Projects, Team, Budget, Partner, Footer)
+    site/                    Public site sections. home/ = homepage (HomeHero, Mission, Programmes,
+                             GetInvolved); the rest are Maker Truck sections (Hero, Vision, Impact,
+                             Projects, Budget, Partner) plus shared SiteNav, Team, Footer
     winnerland/              Dashboard UI (fund/, watchlist/, polls/, competition/, admin/, charts/)
-  content/site.ts            Homepage copy: projects, team, budget
+  content/site.ts            Site copy: mission pillars, programmes, menus, projects, team, budget
   lib/
     ibkr/                    Flex Web Service client, XML parser, database writer
     market/                  Yahoo Finance quotes and ticker mapping

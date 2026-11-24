@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
   title: 'Inertia Education | Moving Barriers',
   description:
-    "A mobile innovation lab creating equitable STEAM pathways for Aotearoa's youth.",
+    "A not-for-profit moving the barriers that keep young people in Aotearoa from reaching their potential.",
   icons: {
     icon: '/favicon/favicon.ico',
     apple: '/favicon/apple-touch-icon.png',
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   manifest: '/favicon/site.webmanifest',
   openGraph: {
     title: 'Inertia Education | Moving Barriers',
-    description: "A mobile innovation lab creating equitable STEAM pathways for Aotearoa's youth.",
+    description: "A not-for-profit moving the barriers that keep young people in Aotearoa from reaching their potential.",
     images: ['/images/og.jpg'],
     type: 'website',
     locale: 'en_NZ',
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Inertia Education | Moving Barriers',
-    description: "A mobile innovation lab creating equitable STEAM pathways for Aotearoa's youth.",
+    description: "A not-for-profit moving the barriers that keep young people in Aotearoa from reaching their potential.",
     images: ['/images/og.jpg'],
   },
 };
