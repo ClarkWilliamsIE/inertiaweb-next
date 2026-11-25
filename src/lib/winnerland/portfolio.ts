@@ -8,6 +8,7 @@ import { yahooForPosition } from '@/lib/market/symbols';
 import { getFxRates, getHistory, getQuotes, type Quote } from '@/lib/market/yahoo';
 
 import { fifoCost } from './costBasis';
+import { rangeStart, snapshotPrices } from './snapshotHistory';
 import type { ActivityItem, HoldingView, Point, PortfolioResponse } from './types';
 
 type Row = Record<string, unknown>;
@@ -205,14 +206,19 @@ export async function buildPortfolio(
     yahooForPosition({ symbol: a.symbol, listingExchange: a.listingExchange, assetCategory: a.assetCategory, currency: a.currency });
   if (opts.live && items.length) {
     const ys = items.map(yahooOf);
-    const [q, f, hist] = await Promise.all([
+    const [q, f, hist, saved] = await Promise.all([
       getQuotes(ys).catch(() => ({})),
       getFxRates(items.map((i) => i.currency), baseCurrency).catch(() => ({})),
       Promise.all(ys.map((y) => getHistory(y, '1mo').catch(() => []))),
+      // Our own daily closes from IBKR syncs, for when Yahoo has nothing.
+      snapshotPrices(db, items.map((i) => i.symbol), rangeStart('1mo')).catch(() => new Map<string, [number, number][]>()),
     ]);
     quotes = q;
     fxLive = f;
-    ys.forEach((y, i) => (sparks[y] = hist[i].map((b) => b.close)));
+    ys.forEach((y, i) => {
+      const fromYahoo = hist[i].map((b) => b.close);
+      sparks[y] = fromYahoo.length > 1 ? fromYahoo : (saved.get(items[i].symbol) ?? []).map(([, p]) => p);
+    });
   }
 
   let liveCovered = 0;

@@ -149,7 +149,10 @@ export default function HoldingDrawer({ holding, f, onClose }: { holding: Holdin
             </ul>
           </>
         ) : (
-          <p className="wl-empty">No price history available for {holding.yahoo}.</p>
+          <p className="wl-empty">
+            Not enough price history for {holding.symbol} yet. Each daily IBKR sync saves a closing price, so this chart
+            fills in over the coming days.
+          </p>
         )}
 
         {detail && detail.trades.length > 0 && (

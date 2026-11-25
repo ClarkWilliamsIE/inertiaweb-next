@@ -1,5 +1,6 @@
 import { getHistory, type HistoryRange } from '@/lib/market/yahoo';
 import { errorResponse, requireMember } from '@/lib/supabase/server';
+import { rangeStart, snapshotPrices } from '@/lib/winnerland/snapshotHistory';
 import type { HoldingDetailResponse } from '@/lib/winnerland/types';
 
 export const dynamic = 'force-dynamic';
@@ -16,8 +17,10 @@ export async function GET(req: Request) {
     const range: HistoryRange = rangeParam && RANGES.includes(rangeParam) ? rangeParam : '1y';
     if (!symbol) return Response.json({ error: 'symbol is required' }, { status: 400 });
 
-    const [history, trades, divs] = await Promise.all([
+    const [yahooHistory, saved, trades, divs] = await Promise.all([
       getHistory(yahoo, range).catch(() => []),
+      // Our own daily closes from IBKR syncs: used when Yahoo has nothing.
+      snapshotPrices(db, [symbol], rangeStart(range)).catch(() => new Map<string, [number, number][]>()),
       db
         .from('pf_trades')
         .select('trade_date,buy_sell,quantity,trade_price,currency')
@@ -39,7 +42,7 @@ export async function GET(req: Request) {
       symbol,
       yahoo,
       currency: null,
-      history: history.map((b) => [b.t, b.close]),
+      history: yahooHistory.length > 1 ? yahooHistory.map((b) => [b.t, b.close]) : (saved.get(symbol) ?? []),
       trades: (trades.data ?? []).map((t) => ({
         date: String(t.trade_date),
         side: String(t.buy_sell ?? (Number(t.quantity) < 0 ? 'SELL' : 'BUY')),
