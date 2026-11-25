@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { relativeTime } from '@/lib/winnerland/format';
+import { SAFE_FUND } from '@/lib/winnerland/rules';
 import type { HoldingView, PortfolioResponse } from '@/lib/winnerland/types';
 
 import { useMember } from '../AuthProvider';
@@ -153,7 +154,16 @@ export default function FundPage() {
       <div className="wl-columns">
         <Holdings holdings={rows} f={f} onOpen={openRow} />
         <div className="wl-sidebar">
-          {data.cashPlan && <CashPanel plan={data.cashPlan} f={f} />}
+          {data.cashPlan && (
+            <CashPanel
+              plan={data.cashPlan}
+              f={f}
+              safeFund={SAFE_FUND.map((sym) => ({
+                symbol: sym,
+                value: data.holdings.find((h) => h.symbol.toUpperCase() === sym)?.value ?? 0,
+              })).filter((s) => s.value > 0)}
+            />
+          )}
           <Allocation holdings={rows} cash={data.totals.cash} total={data.totals.value} f={f} />
           <ComingUp today={new Date().toISOString().slice(0, 10)} />
           <CompetitionTeaser />

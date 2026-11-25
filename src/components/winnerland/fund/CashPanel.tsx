@@ -1,9 +1,14 @@
 import { dayLabel, money } from '@/lib/winnerland/format';
 import { agmDate, type CashPlan, daysBetween, quarterEnd, subtractBusinessDays } from '@/lib/winnerland/rules';
 
-/** Cash on hand, plus what the weekly contributions (clause 5.2A) add. */
-export function CashPanel({ plan, f }: { plan: CashPlan; f: number }) {
+/**
+ * Cash on hand, plus what the weekly contributions (clause 5.2A) add. The safe
+ * fund (VEA + BKLC, Schedule 1) is held for liquidity, so it's shown as
+ * near-cash alongside.
+ */
+export function CashPanel({ plan, f, safeFund }: { plan: CashPlan; f: number; safeFund: { symbol: string; value: number }[] }) {
   const short = plan.expectedSinceStart != null && plan.depositedSinceStart != null ? plan.expectedSinceStart - plan.depositedSinceStart : null;
+  const safeTotal = safeFund.reduce((a, s) => a + s.value, 0);
   return (
     <section className="wl-panel" aria-labelledby="wl-cash-title">
       <h2 id="wl-cash-title" className="wl-h2">
@@ -11,6 +16,29 @@ export function CashPanel({ plan, f }: { plan: CashPlan; f: number }) {
       </h2>
       <p className="wl-cash__now wl-num">{money(plan.cash / f)}</p>
       <p className="wl-small wl-muted">In IBKR at the latest statement.</p>
+      {safeTotal > 0 && (
+        <dl className="wl-stats">
+          <div>
+            <dt>Safe fund ({safeFund.map((s) => s.symbol).join(' + ')})</dt>
+            <dd className="wl-num">
+              {money(safeTotal / f)}
+              <span className="wl-small wl-muted">
+                {' '}
+                {safeFund.map((s) => `${s.symbol} ${money(s.value / f)}`).join(' · ')}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>Cash + safe fund</dt>
+            <dd className="wl-num wl-strong">{money((plan.cash + safeTotal) / f)}</dd>
+          </div>
+        </dl>
+      )}
+      {safeTotal > 0 && (
+        <p className="wl-small wl-muted">
+          The safe fund is kept in liquid ETFs so it can be sold quickly for member buy-outs (Schedule 1, clause 4.1l).
+        </p>
+      )}
       <dl className="wl-stats">
         <div>
           <dt>Weekly contributions</dt>
