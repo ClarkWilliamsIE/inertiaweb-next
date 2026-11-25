@@ -1524,11 +1524,8 @@
 
 /* ── Rules check, cash on hand, coming up ─────────────────────────────── */
 
-.wl-mainstack {
-  display: grid;
-  gap: 1.25rem;
-  align-content: start;
-  min-width: 0;
+.wl-bottom {
+  margin-top: 1.25rem;
 }
 
 .wl-rules {

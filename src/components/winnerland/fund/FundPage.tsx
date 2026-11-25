@@ -105,10 +105,7 @@ export default function FundPage() {
       <Hero data={data} f={f} split={split} />
       <Performance data={data} f={f} />
       <div className="wl-columns">
-        <div className="wl-mainstack">
-          <Holdings holdings={rows} f={f} onOpen={openRow} />
-          <RulesPanel rules={data.rules} />
-        </div>
+        <Holdings holdings={rows} f={f} onOpen={openRow} />
         <div className="wl-sidebar">
           {data.cashPlan && <CashPanel plan={data.cashPlan} f={f} />}
           <Allocation holdings={rows} cash={data.totals.cash} total={data.totals.value} f={f} />
@@ -116,6 +113,9 @@ export default function FundPage() {
           <CompetitionTeaser />
           <Activity items={data.activity} f={f} />
         </div>
+      </div>
+      <div className="wl-bottom">
+        <RulesPanel rules={data.rules} />
       </div>
       {compOpen && compRow && (
         <CompetitionDrawer row={compRow} picks={picks} f={f} onClose={closeComp} onOpen={(h) => setOpen(h)} />
