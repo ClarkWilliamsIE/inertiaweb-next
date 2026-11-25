@@ -7,7 +7,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { yahooForPosition } from '@/lib/market/symbols';
 import { getFxRates, getHistory, getQuotes, type Quote } from '@/lib/market/yahoo';
 
-import { fifoCost } from './costBasis';
+import { fifoCost, parseSplits } from './costBasis';
 import { rangeStart, snapshotPrices } from './snapshotHistory';
 import type { ActivityItem, HoldingView, Point, PortfolioResponse } from './types';
 
@@ -178,6 +178,7 @@ export async function buildPortfolio(
     const tradeRows = await selectAll(db, 'pf_trades', 'trade_id,trade_date,date_time,symbol,conid,quantity,trade_price,commission', (q) =>
       q.in('symbol', Array.from(new Set(missingCost.map((a) => a.symbol)))),
     );
+    const splits = parseSplits(settings.splits);
     for (const a of missingCost) {
       // Match on IBKR's contract ID when we have it (agg key), otherwise the symbol.
       const mine = tradeRows.filter((t) => (t.conid ? String(t.conid) === a.key : String(t.symbol) === a.symbol));
@@ -191,6 +192,7 @@ export async function buildPortfolio(
         })),
         a.quantity,
         a.multiplier,
+        splits.filter((s) => s.symbol === a.symbol.toUpperCase()),
       );
     }
   }

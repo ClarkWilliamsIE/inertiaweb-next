@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { getBrowserSupabase } from '@/lib/supabase/browser';
-import { money, price, relativeTime } from '@/lib/winnerland/format';
+import { parseSplits, type ShareSplit } from '@/lib/winnerland/costBasis';
+import { dayLabel, money, price, relativeTime } from '@/lib/winnerland/format';
 
 import { useMember } from '../AuthProvider';
 
@@ -35,6 +36,9 @@ export default function AdminPage() {
   const [entrants, setEntrants] = useState<Entrant[]>([]);
   const [entrantForm, setEntrantForm] = useState({ name: '', ticker: '', start: '' });
   const [members, setMembers] = useState<{ email: string; display_name: string | null }[]>([]);
+  const [splits, setSplits] = useState<ShareSplit[]>([]);
+  const [splitForm, setSplitForm] = useState({ symbol: '', date: '', ratio: '' });
+  const [splitMsg, setSplitMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -50,6 +54,7 @@ export default function AdminPage() {
       member_count: String(map.member_count ?? 11),
       contributions_before_records: String(map.contributions_before_records ?? 0),
     });
+    setSplits(parseSplits(map.splits).sort((a, b) => (a.date < b.date ? 1 : -1)));
     setEntrants((e.data ?? []) as Entrant[]);
     setMembers((m.data ?? []) as { email: string; display_name: string | null }[]);
   }, [sb]);
@@ -95,6 +100,40 @@ export default function AdminPage() {
       { key: 'contributions_before_records', value: before, updated_at: new Date().toISOString() },
     ]);
     setSettingsMsg(error ? `Couldn’t save: ${error.message}` : 'Saved.');
+  };
+
+  const saveSplits = async (next: ShareSplit[]) => {
+    const { error } = await sb
+      .from('pf_settings')
+      .upsert({ key: 'splits', value: next, updated_at: new Date().toISOString() });
+    if (error) {
+      setSplitMsg(`Couldn’t save: ${error.message}`);
+      return false;
+    }
+    setSplits([...next].sort((a, b) => (a.date < b.date ? 1 : -1)));
+    return true;
+  };
+
+  const addSplit = async (e: FormEvent) => {
+    e.preventDefault();
+    const [s] = parseSplits([{ symbol: splitForm.symbol, date: splitForm.date, ratio: Number(splitForm.ratio) }]);
+    if (!s) {
+      setSplitMsg('Enter a ticker, a date and a ratio other than 1 (e.g. 3 for a 3-for-1 split).');
+      return;
+    }
+    if (splits.some((x) => x.symbol === s.symbol && x.date === s.date)) {
+      setSplitMsg(`${s.symbol} already has a split on that date.`);
+      return;
+    }
+    if (await saveSplits([...splits, s])) {
+      setSplitForm({ symbol: '', date: '', ratio: '' });
+      setSplitMsg(`Added. ${s.symbol}’s average cost updates next time the Fund page loads.`);
+    }
+  };
+
+  const removeSplit = async (s: ShareSplit) => {
+    if (!window.confirm(`Remove the ${s.symbol} split on ${dayLabel(s.date, true)}?`)) return;
+    if (await saveSplits(splits.filter((x) => x !== s))) setSplitMsg('Removed.');
   };
 
   const addEntrant = async (e: FormEvent) => {
@@ -243,6 +282,83 @@ export default function AdminPage() {
           )}
         </section>
       </div>
+
+      <section className="wl-panel" aria-labelledby="wl-splits-title">
+        <h2 id="wl-splits-title" className="wl-h2">
+          Share splits
+        </h2>
+        <p className="wl-small wl-muted">
+          IBKR’s Flex Query doesn’t include splits, so a holding that split shows no average cost. Add the split here.
+          The date can be any day after the last trade before the split and before the first trade after it.
+        </p>
+        <form className="wl-addform__row" onSubmit={addSplit}>
+          <label className="wl-field">
+            <span>Ticker</span>
+            <input
+              value={splitForm.symbol}
+              onChange={(e) => setSplitForm({ ...splitForm, symbol: e.target.value })}
+              placeholder="BKLC"
+              spellCheck={false}
+            />
+          </label>
+          <label className="wl-field">
+            <span>Split date</span>
+            <input type="date" value={splitForm.date} onChange={(e) => setSplitForm({ ...splitForm, date: e.target.value })} />
+          </label>
+          <label className="wl-field">
+            <span>New shares per old share</span>
+            <input
+              type="number"
+              step="any"
+              min={0}
+              value={splitForm.ratio}
+              onChange={(e) => setSplitForm({ ...splitForm, ratio: e.target.value })}
+              placeholder="3"
+            />
+          </label>
+          <button type="submit" className="wl-btn wl-btn--primary">
+            Add split
+          </button>
+        </form>
+        <p className="wl-small wl-muted">3-for-1 split: enter 3. 1-for-10 reverse split: enter 0.1.</p>
+        {splitMsg && (
+          <p className="wl-small" role="status">
+            {splitMsg}
+          </p>
+        )}
+        {splits.length > 0 && (
+          <table className="wl-table wl-table--compact">
+            <thead>
+              <tr>
+                <th scope="col">Ticker</th>
+                <th scope="col">Date</th>
+                <th scope="col" className="wl-right">
+                  Ratio
+                </th>
+                <th scope="col">
+                  <span className="wl-sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {splits.map((s) => (
+                <tr key={`${s.symbol}-${s.date}`}>
+                  <td>
+                    <span className="wl-ticker">{s.symbol}</span>
+                  </td>
+                  <td>{dayLabel(s.date, true)}</td>
+                  <td className="wl-right wl-num">{s.ratio >= 1 ? `${s.ratio}-for-1` : `1-for-${Math.round(1 / s.ratio)}`}</td>
+                  <td className="wl-right">
+                    <button type="button" className="wl-link wl-link--quiet" onClick={() => removeSplit(s)}>
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
 
       <section className="wl-panel" aria-labelledby="wl-entrants-title">
         <h2 id="wl-entrants-title" className="wl-h2">

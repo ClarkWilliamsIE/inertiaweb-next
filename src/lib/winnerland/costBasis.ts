@@ -21,15 +21,58 @@ export interface CostTrade {
   id: string; // tie-breaker for trades at the same time
 }
 
+/**
+ * A share split entered by hand in Admin → Fund settings (IBKR's Flex Query
+ * doesn't include them as trades). ratio = new shares per old share:
+ * 3 for a 3-for-1 split, 0.1 for a 1-for-10 reverse split.
+ */
+export interface ShareSplit {
+  symbol: string;
+  date: string; // yyyy-mm-dd: any day after the last trade before the split and before the first trade after it
+  ratio: number;
+}
+
+/** Reads the `splits` setting, dropping anything malformed. */
+export function parseSplits(value: unknown): ShareSplit[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((v) => ({
+      symbol: String(v?.symbol ?? '').trim().toUpperCase(),
+      date: String(v?.date ?? '').slice(0, 10),
+      ratio: Number(v?.ratio),
+    }))
+    .filter((s) => s.symbol && /^\d{4}-\d{2}-\d{2}$/.test(s.date) && Number.isFinite(s.ratio) && s.ratio > 0 && s.ratio !== 1);
+}
+
 const TOLERANCE = 1e-6;
 
 /** Total cost (in the trade currency) of `held` units, or null if the trades don't explain the holding. */
-export function fifoCost(trades: CostTrade[], held: number, multiplier = 1): number | null {
+export function fifoCost(
+  trades: CostTrade[],
+  held: number,
+  multiplier = 1,
+  splits: { date: string; ratio: number }[] = [],
+): number | null {
   if (!(held > 0) || trades.length === 0) return null;
-  const ordered = [...trades].sort((a, b) => (a.when === b.when ? (a.id < b.id ? -1 : 1) : a.when < b.when ? -1 : 1));
+  // A split dated "yyyy-mm-dd" sorts before any trade on that day ("yyyy-mm-ddT…"),
+  // i.e. it takes effect at the start of the day, like an ex-date.
+  type Event = { when: string; id: string; trade?: CostTrade; ratio?: number };
+  const events: Event[] = [
+    ...trades.map((t) => ({ when: t.when, id: t.id, trade: t })),
+    ...splits.map((s, i) => ({ when: s.date, id: `split-${i}`, ratio: s.ratio })),
+  ].sort((a, b) => (a.when === b.when ? (a.id < b.id ? -1 : 1) : a.when < b.when ? -1 : 1));
 
   const lots: { qty: number; unitCost: number }[] = [];
-  for (const t of ordered) {
+  for (const e of events) {
+    if (e.ratio != null) {
+      // Each share becomes `ratio` shares; the money paid for the lot doesn't change.
+      for (const lot of lots) {
+        lot.qty *= e.ratio;
+        lot.unitCost /= e.ratio;
+      }
+      continue;
+    }
+    const t = e.trade!;
     if (t.quantity > 0) {
       if (t.price == null) return null;
       const total = t.quantity * t.price * multiplier + Math.abs(t.commission ?? 0);
