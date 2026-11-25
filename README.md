@@ -43,7 +43,7 @@ src/
   content/site.ts            Site copy: mission pillars, programmes, menus, projects, team, budget
   lib/
     ibkr/                    Flex Web Service client, XML parser, database writer
-    market/                  Yahoo Finance quotes and ticker mapping
+    market/                  Live quotes (Finnhub for US, Yahoo fallback) and ticker mapping
     supabase/                Browser and server Supabase clients, member auth check
     winnerland/              Portfolio maths, shared types, formatting
 public/

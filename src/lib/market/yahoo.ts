@@ -2,8 +2,10 @@
  * Delayed market data from Yahoo Finance's public chart endpoint. Used for
  * intraday "live" values between the nightly IBKR syncs. Everything here is
  * best-effort: if Yahoo is unavailable the dashboard falls back to IBKR's
- * closing prices.
+ * closing prices. US quotes come from Finnhub first when FINNHUB_API_KEY is
+ * set (see ./finnhub.ts).
  */
+import { finnhubSymbol, getFinnhubQuote, hasFinnhub } from './finnhub';
 import { fxSymbol } from './symbols';
 
 const HOSTS = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -92,6 +94,11 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
 }
 
 export async function getQuote(symbol: string): Promise<Quote | null> {
+  // US stocks/ETFs: use Finnhub when a key is set (Yahoo often refuses server requests).
+  if (hasFinnhub() && finnhubSymbol(symbol)) {
+    const fq = await getFinnhubQuote(symbol);
+    if (fq) return fq;
+  }
   const r = await chart(symbol, { range: '1d', interval: '5m' }, 60);
   if (!r) return null;
   const m = r.meta;

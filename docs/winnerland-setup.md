@@ -2,7 +2,7 @@
 
 Winnerland is the members' fund dashboard at `/winnerland`. It no longer uses
 trades typed in by hand. Interactive Brokers sends the real numbers every weekday
-through a **Flex Query**, and delayed live prices from Yahoo Finance fill in between syncs.
+through a **Flex Query**, and live prices fill in between syncs: Finnhub for US stocks/ETFs (when `FINNHUB_API_KEY` is set), Yahoo Finance for everything else.
 
 ```
 IBKR Flex Web Service ──(weekday cron, or "Sync now")──▶ /api/ibkr/sync ──▶ Supabase pf_* tables
@@ -74,6 +74,7 @@ Vercel → your project → **Settings → Environment Variables** (Production a
 | `SUPABASE_SERVICE_ROLE_KEY` | service_role key (same page). **Secret.** |
 | `IBKR_FLEX_TOKEN` | from step 2 |
 | `IBKR_FLEX_QUERY_ID` | from step 1 |
+| `FINNHUB_API_KEY` | free key from finnhub.io: live prices for US stocks/ETFs (recommended; Yahoo often refuses server requests) |
 | `CRON_SECRET` | any long random string (e.g. from a password generator) |
 | `WINNERLAND_ADMIN_EMAILS` | optional: `you@example.com` limits Sync/Import to you |
 
@@ -114,6 +115,8 @@ Once the new dashboard shows the right numbers:
 | "still generating the statement" | IBKR was slow. Click Sync now again a minute later. |
 | "The Winnerland database tables are missing" | Run `001_winnerland_ibkr.sql` (step 3). |
 | "Your account isn't on the Winnerland members list" | Add that email to `pf_members`, or empty the table. |
+| Live prices missing for all US holdings | Check `FINNHUB_API_KEY` is set in Vercel, then redeploy. |
+| Live prices missing for ASX/NZX holdings | Finnhub's free plan doesn't cover them, and Yahoo often refuses server requests, so they show IBKR's last close. |
 | Live prices missing for one holding | Yahoo uses a different ticker. Add a mapping in `src/lib/market/symbols.ts` (`EXCHANGE_SUFFIX`). |
 | "Money put in" looks too low | Deposits older than your imported IBKR data are missing. Import older statements or set "Money put in before the IBKR records start". |
 

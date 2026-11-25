@@ -65,7 +65,7 @@ export default function CompetitionPage() {
         </ol>
       )}
       <p className="wl-small wl-muted">
-        Prices are delayed quotes from Yahoo Finance and are in each stock’s own currency.
+        Prices are delayed quotes (Finnhub for US stocks, Yahoo Finance otherwise) and are in each stock’s own currency.
       </p>
     </div>
   );
