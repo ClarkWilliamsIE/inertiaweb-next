@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { relativeTime } from '@/lib/winnerland/format';
 import type { HoldingView, PortfolioResponse } from '@/lib/winnerland/types';
 
 import { useMember } from '../AuthProvider';
@@ -16,25 +17,55 @@ import HoldingDrawer from './HoldingDrawer';
 import Holdings from './Holdings';
 import Performance from './Performance';
 import RulesPanel from './RulesPanel';
+import { readFundCache, writeFundCache } from '../fundCache';
 
 export default function FundPage() {
   const { api, split } = useMember();
   const [data, setData] = useState<PortfolioResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<HoldingView | null>(null);
+  // "Updating…" while fresh data loads behind what's on screen.
+  const [updating, setUpdating] = useState(false);
+  // When what's on screen was fetched (cache or network), for the status note.
+  const [shownAt, setShownAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setUpdating(true);
     try {
-      setData(await api<PortfolioResponse>('/api/portfolio'));
+      const fresh = await api<PortfolioResponse>('/api/portfolio');
+      setData(fresh);
+      setShownAt(new Date().toISOString());
+      writeFundCache(fresh);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load the fund.');
+    } finally {
+      setUpdating(false);
     }
   }, [api]);
 
+  // First paint: last saved data if there is any; otherwise a quick load
+  // without live prices (database only) before the full one.
   useEffect(() => {
-    load();
-  }, [load]);
+    let alive = true;
+    const cached = readFundCache();
+    if (cached) {
+      setData(cached.data);
+      setShownAt(cached.savedAt);
+      load();
+    } else {
+      setUpdating(true);
+      api<PortfolioResponse>('/api/portfolio?live=0')
+        .then((quick) => {
+          if (alive) setData((cur) => cur ?? quick);
+        })
+        .catch(() => {})
+        .finally(() => alive && load());
+    }
+    return () => {
+      alive = false;
+    };
+  }, [api, load]);
 
   // Refresh every minute while a market is open, otherwise every 10 minutes.
   useEffect(() => {
@@ -102,6 +133,21 @@ export default function FundPage() {
 
   return (
     <div className="wl-fund">
+      <div className="wl-refresh" role="status" aria-live="polite">
+        {updating ? (
+          <span className="wl-refresh__pill">
+            <span className="wl-refresh__dot" aria-hidden="true" />
+            Updating…
+          </span>
+        ) : error ? (
+          <span className="wl-refresh__pill is-error">
+            Couldn’t refresh · showing data from {relativeTime(shownAt)}
+            <button type="button" className="wl-link" onClick={load}>
+              Retry
+            </button>
+          </span>
+        ) : null}
+      </div>
       <Hero data={data} f={f} split={split} />
       <Performance data={data} f={f} />
       <div className="wl-columns">

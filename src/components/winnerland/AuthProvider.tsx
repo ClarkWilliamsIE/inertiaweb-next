@@ -6,6 +6,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import { getBrowserSupabase } from '@/lib/supabase/browser';
 
+import { clearFundCache } from './fundCache';
+
 interface Ctx {
   session: Session;
   user: User;
@@ -100,6 +102,8 @@ export function MemberGate({ children }: { children: ReactNode }) {
       split,
       setSplit,
       signOut: async () => {
+        // Don't leave fund figures behind on a shared computer.
+        clearFundCache();
         await getBrowserSupabase().auth.signOut();
         router.replace('/winnerland/login');
       },
