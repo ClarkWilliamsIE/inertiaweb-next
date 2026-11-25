@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 
 import { useMember } from './AuthProvider';
+import { siteName, useLosing } from './scoreboard';
 
 const NAV = [
   { href: '/winnerland', label: 'Fund' },
@@ -17,13 +18,29 @@ const NAV = [
 export default function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { displayName, signOut } = useMember();
+  const losing = useLosing();
+  const name = siteName(losing);
+
+  // The browser tab title follows the scoreboard too ("Fund | Loserland").
+  useEffect(() => {
+    const fix = () => {
+      const want = document.title.replace(/Winnerland|Loserland/g, name);
+      if (want !== document.title) document.title = want;
+    };
+    fix();
+    const titleEl = document.querySelector('title');
+    if (!titleEl) return;
+    const obs = new MutationObserver(fix); // Next.js resets the title on navigation
+    obs.observe(titleEl, { childList: true, characterData: true, subtree: true });
+    return () => obs.disconnect();
+  }, [name, pathname]);
 
   return (
     <div className="wl-shell">
       <header className="wl-topbar">
-        <Link href="/winnerland" className="wl-brand" aria-label="Winnerland home">
-          <span className="wl-brand__mark" aria-hidden="true">W</span>
-          <span className="wl-brand__name">Winnerland</span>
+        <Link href="/winnerland" className="wl-brand" aria-label={`${name} home`}>
+          <span className="wl-brand__mark" aria-hidden="true">{name[0]}</span>
+          <span className="wl-brand__name">{name}</span>
         </Link>
         <nav className="wl-nav" aria-label="Winnerland sections">
           {NAV.map((n) => {

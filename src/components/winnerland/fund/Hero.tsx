@@ -1,10 +1,11 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 
 import { dayLabel, money, pct, relativeTime, tone } from '@/lib/winnerland/format';
 import type { PortfolioResponse } from '@/lib/winnerland/types';
 
+import { setLosing } from '../scoreboard';
 import { SplitToggle } from '../Shell';
 
 interface Props {
@@ -28,6 +29,8 @@ export default function Hero({ data, f, split }: Props) {
   // The club's long-running joke: the name follows the scoreboard.
   const score = gain ?? unreal ?? day ?? 0;
   const winning = score >= 0;
+  // Share it so the top bar and browser tab follow the same scoreboard.
+  useEffect(() => setLosing(!winning), [winning]);
 
   const who = split ? 'Your share' : 'The fund';
   const whoPut = split ? 'you’ve' : 'members have';
