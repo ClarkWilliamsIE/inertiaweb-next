@@ -7,6 +7,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { yahooForPosition } from '@/lib/market/symbols';
 import { getFxRates, getHistory, getQuotes, type Quote } from '@/lib/market/yahoo';
 
+import { fifoCost } from './costBasis';
 import type { ActivityItem, HoldingView, Point, PortfolioResponse } from './types';
 
 type Row = Record<string, unknown>;
@@ -141,7 +142,11 @@ export async function buildPortfolio(
     if (qty === 0) continue;
     const cur = agg.get(key);
     const valueLocal = n(p.position_value) ?? qty * (n(p.mark_price) ?? 0) * (n(p.multiplier) ?? 1);
-    const costLocal = n(p.cost_basis_money);
+    // IBKR sends 0 (not blank) when it has no cost basis for a position. A real
+    // open position never costs exactly 0, so treat it as unknown ("—") rather
+    // than showing a $0 average cost and the whole value as profit.
+    const rawCost = n(p.cost_basis_money);
+    const costLocal = rawCost === 0 ? null : rawCost;
     if (cur) {
       cur.quantity += qty;
       cur.valueLocal += valueLocal;
@@ -164,6 +169,31 @@ export async function buildPortfolio(
     }
   }
   const items = Array.from(agg.values());
+
+  // IBKR's Flex Query has no cost basis for this account, so work it out from
+  // the trade history wherever the trades fully explain the holding.
+  const missingCost = items.filter((a) => a.costLocal == null);
+  if (missingCost.length) {
+    const tradeRows = await selectAll(db, 'pf_trades', 'trade_id,trade_date,date_time,symbol,conid,quantity,trade_price,commission', (q) =>
+      q.in('symbol', Array.from(new Set(missingCost.map((a) => a.symbol)))),
+    );
+    for (const a of missingCost) {
+      // Match on IBKR's contract ID when we have it (agg key), otherwise the symbol.
+      const mine = tradeRows.filter((t) => (t.conid ? String(t.conid) === a.key : String(t.symbol) === a.symbol));
+      a.costLocal = fifoCost(
+        mine.map((t) => ({
+          quantity: n(t.quantity) ?? 0,
+          price: n(t.trade_price),
+          commission: n(t.commission),
+          when: String(t.date_time ?? t.trade_date),
+          id: String(t.trade_id),
+        })),
+        a.quantity,
+        a.multiplier,
+      );
+    }
+  }
+
   const cash = Array.from(cashByAccount.values()).reduce((a, b) => a + b.cash, 0);
   const latestNavTotal = nav.length ? nav[nav.length - 1][1] : 0;
 
