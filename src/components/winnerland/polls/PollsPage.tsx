@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 
 import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { dayLabel } from '@/lib/winnerland/format';
+import { POLL_MIN_HOURS, pollResult, requiredTurnout } from '@/lib/winnerland/rules';
 
 import { useMember } from '../AuthProvider';
 
@@ -26,8 +27,8 @@ interface Vote {
   voter_name: string | null;
 }
 
-/** Votes needed for an option to count as carried (a majority of 11 members). */
-const MAJORITY = 6;
+// Clause 6.3: a poll counts once 65% of members have voted, the winning option
+// needs more than half the votes cast, and polls stay open at least 48 hours.
 
 function timeLeft(endAt: string): string {
   const ms = new Date(endAt).getTime() - Date.now();
@@ -50,13 +51,17 @@ export default function PollsPage() {
   const [labels, setLabels] = useState(['', '']);
   const [newOpt, setNewOpt] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [members, setMembers] = useState(11);
 
   const load = useCallback(async () => {
-    const [p, o, v] = await Promise.all([
+    const [p, o, v, m] = await Promise.all([
       sb.from('polls').select('*').order('created_at', { ascending: false }),
       sb.from('poll_options').select('*'),
       sb.from('poll_votes').select('*'),
+      sb.from('pf_settings').select('value').eq('key', 'member_count').maybeSingle(),
     ]);
+    const count = Number(m.data?.value);
+    if (Number.isFinite(count) && count >= 1) setMembers(Math.round(count));
     const err = p.error ?? o.error ?? v.error;
     if (err) return setError(err.message);
     setPolls((p.data ?? []) as Poll[]);
@@ -91,7 +96,7 @@ export default function PollsPage() {
     const opts = labels.map((l) => l.trim()).filter(Boolean);
     if (!title.trim() || opts.length < 2) return setError('A poll needs a question and at least two options.');
     setBusy(true);
-    const endAt = new Date(Date.now() + hours * 3_600_000).toISOString();
+    const endAt = new Date(Date.now() + Math.max(hours, POLL_MIN_HOURS) * 3_600_000).toISOString();
     const { data, error: err } = await sb.from('polls').insert({ title: title.trim(), created_by: user.id, end_at: endAt }).select().single();
     if (err || !data) {
       setBusy(false);
@@ -120,6 +125,8 @@ export default function PollsPage() {
   const addOption = async (pollId: string) => {
     const label = (newOpt[pollId] ?? '').trim();
     if (!label) return;
+    // Options are locked once anyone has voted, so everyone votes on the same choices.
+    if ((byPoll.v.get(pollId) ?? []).length > 0) return setError('Options can’t be added once voting has started.');
     await sb.from('poll_options').insert({ poll_id: pollId, label });
     setNewOpt((m) => ({ ...m, [pollId]: '' }));
     load();
@@ -134,6 +141,17 @@ export default function PollsPage() {
     const opts = [...(byPoll.o.get(p.id) ?? [])].sort((a, b) => a.label.localeCompare(b.label));
     const pv = byPoll.v.get(p.id) ?? [];
     const myVote = pv.find((v) => v.user_id === user.id)?.option_id;
+    const result = pollResult(
+      opts.map((o) => pv.filter((v) => v.option_id === o.id).length),
+      members,
+    );
+    const outcome = result.quorate
+      ? result.winner >= 0
+        ? `${ended ? 'Carried' : 'Currently carrying'}: ${opts[result.winner].label}`
+        : `${ended ? 'No option' : 'No option yet'} has more than half the votes`
+      : ended
+        ? `Didn’t count: ${result.cast} of ${result.needed} votes needed (65% of members)`
+        : `${result.needed - result.cast} more vote${result.needed - result.cast === 1 ? '' : 's'} needed for this poll to count (${result.cast} of ${result.needed})`;
     return (
       <article key={p.id} className={`wl-poll ${ended ? 'is-ended' : ''}`}>
         <header className="wl-poll__head">
@@ -141,12 +159,13 @@ export default function PollsPage() {
           <p className="wl-small wl-muted">
             {ended ? `Closed ${dayLabel(p.end_at.slice(0, 10), true)}` : timeLeft(p.end_at)}, {pv.length} vote{pv.length === 1 ? '' : 's'}
           </p>
+          <p className={`wl-small ${result.quorate && result.winner >= 0 ? 'wl-tone-up' : 'wl-muted'}`}>{outcome}</p>
         </header>
         <ul className="wl-poll__opts">
           {opts.map((o) => {
             const ov = pv.filter((v) => v.option_id === o.id);
             const share = pv.length ? Math.round((ov.length / pv.length) * 100) : 0;
-            const carried = ov.length >= MAJORITY;
+            const carried = result.winner >= 0 && opts[result.winner].id === o.id;
             return (
               <li key={o.id}>
                 <button
@@ -159,7 +178,7 @@ export default function PollsPage() {
                   <span className="wl-opt__fill" style={{ width: `${share}%` }} aria-hidden="true" />
                   <span className="wl-opt__label">
                     {o.label}
-                    {carried && <span className="wl-badge">Majority</span>}
+                    {carried && <span className="wl-badge">{ended ? 'Carried' : 'Carrying'}</span>}
                   </span>
                   <span className="wl-num wl-opt__n">
                     {ov.length} <span className="wl-muted">({share}%)</span>
@@ -172,7 +191,10 @@ export default function PollsPage() {
             );
           })}
         </ul>
-        {!ended && (
+        {!ended && pv.length > 0 && (
+          <p className="wl-small wl-muted">Options are locked now that voting has started.</p>
+        )}
+        {!ended && pv.length === 0 && (
           <div className="wl-poll__add">
             <input
               value={newOpt[p.id] ?? ''}
@@ -194,7 +216,7 @@ export default function PollsPage() {
     <div className="wl-page">
       <header className="wl-page__head">
         <h1 className="wl-h1">Polls</h1>
-        <p className="wl-lede">Decide things together. You can change your vote until a poll closes; {MAJORITY} votes carries an option.</p>
+        <p className="wl-lede">Decide things together. A poll counts once {requiredTurnout(members)} of {members} members (65%) have voted, and an option carries with more than half the votes. Polls stay open at least 48 hours, and you can change your vote until one closes.</p>
       </header>
       {error && (
         <p className="wl-notice wl-notice--error" role="alert">
@@ -212,7 +234,6 @@ export default function PollsPage() {
           <label className="wl-field">
             <span>Open for</span>
             <select value={hours} onChange={(e) => setHours(Number(e.target.value))}>
-              <option value={24}>1 day</option>
               <option value={48}>2 days</option>
               <option value={72}>3 days</option>
               <option value={168}>1 week</option>

@@ -129,3 +129,23 @@ Once the new dashboard shows the right numbers:
 - **Gain** on a holding: value minus IBKR's cost basis (FIFO).
 - **Change over a range**: end value minus start value minus deposits made during the range.
 - **My share**: every money figure divided by the number of members.
+
+## 8. Shareholder agreement checks
+
+The Fund page has a **Rules check** panel (Schedule 1 investment policy and clauses 5.5, 5.6, 7.2),
+**Cash on hand** (clause 5.2A weekly contributions) and **Coming up** (AGM, quarterly review).
+The logic is in `src/lib/winnerland/rules.ts`. Settings live in `pf_settings` and are edited in
+**Admin → Policy settings**:
+
+| Key | What it's for |
+|---|---|
+| `competition_symbols` | Holdings shown as one "Competition ETF" row and treated as one holding |
+| `country_overrides` | Where an ETF's assets really are (e.g. VEA → "Developed ex-US") for the 70% country limit |
+| `excluded_symbols` | Members' employers the fund mustn't hold (clause 5.6) |
+| `weekly_contribution`, `contributions_start` | Weekly amount per member and the date to track payments from |
+| `security_info` | Written by each sync: issuer country and IBKR sub-category per symbol |
+| `splits` | Share splits entered by hand (used for average cost) |
+
+Polls follow clause 6.3: open at least 48 hours, count once 65% of members have voted (uses
+`member_count`), and an option carries with more than half the votes cast. Admin also has a
+buy-in / buy-out calculator (clauses 10–12).

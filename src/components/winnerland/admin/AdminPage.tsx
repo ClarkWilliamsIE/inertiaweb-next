@@ -6,7 +6,11 @@ import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { parseSplits, type ShareSplit } from '@/lib/winnerland/costBasis';
 import { dayLabel, money, price, relativeTime } from '@/lib/winnerland/format';
 
+import type { PortfolioResponse } from '@/lib/winnerland/types';
+
 import { useMember } from '../AuthProvider';
+import ExitCalculator from './ExitCalculator';
+import PolicySettings from './PolicySettings';
 
 interface Run {
   id: number;
@@ -39,6 +43,7 @@ export default function AdminPage() {
   const [splits, setSplits] = useState<ShareSplit[]>([]);
   const [splitForm, setSplitForm] = useState({ symbol: '', date: '', ratio: '' });
   const [splitMsg, setSplitMsg] = useState<string | null>(null);
+  const [fund, setFund] = useState<PortfolioResponse | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -62,6 +67,13 @@ export default function AdminPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Holdings and NAV history for the policy settings and the buy-in/out calculator.
+  useEffect(() => {
+    api<PortfolioResponse>('/api/portfolio?live=0')
+      .then(setFund)
+      .catch(() => setFund(null));
+  }, [api]);
 
   const syncNow = async () => {
     setSyncing(true);
@@ -359,6 +371,10 @@ export default function AdminPage() {
           </table>
         )}
       </section>
+
+      <PolicySettings heldSymbols={(fund?.holdings ?? []).map((h) => ({ symbol: h.symbol, name: h.name }))} />
+
+      {fund && <ExitCalculator nav={fund.nav} members={fund.memberCount} />}
 
       <section className="wl-panel" aria-labelledby="wl-entrants-title">
         <h2 id="wl-entrants-title" className="wl-h2">

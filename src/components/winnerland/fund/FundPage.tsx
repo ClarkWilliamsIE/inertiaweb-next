@@ -1,18 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { HoldingView, PortfolioResponse } from '@/lib/winnerland/types';
 
 import { useMember } from '../AuthProvider';
 import Activity from './Activity';
 import Allocation from './Allocation';
+import { CashPanel, ComingUp } from './CashPanel';
+import CompetitionDrawer, { COMPETITION_ROW_KEY, competitionRow } from './CompetitionDrawer';
 import CompetitionTeaser from './CompetitionTeaser';
 import Hero from './Hero';
 import HoldingDrawer from './HoldingDrawer';
 import Holdings from './Holdings';
 import Performance from './Performance';
+import RulesPanel from './RulesPanel';
 
 export default function FundPage() {
   const { api, split } = useMember();
@@ -43,6 +46,19 @@ export default function FundPage() {
   }, [data?.live?.isOpen, load]);
 
   const closeDrawer = useCallback(() => setOpen(null), []);
+
+  // Competition picks show as one "Competition ETF" row; open it to see the picks.
+  const { rows, picks, compRow } = useMemo(() => {
+    const comp = new Set((data?.competitionSymbols ?? []).map((s) => s.toUpperCase()));
+    const all = data?.holdings ?? [];
+    const picks = all.filter((h) => comp.has(h.symbol.toUpperCase()));
+    const compRow = competitionRow(picks);
+    const rest = all.filter((h) => !comp.has(h.symbol.toUpperCase()));
+    return { rows: compRow ? [...rest, compRow] : rest, picks, compRow };
+  }, [data]);
+  const [compOpen, setCompOpen] = useState(false);
+  const closeComp = useCallback(() => setCompOpen(false), []);
+  const openRow = useCallback((h: HoldingView) => (h.key === COMPETITION_ROW_KEY ? setCompOpen(true) : setOpen(h)), []);
 
   if (error && !data) {
     return (
@@ -89,13 +105,21 @@ export default function FundPage() {
       <Hero data={data} f={f} split={split} />
       <Performance data={data} f={f} />
       <div className="wl-columns">
-        <Holdings holdings={data.holdings} f={f} onOpen={setOpen} />
+        <div className="wl-mainstack">
+          <Holdings holdings={rows} f={f} onOpen={openRow} />
+          <RulesPanel rules={data.rules} />
+        </div>
         <div className="wl-sidebar">
-          <Allocation holdings={data.holdings} cash={data.totals.cash} total={data.totals.value} f={f} />
+          {data.cashPlan && <CashPanel plan={data.cashPlan} f={f} />}
+          <Allocation holdings={rows} cash={data.totals.cash} total={data.totals.value} f={f} />
+          <ComingUp today={new Date().toISOString().slice(0, 10)} />
           <CompetitionTeaser />
           <Activity items={data.activity} f={f} />
         </div>
       </div>
+      {compOpen && compRow && (
+        <CompetitionDrawer row={compRow} picks={picks} f={f} onClose={closeComp} onOpen={(h) => setOpen(h)} />
+      )}
       {open && <HoldingDrawer holding={open} f={f} onClose={closeDrawer} />}
     </div>
   );

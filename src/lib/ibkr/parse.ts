@@ -40,6 +40,10 @@ export interface FlexPositionRow {
   unrealizedPnl: number | null;
   fxRateToBase: number;
   percentOfNav: number | null;
+  /** Where the issuer is registered (ISO country code), e.g. US, AU, NZ. */
+  issuerCountry: string | null;
+  /** IBKR sub-category, e.g. COMMON, ETF, ADR. */
+  subCategory: string | null;
 }
 
 export interface FlexTradeRow {
@@ -303,6 +307,8 @@ export function parseFlexStatement(xml: string): FlexParseResult {
           unrealizedPnl: num(a.fifoPnlUnrealized),
           fxRateToBase: fx(a),
           percentOfNav: num(a.percentOfNAV),
+          issuerCountry: a.issuerCountryCode || null,
+          subCategory: a.subCategory || null,
         });
         break;
       }

@@ -8,6 +8,8 @@ import { yahooForPosition } from '@/lib/market/symbols';
 import { getFxRates, getHistory, getQuotes, type Quote } from '@/lib/market/yahoo';
 
 import { fifoCost, parseSplits } from './costBasis';
+import { readRulesSettings } from './rules';
+import { buildRules } from './rulesData';
 import { rangeStart, snapshotPrices } from './snapshotHistory';
 import type { ActivityItem, HoldingView, Point, PortfolioResponse } from './types';
 
@@ -381,6 +383,22 @@ export async function buildPortfolio(
   const sync = syncRows.data?.[0] as Row | undefined;
   const gain = contributionsTotal != null ? total - contributionsTotal : null;
 
+  // ── Shareholder agreement checks and cash on hand ─────────────────────────
+  const rulesSettings = readRulesSettings(settings);
+  const { rules, cashPlan } = await buildRules(db, {
+    today: new Date().toISOString().slice(0, 10),
+    holdings: holdings.map((h) => ({ symbol: h.symbol, assetCategory: h.assetCategory, value: h.value })),
+    cash,
+    total,
+    members: memberCount,
+    settings: rulesSettings,
+    navByDate: ibkrByDate,
+    cashRows,
+  }).catch((e) => {
+    console.error('Shareholder agreement checks failed', e);
+    return { rules: [], cashPlan: null };
+  });
+
   return {
     baseCurrency,
     memberCount,
@@ -407,6 +425,9 @@ export async function buildPortfolio(
     intraday,
     holdings,
     activity,
+    competitionSymbols: rulesSettings.competitionSymbols,
+    rules,
+    cashPlan,
     empty: nav.length === 0 && holdings.length === 0,
   };
 }

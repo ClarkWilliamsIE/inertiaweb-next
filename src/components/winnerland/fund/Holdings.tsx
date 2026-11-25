@@ -60,7 +60,7 @@ export default function Holdings({ holdings, f, onOpen }: Props) {
     <section className="wl-panel wl-holdings" aria-labelledby="wl-holdings-title">
       <div className="wl-panel__head">
         <h2 id="wl-holdings-title" className="wl-h2">
-          Holdings <span className="wl-count">{holdings.length}</span>
+          Holdings <span className="wl-count">{holdings.reduce((a, h) => a + (h.isGroup ? h.quantity : 1), 0)}</span>
         </h2>
         <p className="wl-muted wl-small">Select a holding to see its price history and our trades.</p>
       </div>
@@ -102,17 +102,23 @@ export default function Holdings({ holdings, f, onOpen }: Props) {
                     </div>
                   </td>
                   <td className="wl-hide-sm">
-                    <Sparkline values={h.spark} label={`${h.symbol} over the last month`} />
+                    {h.isGroup ? (
+                      <span className="wl-small wl-muted">Select to see picks</span>
+                    ) : (
+                      <Sparkline values={h.spark} label={`${h.symbol} over the last month`} />
+                    )}
                   </td>
                   <td className="wl-right wl-hide-sm">
-                    <div className="wl-num wl-nowrap">{price(h.price, h.currency)}</div>
+                    <div className="wl-num wl-nowrap">{h.isGroup ? '' : price(h.price, h.currency)}</div>
                     <div className={`wl-small wl-tone-${tone(h.dayChangePct)}`}>
                       {h.dayChangePct != null ? pct(h.dayChangePct, { digits: 2 }) : h.isLive ? '' : 'close'}
                     </div>
                   </td>
                   <td className="wl-right">
                     <div className="wl-num wl-strong">{money(h.value / f)}</div>
-                    <div className="wl-small wl-muted">{h.quantity.toLocaleString('en-NZ', { maximumFractionDigits: 4 })} units</div>
+                    <div className="wl-small wl-muted">
+                      {h.isGroup ? `${h.quantity} picks` : `${h.quantity.toLocaleString('en-NZ', { maximumFractionDigits: 4 })} units`}
+                    </div>
                   </td>
                   <td className="wl-right">
                     <div className={`wl-num wl-tone-${tone(h.unrealized)}`}>

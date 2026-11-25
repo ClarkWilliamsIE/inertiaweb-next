@@ -147,6 +147,18 @@ export async function storeFlexResult(db: SupabaseClient, parsed: FlexParseResul
     );
     counts.cashTransactions += st.cash.length;
 
+    // Issuer country and security type per symbol, for the investment policy
+    // checks (country limit, single-stock limit). Kept in pf_settings, merged
+    // with what's there, so no table change is needed.
+    const info = Object.fromEntries(
+      st.positions.map((p) => [p.symbol.toUpperCase(), { country: p.issuerCountry, sub: p.subCategory }]),
+    );
+    if (Object.keys(info).length) {
+      const { data: existing } = await db.from('pf_settings').select('value').eq('key', 'security_info').maybeSingle();
+      const merged = { ...((existing?.value as Record<string, unknown> | null) ?? {}), ...info };
+      await db.from('pf_settings').upsert({ key: 'security_info', value: merged }, { onConflict: 'key' });
+    }
+
     if (st.baseCurrency) {
       await db
         .from('pf_settings')

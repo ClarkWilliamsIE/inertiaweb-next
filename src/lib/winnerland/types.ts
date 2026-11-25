@@ -1,4 +1,5 @@
 // Shapes shared by the Winnerland API routes and the dashboard UI.
+import type { CashPlan, RuleCheck } from './rules';
 
 export type Point = [string, number]; // [YYYY-MM-DD, value]
 
@@ -24,6 +25,8 @@ export interface HoldingView {
   dayChangePct: number | null;
   isLive: boolean;
   spark: number[];
+  /** True for the combined "Competition ETF" row (quantity = number of picks). */
+  isGroup?: boolean;
 }
 
 export interface ActivityItem {
@@ -70,6 +73,12 @@ export interface PortfolioResponse {
   intraday: [number, number][];
   holdings: HoldingView[];
   activity: ActivityItem[];
+  /** Holdings that make up the members' Competition ETF (shown as one row). */
+  competitionSymbols: string[];
+  /** Shareholder agreement / investment policy checks. */
+  rules: RuleCheck[];
+  /** Cash on hand and expected weekly contributions; null if it couldn't be worked out. */
+  cashPlan: CashPlan | null;
   empty: boolean;
 }
 
