@@ -10,7 +10,14 @@ import { readRulesSettings, type RulesSettings } from '@/lib/winnerland/rules';
  * stored in pf_settings: competition_symbols, country_overrides,
  * excluded_symbols, weekly_contribution, contributions_start.
  */
-export default function PolicySettings({ heldSymbols }: { heldSymbols: { symbol: string; name: string | null }[] }) {
+export default function PolicySettings({
+  heldSymbols,
+  inCompetitionEtf,
+}: {
+  heldSymbols: { symbol: string; name: string | null }[];
+  /** Everything currently in the Competition ETF, including picks matched from the Competition page. */
+  inCompetitionEtf: string[];
+}) {
   const sb = getBrowserSupabase();
   const [s, setS] = useState<RulesSettings | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -41,6 +48,7 @@ export default function PolicySettings({ heldSymbols }: { heldSymbols: { symbol:
   if (!s) return <div className="wl-skeleton" style={{ height: 200 }} />;
 
   const comp = new Set(s.competitionSymbols);
+  const fromPicks = new Set(inCompetitionEtf.map((x) => x.toUpperCase()).filter((x) => !comp.has(x)));
   const toggleComp = (sym: string) => {
     const next = comp.has(sym) ? s.competitionSymbols.filter((x) => x !== sym) : [...s.competitionSymbols, sym];
     save('competition_symbols', next, `${sym} ${comp.has(sym) ? 'removed from' : 'added to'} the Competition ETF.`);
@@ -91,16 +99,21 @@ export default function PolicySettings({ heldSymbols }: { heldSymbols: { symbol:
 
       <h3 className="wl-h3">Competition ETF</h3>
       <p className="wl-small wl-muted">
-        Tick the holdings that are competition picks. They show as one “Competition ETF” row and count as one holding for the
-        1% / 3% / 35% rules.
+        Holdings matching a pick on the Competition page join automatically. Tick any others that belong in it. They show as
+        one “Competition ETF” row and count as one holding for the 1% / 3% / 35% rules.
       </p>
       {sortedHeld.length ? (
         <div className="wl-checkgrid">
           {sortedHeld.map((h) => (
             <label key={h.symbol} className="wl-check">
-              <input type="checkbox" checked={comp.has(h.symbol.toUpperCase())} onChange={() => toggleComp(h.symbol.toUpperCase())} />
+              <input
+                type="checkbox"
+                checked={comp.has(h.symbol.toUpperCase()) || fromPicks.has(h.symbol.toUpperCase())}
+                disabled={fromPicks.has(h.symbol.toUpperCase())}
+                onChange={() => toggleComp(h.symbol.toUpperCase())}
+              />
               <span className="wl-ticker">{h.symbol}</span>
-              <span className="wl-small wl-muted">{h.name ?? ''}</span>
+              <span className="wl-small wl-muted">{fromPicks.has(h.symbol.toUpperCase()) ? 'From the Competition page' : h.name ?? ''}</span>
             </label>
           ))}
         </div>

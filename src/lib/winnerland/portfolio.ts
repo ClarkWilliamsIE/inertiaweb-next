@@ -14,6 +14,20 @@ import { rangeStart, snapshotPrices } from './snapshotHistory';
 import type { ActivityItem, HoldingView, Point, PortfolioResponse } from './types';
 
 type Row = Record<string, unknown>;
+
+/**
+ * Compares a member-typed ticker ("AIR.NZ", "BRK.B", "nvda") with an IBKR
+ * symbol ("AIR", "BRK B", "NVDA"): drops an exchange suffix, then anything
+ * that isn't a letter or digit.
+ */
+export function tickerKey(t: string): string {
+  return t
+    .trim()
+    .toUpperCase()
+    .replace(/\.(NZ|AX|L|TO|V|HK|AS|DE|F|PA|MI|SW|T|SI|KS)$/, '')
+    .replace(/-USD$/, '')
+    .replace(/[^A-Z0-9]/g, '');
+}
 const n = (v: unknown): number | null => {
   if (v == null || v === '') return null;
   const x = Number(v);
@@ -385,6 +399,14 @@ export async function buildPortfolio(
 
   // ── Shareholder agreement checks and cash on hand ─────────────────────────
   const rulesSettings = readRulesSettings(settings);
+  // The Competition page's picks (etf_members) are the Competition ETF: any
+  // holding matching one of their tickers joins it, plus any ticked in Admin.
+  const { data: entrants } = await db.from('etf_members').select('ticker');
+  const held = new Map(holdings.map((h) => [tickerKey(h.symbol), h.symbol.toUpperCase()]));
+  const fromCompetition = (entrants ?? [])
+    .map((e) => held.get(tickerKey(String(e.ticker ?? ''))))
+    .filter((s): s is string => !!s);
+  rulesSettings.competitionSymbols = Array.from(new Set([...rulesSettings.competitionSymbols, ...fromCompetition]));
   const { rules, cashPlan } = await buildRules(db, {
     today: new Date().toISOString().slice(0, 10),
     holdings: holdings.map((h) => ({ symbol: h.symbol, assetCategory: h.assetCategory, value: h.value })),

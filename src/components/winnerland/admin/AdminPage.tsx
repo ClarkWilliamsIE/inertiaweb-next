@@ -372,7 +372,10 @@ export default function AdminPage() {
         )}
       </section>
 
-      <PolicySettings heldSymbols={(fund?.holdings ?? []).map((h) => ({ symbol: h.symbol, name: h.name }))} />
+      <PolicySettings
+        heldSymbols={(fund?.holdings ?? []).map((h) => ({ symbol: h.symbol, name: h.name }))}
+        inCompetitionEtf={fund?.competitionSymbols ?? []}
+      />
 
       {fund && <ExitCalculator nav={fund.nav} members={fund.memberCount} />}
 
